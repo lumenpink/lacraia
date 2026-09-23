@@ -173,7 +173,8 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 
 ### Ticket #7: Cockpit Web em `/app` e Script Orquestrador de Execução
 * **Package:** `site`, `packages/lacraia-core`, Workspace scripts
-* **Goal:** Publicar a versão Web/PWA do La Craia no endereço `/app` do site e fornecer script unificado de inicialização para o daemon core e a interface web.
+* **Goal:** Publicar a versão Web/PWA da La Craia no endereço `/app` do site e fornecer script unificado de inicialização para o daemon core e a interface web.
+
 * **Acceptance Criteria:**
   - **Cockpit Web em `/app` (`site/app/index.html`):** Interface completa de reprodução, cockpit, cabines, alavanca de ejeção e jukebox acessível diretamente via navegador em `https://lacraia.2lp.in/app` com suporte PWA (`manifest.json`), visualizador neon de 32 barras e integração com MediaSession API.
   - **Fallback Estático no Core (`packages/lacraia-core`):** Roteador Axum configurado com `fallback_service` para servir arquivos do diretório `site/` (incluindo `/app/`), permitindo operação integrada em uma única porta.
@@ -210,6 +211,16 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 * **Acceptance Criteria:**
   - **Configuração no `.cccprc`:** Adicionadas chaves `agent_var_extras`, `agent_var_additional_directives` e `extras` determinando explicitamente o tratamento feminino.
   - **Diretrizes em `AGENTS.md`:** Seção de princípios operacionais estipula a política de concordância de gênero para todos os agentes autônomos.
+
+---
+
+### Ticket #4: Padronização das Referências à Aplicação La Craia no Gênero Feminino
+* **Package:** `docs`, `site/app/index.html`
+* **Goal:** Padronizar todas as menções textuais à aplicação La Craia em toda a documentação e interfaces do repositório para o gênero feminino ("a La Craia", "da La Craia", "na La Craia").
+* **Acceptance Criteria:**
+  - **Saneamento Textual:** Substituição de referências masculinas residuais ("o La Craia", "do La Craia", "no La Craia", "do Lacraia") por formas femininas em `docs/design-system.md`, `docs/architecture.md`, `docs/roadmap.md` e `site/app/index.html`.
+  - **Conformidade com Diretrizes Operacionais:** Alinhamento integral com a política de concordância de gênero estabelecida no Ticket #5.
+
 
 
 

@@ -6,7 +6,8 @@
 
 ## 1. Manifesto Estético e Conceitual
 
-O visual do La Craia recusa terminantemente a cartilha asséptica do Vale do Silício e a nostalgia fetichizada do cyberdeck comercial. O software se materializa a partir da colisão entre três forças:
+O visual da La Craia recusa terminantemente a cartilha asséptica do Vale do Silício e a nostalgia fetichizada do cyberdeck comercial. O software se materializa a partir da colisão entre três forças:
+
 
 1. **A Metameria do Quilópode (O Bicho):**  
    O exoesqueleto rígido da lacraia, subdividido em placas articuladas de quitina, pernas que avançam com precisão mecânica, pinças peçonhentas e capacidade de infiltração nas frestas mais escuras.
@@ -125,8 +126,9 @@ A tela principal do software organiza-se como um chassi modular aparafusado:
 
 ### 6.2. Caixas de Chamada (Callouts) com Identidade Própria
 
-| Tipo de Aviso Padrão | No La Craia | Identidade Visual |
+| Tipo de Aviso Padrão | Na La Craia | Identidade Visual |
 |---|---|---|
+
 | Info / Nota | `[ TRANSMISSÃO DE CABINE ]` | Fundo cinza chumbo com borda roxa fluorescente (`--glitter-roxo`). Comunicado de rádio pirata. |
 | Warning / Atenção | `[ FIO DESENCAPADO ]` | Borda em padrão zebra de fita isolante amarela/preta. Alerta sobre risco ao sistema. |
 | Danger / Erro | `[ VENENO NA CARNE ]` | Borda fúcsia berrante (`--fucsia-furacao`), texto em alto contraste e ícone peçonhento. |

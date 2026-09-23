@@ -1753,8 +1753,9 @@
       }
 
       btnConfigWs.addEventListener("click", () => {
-        const input = prompt("Endereço WebSocket do Lacraia Core (ex: ws://localhost:8080/ws):", targetWsUrl);
+        const input = prompt("Endereço WebSocket da La Craia Core (ex: ws://localhost:8080/ws):", targetWsUrl);
         if (input && input.trim()) {
+
           targetWsUrl = input.trim();
           if (ws) ws.close();
           connectWs();

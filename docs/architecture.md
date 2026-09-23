@@ -199,7 +199,8 @@ Lacraia features an automotive multi-cabin security layer designed for vehicles 
    * Ejected clients receive an immediate `EJECTED` frame, terminate their WebSocket session, and display a brutalist ejection lockout screen.
 
 > 🦂 **[ VENENO NA CARNE ]**  
-> Passageiro engraçadinho tentando pular faixa ou pausar a cantiga alheia toma bloqueio instantâneo no WebSocket. No paredão Lacraia, a agulha obedece unicamente ao piloto.
+> Passageiro engraçadinho tentando pular faixa ou pausar a cantiga alheia toma bloqueio instantâneo no WebSocket. No paredão da La Craia, a agulha obedece unicamente ao piloto.
+
 
 ---
 
