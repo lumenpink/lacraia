@@ -28,29 +28,22 @@
 
 ---
 
-## 3. Lyrics Synchronization (LRCLIB Integration)
+## 3. Lyrics Synchronization (LRCLIB Integration & SQLite Caching)
 
-When a track change event triggers, the service calls LRCLIB:
-```
-GET https://lrclib.net/api/get?artist_name={artist}&track_name={title}&duration={duration_sec}
-```
-
-### In-Memory `.lrc` Parsing
-
-```kotlin
-data class LyricLine(val timestampMs: Long, val text: String)
-
-fun parseLrc(rawLrc: String): List<LyricLine> {
-    val regex = Regex("""\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)""")
-    return rawLrc.lines().mapNotNull { line ->
-        regex.find(line)?.let { match ->
-            val (min, sec, sub) = match.destructured
-            val ms = min.toLong() * 60000 + sec.toLong() * 1000 + (if (sub.length == 2) sub.toLong() * 10 else sub.toLong())
-            LyricLine(ms, match.groupValues[4].trim())
-        }
-    }.sortedBy { it.timestampMs }
-}
-```
+When a track change event triggers, `LrcApiClient` first checks local SQLite storage before making network requests:
+1. **Local SQLite Cache (`LrcCacheHelper.kt`):**
+   * Stores `(track, artist)` as primary key, along with `synced_lyrics`, `plain_lyrics`, `is_instrumental`, and timestamp `cached_at`.
+   * Cache hits resolve instantaneously offline without internet access during road trips.
+2. **Network Query (`LrcApiClient.kt`):**
+   ```
+   GET https://lrclib.net/api/get?artist_name={artist}&track_name={title}&duration={duration_sec}
+   ```
+   * User-Agent identified as `LaCraia-HUD/0.1.0`.
+   * On successful retrieval, parsed JSON is automatically persisted to local SQLite storage.
+3. **Millisecond-Accurate LRC Parsing (`LrcParser.kt`):**
+   * Parses standard 2-digit centiseconds (`[mm:ss.xx]`) and 3-digit milliseconds (`[mm:ss.xxx]`).
+   * Automatically sorts lines out-of-order by timestamp `timestampMs`.
+   * Filters out header metadata tags (`[ti:...]`, `[ar:...]`).
 
 ---
 
