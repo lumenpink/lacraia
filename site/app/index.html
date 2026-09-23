@@ -580,7 +580,7 @@
       color: var(--fucsia-furacao);
     }
 
-    /* Jukebox Enqueue */
+    /* Jukebox Enqueue & Autocomplete */
     .enqueue-box {
       display: flex;
       gap: 8px;
@@ -588,6 +588,7 @@
 
     .enqueue-input {
       flex: 1;
+      width: 100%;
       background: var(--asfalto-frio);
       border: 1px solid var(--borda-chassi);
       color: #ffffff;
@@ -595,11 +596,101 @@
       font-family: var(--font-mono);
       font-size: 12px;
       outline: none;
+      box-sizing: border-box;
     }
 
     .enqueue-input:focus {
       border-color: var(--fucsia-furacao);
     }
+
+    .search-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--ferro-bate-pedra);
+      border: 2px solid var(--fucsia-furacao);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 12px rgba(255, 0, 85, 0.4);
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 50;
+    }
+
+    .search-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--borda-chassi);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .search-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-item:hover, .search-item.selected {
+      background: rgba(255, 0, 85, 0.2);
+      border-left: 3px solid var(--veneno-eletrico);
+    }
+
+    .search-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .search-item-title {
+      font-size: 12px;
+      font-weight: 900;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-item-artist {
+      font-size: 10px;
+      color: var(--chumbo);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .pill-cloud {
+      background: rgba(0, 240, 255, 0.15);
+      border: 1px solid #00f0ff;
+      color: #00f0ff;
+    }
+
+    .search-toast {
+      position: absolute;
+      bottom: -28px;
+      left: 0;
+      right: 0;
+      background: rgba(57, 255, 20, 0.15);
+      border: 1px solid var(--veneno-eletrico);
+      color: var(--veneno-eletrico);
+      font-size: 10px;
+      font-weight: 900;
+      padding: 4px 8px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      z-index: 40;
+    }
+
 
     /* Modal Styling */
     .modal-overlay {
@@ -846,16 +937,22 @@
           💥 EJETAR TODOS OS PASSAGEIROS
         </button>
 
-        <!-- Passenger Jukebox Request -->
-        <div>
-          <div style="font-size: 11px; font-weight: 900; color: var(--chumbo); margin-bottom: 6px;">
-            ENFILEIRAR CANTIGA (JUKEBOX)
+        <!-- Passenger Jukebox Request & Interactive Autocomplete -->
+        <div class="jukebox-search-wrapper" style="position: relative;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+            <span style="font-size: 11px; font-weight: 900; color: var(--chumbo);">ENFILEIRAR CANTIGA (JUKEBOX)</span>
+            <span id="search-spinner" style="font-size: 10px; color: var(--veneno-eletrico); font-weight: bold; display: none;">BUSCANDO...</span>
           </div>
-          <form id="enqueue-form" class="enqueue-box">
-            <input type="text" id="enqueue-input" class="enqueue-input" placeholder="Artista ou título da música..." required>
-            <button type="submit" class="btn btn-main" style="padding:8px 12px;">FILA</button>
+          <form id="enqueue-form" class="enqueue-box" autocomplete="off">
+            <div style="position: relative; flex: 1;">
+              <input type="text" id="enqueue-input" class="enqueue-input" placeholder="Buscar artista ou título (ex: Chico, Daft Punk)..." autocomplete="off" required>
+              <div id="search-dropdown" class="search-dropdown" style="display: none;"></div>
+            </div>
+            <button type="submit" class="btn btn-main" id="enqueue-submit-btn" style="padding:8px 12px;">FILA</button>
           </form>
+          <div id="search-toast" class="search-toast" style="display: none;"></div>
         </div>
+
 
         <!-- Connection Settings Box -->
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid var(--borda-chassi); font-size: 11px; color: var(--chumbo);">
@@ -948,8 +1045,32 @@
         wsConnected: false
       };
 
+      // Network & Core Daemon Endpoints
+      let ws = null;
+      const isHttps = location.protocol === 'https:';
+      let targetWsUrl = `${isHttps ? 'wss:' : 'ws:'}//${location.host}/ws`;
+      let targetHttpUrl = `${location.protocol}//${location.host}`;
+
+      if (location.protocol === 'file:') {
+        targetWsUrl = 'ws://localhost:8080/ws';
+        targetHttpUrl = 'http://localhost:8080';
+      } else if (location.host.includes('lacraia.2lp.in')) {
+        targetWsUrl = 'ws://localhost:8080/ws';
+        targetHttpUrl = 'http://localhost:8080';
+      }
+
+      function sendWsCommand(actionPayload) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: "COMMAND",
+            payload: actionPayload
+          }));
+        }
+      }
+
       // Elements
       const audio = document.getElementById("audio-engine");
+
       const trackTitle = document.getElementById("track-title");
       const trackArtist = document.getElementById("track-artist");
       const trackRequester = document.getElementById("track-requester");
@@ -985,9 +1106,13 @@
       const stationIndicator = document.getElementById("station-indicator");
       const enqueueForm = document.getElementById("enqueue-form");
       const enqueueInput = document.getElementById("enqueue-input");
+      const searchDropdown = document.getElementById("search-dropdown");
+      const searchSpinner = document.getElementById("search-spinner");
+      const searchToast = document.getElementById("search-toast");
       const ejectionScreen = document.getElementById("ejection-screen");
       const btnConfigWs = document.getElementById("btn-config-ws");
       const coreUrlDisplay = document.getElementById("core-url-display");
+
 
       // Time formatter
       function formatTime(ms) {
@@ -1259,21 +1384,197 @@
         renderState();
       });
 
-      // Enqueue
+      // Jukebox Search & Autocomplete
+      let searchDebounceTimer = null;
+      let toastTimer = null;
+
+      function showToast(msg) {
+        if (!searchToast) return;
+        searchToast.textContent = msg;
+        searchToast.style.display = "block";
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          searchToast.style.display = "none";
+        }, 3500);
+      }
+
+      function enqueueCandidate(candidate) {
+        const reqUser = state.role === "PILOTO" ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
+
+        // Dispatch QUEUE_APPEND via WebSocket
+        sendWsCommand({
+          action: "QUEUE_APPEND",
+          trackId: candidate.id,
+          requestedBy: reqUser
+        });
+
+        // Optimistic local update / standalone demo fallback
+        const existingIdx = state.queue.findIndex(item => (item.track_id || item.trackId) === candidate.id);
+        if (existingIdx === -1) {
+          state.queue.push({
+            id: Date.now(),
+            track_id: candidate.id,
+            trackId: candidate.id,
+            title: candidate.title,
+            artist: candidate.artist,
+            durationMs: (candidate.durationSec || 210) * 1000,
+            duration_ms: (candidate.durationSec || 210) * 1000,
+            position: state.queue.length + 1,
+            state: candidate.cached ? "cached" : "pending",
+            requested_by: reqUser,
+            requestedBy: reqUser
+          });
+          renderState();
+        }
+
+        showToast(`✔ "${candidate.title.toUpperCase()}" ENFILEIRADA!`);
+        searchDropdown.style.display = "none";
+        searchDropdown.innerHTML = "";
+        enqueueInput.value = "";
+      }
+
+      async function executeSearch(query) {
+        const q = query.trim();
+        if (q.length < 2) {
+          searchDropdown.style.display = "none";
+          searchDropdown.innerHTML = "";
+          return;
+        }
+
+        if (searchSpinner) searchSpinner.style.display = "inline";
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/search?q=${encodeURIComponent(q)}&limit=8`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const results = await resp.json();
+          renderSearchResults(results, q);
+        } catch (err) {
+          console.warn("Search HTTP query failed, falling back to local matches:", err);
+          const term = q.toLowerCase();
+          const localMatches = DEMO_PLAYLIST.filter(t =>
+            t.title.toLowerCase().includes(term) || t.artist.toLowerCase().includes(term)
+          ).map(t => ({
+            id: t.id,
+            artist: t.artist,
+            title: t.title,
+            durationSec: Math.floor(t.duration_ms / 1000),
+            cached: true
+          }));
+
+          if (localMatches.length === 0) {
+            localMatches.push({
+              id: `adhoc:${Date.now()}`,
+              artist: "Tripulação",
+              title: q,
+              durationSec: 210,
+              cached: false
+            });
+          }
+          renderSearchResults(localMatches, q);
+        } finally {
+          if (searchSpinner) searchSpinner.style.display = "none";
+        }
+      }
+
+      function renderSearchResults(results, currentQuery) {
+        searchDropdown.innerHTML = "";
+        if (!results || results.length === 0) {
+          const emptyRow = document.createElement("div");
+          emptyRow.className = "search-item";
+          emptyRow.style.cursor = "default";
+          emptyRow.innerHTML = `<span style="font-size:11px; color:var(--chumbo);">Nenhuma cantiga encontrada no catálogo local</span>`;
+          searchDropdown.appendChild(emptyRow);
+          searchDropdown.style.display = "block";
+          return;
+        }
+
+        results.forEach(item => {
+          const row = document.createElement("div");
+          row.className = "search-item";
+
+          const infoDiv = document.createElement("div");
+          infoDiv.className = "search-item-info";
+
+          const titleEl = document.createElement("div");
+          titleEl.className = "search-item-title";
+          titleEl.textContent = item.title;
+
+          const artistEl = document.createElement("div");
+          artistEl.className = "search-item-artist";
+          artistEl.textContent = `${item.artist} • ${formatTime((item.durationSec || 210) * 1000)}`;
+
+          infoDiv.appendChild(titleEl);
+          infoDiv.appendChild(artistEl);
+
+          const actionsDiv = document.createElement("div");
+          actionsDiv.className = "search-item-actions";
+
+          const pill = document.createElement("span");
+          pill.className = `pill-cache ${item.cached ? 'pill-cached' : 'pill-cloud'}`;
+          pill.textContent = item.cached ? "⚡ CACHED" : "☁ NUVEM";
+          actionsDiv.appendChild(pill);
+
+          const addBtn = document.createElement("button");
+          addBtn.type = "button";
+          addBtn.className = "btn btn-main";
+          addBtn.style.cssText = "padding: 3px 8px; font-size: 10px;";
+          addBtn.textContent = "➕ FILA";
+          addBtn.onclick = (e) => {
+            e.stopPropagation();
+            enqueueCandidate(item);
+          };
+          actionsDiv.appendChild(addBtn);
+
+          row.appendChild(infoDiv);
+          row.appendChild(actionsDiv);
+
+          row.onclick = () => enqueueCandidate(item);
+          searchDropdown.appendChild(row);
+        });
+
+        searchDropdown.style.display = "block";
+      }
+
+      enqueueInput.addEventListener("input", (e) => {
+        const val = e.target.value;
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+        if (val.trim().length >= 2) {
+          searchDebounceTimer = setTimeout(() => executeSearch(val), 250);
+        } else {
+          searchDropdown.style.display = "none";
+          searchDropdown.innerHTML = "";
+        }
+      });
+
+      enqueueInput.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          searchDropdown.style.display = "none";
+        }
+      });
+
       enqueueForm.addEventListener("submit", (e) => {
         e.preventDefault();
         const text = enqueueInput.value.trim();
         if (!text) return;
-        DEMO_PLAYLIST.push({
-          id: `trk_${Date.now()}`,
-          title: text,
-          artist: "Tripulação",
-          duration_ms: 210000,
-          requested_by: "CABINE"
-        });
-        enqueueInput.value = "";
-        alert(`Faixa "${text}" enfileirada com sucesso na fila do paredão!`);
+        const firstItem = searchDropdown.querySelector(".search-item");
+        if (firstItem && searchDropdown.style.display !== "none" && firstItem.onclick) {
+          firstItem.click();
+        } else {
+          enqueueCandidate({
+            id: `custom:${Date.now()}`,
+            artist: "Tripulação",
+            title: text,
+            durationSec: 210,
+            cached: false
+          });
+        }
       });
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".jukebox-search-wrapper")) {
+          searchDropdown.style.display = "none";
+        }
+      });
+
 
       // Modal QR Code
       function drawQrPreview() {
@@ -1370,19 +1671,6 @@
       renderVisualizer();
 
       // WebSocket Hub Connection
-      let ws = null;
-      let isHttps = location.protocol === 'https:';
-      let targetWsUrl = `${isHttps ? 'wss:' : 'ws:'}//${location.host}/ws`;
-      let targetHttpUrl = `${location.protocol}//${location.host}`;
-
-      if (location.protocol === 'file:') {
-        targetWsUrl = 'ws://localhost:8080/ws';
-        targetHttpUrl = 'http://localhost:8080';
-      } else if (location.host.includes('lacraia.2lp.in')) {
-        targetWsUrl = 'ws://localhost:8080/ws';
-        targetHttpUrl = 'http://localhost:8080';
-      }
-
       function updateWsStatus(connected) {
         state.wsConnected = connected;
         if (connected) {
@@ -1461,15 +1749,6 @@
           };
         } catch (e) {
           updateWsStatus(false);
-        }
-      }
-
-      function sendWsCommand(actionPayload) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: "COMMAND",
-            payload: actionPayload
-          }));
         }
       }
 

@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (core,app) implement catalog search and interactive jukebox autocomplete (fixes #9)
   - (app) implement lookahead queue deck and sanitize websocket protocol (fixes #8)
   - (app) add standalone web cockpit at /app and unified start script (fixes #7)
   - (android) implement multi-module workspace with lacraia-app and simbiotyka production apks (#27)

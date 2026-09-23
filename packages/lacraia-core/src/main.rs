@@ -38,11 +38,29 @@ pub struct AppState {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct SearchQuery {
+    pub q: Option<String>,
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TrackSearchResult {
+    pub id: String,
+    pub artist: String,
+    pub title: String,
+    #[serde(rename = "durationSec")]
+    pub duration_sec: u64,
+    pub cached: bool,
+    pub genres: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct RadioQuery {
     pub artist: String,
     pub track: String,
     pub limit: Option<usize>,
 }
+
 
 #[derive(Debug, Deserialize)]
 pub struct ResolveQuery {
@@ -66,6 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let db_path = std::env::var("LACRAIA_DB_PATH").unwrap_or_else(|_| "./lacraia.sqlite".into());
     let db = Database::open(&db_path)?;
+    db.seed_defaults_if_empty()?;
 
     let lastfm_key = std::env::var("LASTFM_API_KEY").ok();
     let similarity = Arc::new(CompositeSimilarityEngine::new(lastfm_key, db.clone()));
@@ -99,6 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let site_dir = std::env::var("LACRAIA_SITE_DIR").unwrap_or_else(|_| "./site".into());
     let mut app = Router::new()
         .route("/health", get(health_check))
+        .route("/api/search", get(handle_search))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
         .route("/api/queue", get(handle_queue))
@@ -106,6 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/cabin/:id", get(handle_cabin_info))
         .route("/ws", get(ws_handler))
         .nest_service("/cache", ServeDir::new(cache_dir));
+
 
     if std::path::Path::new(&site_dir).exists() {
         app = app.fallback_service(ServeDir::new(&site_dir));
@@ -212,6 +233,63 @@ async fn handle_cabin_info(
         is_locked,
         passengers_count: passengers.len(),
     }))
+}
+
+async fn handle_search(
+    State(state): State<AppState>,
+    Query(params): Query<SearchQuery>,
+) -> Result<Json<Vec<TrackSearchResult>>, (StatusCode, String)> {
+    let term = params.q.unwrap_or_default();
+    let limit = params.limit.unwrap_or(10).min(50);
+
+    let mut tracks = state.db.search_tracks(&term, limit).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database search failed: {}", e),
+        )
+    })?;
+
+    // If query has at least 3 characters and doesn't match an existing title, synthesize an ad-hoc candidate
+    let trimmed = term.trim();
+    if trimmed.len() >= 3 && !tracks.iter().any(|t| t.title.eq_ignore_ascii_case(trimmed)) {
+        let (artist, title) = if let Some((a, b)) = trimmed.split_once(" - ") {
+            (a.trim().to_string(), b.trim().to_string())
+        } else if let Some((a, b)) = trimmed.split_once('-') {
+            (a.trim().to_string(), b.trim().to_string())
+        } else {
+            ("Desconhecido".to_string(), trimmed.to_string())
+        };
+
+        if !title.is_empty() {
+            let adhoc_id = format!("{}:{}", artist.to_lowercase(), title.to_lowercase());
+            if !tracks.iter().any(|t| t.id == adhoc_id) {
+                tracks.push(crate::db::TrackRecord {
+                    id: adhoc_id,
+                    artist,
+                    title,
+                    duration_sec: 210,
+                    cached_path: None,
+                    genres: Some("jukebox".to_string()),
+                    last_played_at: None,
+                });
+            }
+        }
+    }
+
+    let results = tracks
+        .into_iter()
+        .take(limit)
+        .map(|t| TrackSearchResult {
+            cached: t.cached_path.is_some(),
+            id: t.id,
+            artist: t.artist,
+            title: t.title,
+            duration_sec: t.duration_sec,
+            genres: t.genres,
+        })
+        .collect();
+
+    Ok(Json(results))
 }
 
 async fn handle_radio(

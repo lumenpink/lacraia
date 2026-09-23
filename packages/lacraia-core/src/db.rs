@@ -85,6 +85,22 @@ pub struct QueueEntry {
     pub requested_by: Option<String>,
 }
 
+pub fn strip_accents(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'ã' | 'â' | 'ä' | 'Á' | 'À' | 'Ã' | 'Â' | 'Ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' | 'É' | 'È' | 'Ê' | 'Ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' | 'Í' | 'Ì' | 'Î' | 'Ï' => 'i',
+            'ó' | 'ò' | 'õ' | 'ô' | 'ö' | 'Ó' | 'Ò' | 'Õ' | 'Ô' | 'Ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' | 'Ú' | 'Ù' | 'Û' | 'Ü' => 'u',
+            'ç' | 'Ç' => 'c',
+            'ñ' | 'Ñ' => 'n',
+            other => other.to_ascii_lowercase(),
+        })
+        .collect()
+}
+
 #[derive(Clone)]
 pub struct Database {
     conn: Arc<Mutex<Connection>>,
@@ -92,6 +108,7 @@ pub struct Database {
 
 impl Database {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, DbError> {
+
         let conn = Connection::open(path)?;
         let db = Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -233,6 +250,111 @@ impl Database {
             Ok(None)
         }
     }
+
+    pub fn search_tracks(&self, term: &str, limit: usize) -> Result<Vec<TrackRecord>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let trimmed = term.trim();
+
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id, artist, title, duration_sec, cached_path, genres, last_played_at
+            FROM tracks
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(TrackRecord {
+                id: row.get(0)?,
+                artist: row.get(1)?,
+                title: row.get(2)?,
+                duration_sec: row.get(3)?,
+                cached_path: row.get(4)?,
+                genres: row.get(5)?,
+                last_played_at: row.get(6)?,
+            })
+        })?;
+
+        let mut tracks = Vec::new();
+        for r in rows {
+            tracks.push(r?);
+        }
+
+        if trimmed.is_empty() {
+            tracks.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+            tracks.truncate(limit);
+            return Ok(tracks);
+        }
+
+        let norm_term = strip_accents(trimmed);
+
+        let mut scored: Vec<(u32, TrackRecord)> = Vec::new();
+        for trk in tracks {
+            let norm_title = strip_accents(&trk.title);
+            let norm_artist = strip_accents(&trk.artist);
+            let norm_genres = strip_accents(trk.genres.as_deref().unwrap_or(""));
+
+            let score = if norm_title == norm_term || norm_artist == norm_term {
+                100
+            } else if norm_title.starts_with(&norm_term) || norm_artist.starts_with(&norm_term) {
+                80
+            } else if norm_title.contains(&norm_term) {
+                60
+            } else if norm_artist.contains(&norm_term) {
+                50
+            } else if norm_genres.contains(&norm_term) {
+                30
+            } else {
+                0
+            };
+
+            if score > 0 {
+                scored.push((score, trk));
+            }
+        }
+
+        // Sort descending by score, then ascending by title
+        scored.sort_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then_with(|| a.1.title.to_lowercase().cmp(&b.1.title.to_lowercase()))
+        });
+
+        let results: Vec<TrackRecord> = scored.into_iter().take(limit).map(|(_, trk)| trk).collect();
+        Ok(results)
+    }
+
+
+    pub fn seed_defaults_if_empty(&self) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM tracks", [], |row| row.get(0))?;
+        if count > 0 {
+            return Ok(());
+        }
+
+        let seeds = [
+            ("chico buarque:construcao", "Chico Buarque", "Construção", 258, "mpb, samba"),
+            ("elis regina & tom jobim:aguas de marco", "Elis Regina & Tom Jobim", "Águas de Março", 212, "bossa nova, mpb"),
+            ("joao gilberto:chega de saudade", "João Gilberto", "Chega de Saudade", 121, "bossa nova, samba"),
+            ("jorge ben jor:taj mahal", "Jorge Ben Jor", "Taj Mahal", 184, "samba rock, mpb"),
+            ("tim maia:descobridor dos sete mares", "Tim Maia", "O Descobridor dos Sete Mares", 262, "soul brasileiro, mpb"),
+            ("cartola:as rosas nao falam", "Cartola", "As Rosas Não Falam", 175, "samba de raiz"),
+            ("daft punk:one more time", "Daft Punk", "One More Time", 320, "french house, electronic"),
+            ("kraftwerk:autobahn", "Kraftwerk", "Autobahn", 1360, "electronic, krautrock"),
+            ("new order:blue monday", "New Order", "Blue Monday", 449, "synth-pop, new wave"),
+            ("raul seixas:metamorfose ambulante", "Raul Seixas", "Metamorfose Ambulante", 230, "rock brasileiro, mpb"),
+        ];
+
+        for (id, artist, title, dur, genres) in seeds {
+            conn.execute(
+                r#"
+                INSERT OR IGNORE INTO tracks (id, artist, title, duration_sec, genres)
+                VALUES (?1, ?2, ?3, ?4, ?5)
+                "#,
+                params![id, artist, title, dur, genres],
+            )?;
+        }
+
+        Ok(())
+    }
+
 
     pub fn insert_edge(
         &self,
@@ -776,5 +898,31 @@ mod tests {
         let invalid_role = db.validate_token("van-furacao", "psg-token-999").unwrap();
         assert_eq!(invalid_role, None);
     }
+
+    #[test]
+    fn test_search_tracks_and_seeding() {
+        let db = Database::open_in_memory().unwrap();
+        db.seed_defaults_if_empty().unwrap();
+
+        // 1. Search by artist substring
+        let results = db.search_tracks("buarque", 5).unwrap();
+        assert!(!results.is_empty());
+        assert_eq!(results[0].artist, "Chico Buarque");
+        assert_eq!(results[0].title, "Construção");
+
+        // 2. Search by title substring
+        let results = db.search_tracks("aguas", 5).unwrap();
+        assert!(!results.is_empty());
+        assert_eq!(results[0].title, "Águas de Março");
+
+        // 3. Search by genre
+        let results = db.search_tracks("electronic", 5).unwrap();
+        assert!(results.len() >= 2);
+
+        // 4. Empty query returns default list up to limit
+        let results = db.search_tracks("", 3).unwrap();
+        assert_eq!(results.len(), 3);
+    }
 }
+
 
