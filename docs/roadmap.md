@@ -27,7 +27,7 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 ---
 
 ### Ticket #16: Cockpit Audio Waveform Visualizer
-* **Package:** `packages/lacraia-web`
+* **Package:** `packages/lacraia-app`
 * **Goal:** Real-time WebAudio frequency analyzer displaying a high-contrast soundwave canvas optimized for night-time driving.
 * **Acceptance Criteria:**
   - Connect `AudioContext.createAnalyser()` to the HTML5 audio element.
@@ -47,7 +47,7 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 ---
 
 ### Ticket #18: Low-Power Automotive Eco Mode
-* **Package:** `packages/lacraia-hud`
+* **Package:** `packages/lacraia-hud` ("La Craia Simbiótyka")
 * **Goal:** Reduce CPU and display power consumption when vehicle battery is low or device is unplugged.
 * **Acceptance Criteria:**
   - Battery broadcast receiver monitoring charging state and level (< 20%).
@@ -57,11 +57,11 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 ---
 
 ### Ticket #19: Upgrade Workspace to Rust Edition 2024 and Dioxus 0.7
-* **Package:** Workspace-wide (`lacraia-shared`, `lacraia-core`, `lacraia-web`)
+* **Package:** Workspace-wide (`lacraia-shared`, `lacraia-core`, `lacraia-app`)
 * **Goal:** Migrate monorepo crates to Rust Edition 2024 and upgrade Dioxus framework to version 0.7 once published / stabilized.
 * **Acceptance Criteria:**
   - Update `[workspace.package] edition = "2024"` in `Cargo.toml`.
-  - Bump Dioxus dependency to `0.7` in `packages/lacraia-web/Cargo.toml` and adapt UI signals/lifecycle hooks.
+  - Bump Dioxus dependency to `0.7` in `packages/lacraia-app/Cargo.toml` and adapt UI signals/lifecycle hooks.
   - Ensure `cargo test --workspace` and `cargo check --workspace` pass cleanly without deprecations.
 
 ---
@@ -73,4 +73,15 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - Create executable `demo.sh` supporting `-p / --port`, `-o / --open`, and `--seed`.
   - Auto-probe port availability and start `lacraia-core` with lookahead queue daemon.
   - Handle cleanup trap (`SIGINT` / `SIGTERM`) to kill spawned background processes cleanly.
-  - Print cockpit dashboard URLs and live WebSocket status. 
+  - Print cockpit dashboard URLs and live WebSocket status.
+
+---
+
+### Ticket #21: Rebrand HUD to La Craia Simbiótyka and Migrate to Multi-Platform `lacraia-app`
+* **Package:** `packages/lacraia-app` & `packages/lacraia-hud`
+* **Goal:** Rebrand the Android HUD companion to "La Craia Simbiótyka" and transition `lacraia-web` into a multi-platform `lacraia-app` supporting both native Linux Desktop (WebKitGTK/Wry) and Web/PWA targets.
+* **Acceptance Criteria:**
+  - Rename `packages/lacraia-web` to `packages/lacraia-app`.
+  - Add native Linux `desktop` feature and `web` feature in `Cargo.toml`.
+  - Update Android notification and channel strings to "La Craia Simbiótyka".
+  - Compile and test cleanly on both Linux desktop and wasm32 targets. 

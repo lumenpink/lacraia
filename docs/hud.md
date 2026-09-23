@@ -1,5 +1,6 @@
-# Android Micro-App: lacraia-hud
+# La Craia Simbiótyka: Android HUD Micro-App (`lacraia-hud`)
 
+* **Component:** Heads-Up Display (HUD) overlay and GPS audio-ducking companion
 * **Language:** Kotlin
 * **Compatibility:** Min SDK 26 (Android 8.0 Oreo) | Target SDK 34 (Android 14)
 * **Architecture:** Decoupled background service (`Foreground Service`), no persistent fullscreen activity.

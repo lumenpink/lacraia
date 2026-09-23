@@ -40,13 +40,14 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
        │ (REST / WebSocket)            │ (MediaSession / WebSocket)
        ▼                               ▼
 ┌───────────────────────────┐   ┌───────────────────────────────┐
-│  packages/lacraia-web     │   │  packages/lacraia-hud         │
-│  Stack: Rust / Dioxus Web │   │  Language: Kotlin (Android)   │
-│  Target: WASM (PWA)       │   │                               │
-│  ├── HTML5 Audio Engine   │   │  ├── NotificationListener     │
-│  ├── MediaSession Handler │   │  ├── LRCLIB Client & Parser   │
-│  └── Queue Management     │   │  └── WindowManager Overlay UI │
-└───────────────────────────┘   └──────────────┬────────────────┘
+│  packages/lacraia-app     │   │  packages/lacraia-hud         │
+│  Stack: Rust / Dioxus     │   │  "La Craia Simbiótyka"        │
+│  Target: Linux & WASM/PWA │   │  Language: Kotlin (Android)   │
+│  ├── Multiplatform Engine │   │                               │
+│  ├── MediaSession Handler │   │  ├── NotificationListener     │
+│  └── Cockpit Dashboard    │   │  ├── LRCLIB Client & Parser   │
+└───────────────────────────┘   │  └── WindowManager Overlay UI │
+                                └──────────────┬────────────────┘
                                                │ Projects over
                                                ▼
                                   ┌─────────────────────────────┐
@@ -58,8 +59,8 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
 
 * **`packages/lacraia-shared` (Rust Crate):** Shared domain models, `serde` serialization, WebSocket protocol packets (`StateUpdate`, `Command`), in-memory `.lrc` lyrics parser, and duration/title fuzzy sanitizer.
 * **`packages/lacraia-core` (Rust Crate):** Backend orchestrator running on the Baquara server. Handles track resolution, disk caching in Opus, SQLite state storage, and WebSocket broadcasts.
-* **`packages/lacraia-web` (Rust / Dioxus Crate):** Lightweight WebAssembly PWA frontend. Acts as the track library, playlist controller, and audio engine registered with the browser `MediaSession API`.
-* **`packages/lacraia-hud` (Android Kotlin App):** Native Android background service (`Foreground Service`). Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD directly over Waze via `WindowManager`.
+* **`packages/lacraia-app` (Rust / Dioxus Crate):** Automotive cockpit player supporting both native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets (WASM/PWA). Acts as the track library, playlist controller, and audio engine.
+* **`packages/lacraia-hud` ("La Craia Simbiótyka" - Android Kotlin App):** Native Android background service (`Foreground Service`). Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD directly over Waze via `WindowManager`.
 
 ---
 
@@ -135,20 +136,20 @@ LIMIT ?2;
 
 ---
 
-## 7. Web Audio Engine & MediaSession Integration (`lacraia-web`)
+## 7. Audio Engine & Multiplatform Media Integration (`lacraia-app`)
 
-`lacraia-web` acts as a progressive web application with native operating system media controls:
+`lacraia-app` acts as an automotive cockpit application supporting native Linux desktop and PWA targets:
 
-1. **HTML5 Audio Engine (`audio.rs`):**
-   Manages `<audio>` playback via `web-sys::HtmlAudioElement` with support for volume clamping, precise millisecond seeking, and error recovery.
+1. **HTML5 & Native Audio Engine (`audio.rs`):**
+   Manages playback with support for volume clamping, precise millisecond seeking, and error recovery across native desktop (Wry) and web targets.
 2. **MediaSession API Synchronization:**
-   Registers active song metadata (`title`, `artist`, `album`, and 512x512 artwork) directly on `navigator.mediaSession`.
+   Registers active song metadata (`title`, `artist`, `album`, and 512x512 artwork) directly on `navigator.mediaSession` when running in browser / PWA mode.
 3. **OS Lockscreen & Keybinding Handlers:**
    Registers system action handlers for `play`, `pause`, `nexttrack`, `previoustrack`, and `seekto`, enabling hardware vehicle steering wheel buttons and lockscreen controls to operate seamlessly.
 
 ---
 
-## 8. Web Player UI, Queue Controller & PWA Capabilities (`lacraia-web`)
+## 8. Cockpit Player UI, Queue Controller & PWA Capabilities (`lacraia-app`)
 
 The automotive frontend is optimized for driver touch targets and cockpit display visibility:
 
