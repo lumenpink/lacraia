@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (core) implement lookahead queue daemon and precaching buffer (closes #4)
   - (core) implement stream resolver via youtube music and ytdlp (closes #3)
   - (core) implement multi-provider similarity engine with lastfm and metabrainz (closes #2)
   - (core) implement sqlite storage and similarity graph schema (closes #1)

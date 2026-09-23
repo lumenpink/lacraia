@@ -21,10 +21,12 @@ use tower_http::{
 use tracing::info;
 
 pub mod db;
+pub mod queue_daemon;
 pub mod resolver;
 pub mod similarity;
 
 use db::Database;
+use queue_daemon::QueueDaemon;
 use resolver::MediaResolver;
 use similarity::{CompositeSimilarityEngine, SimilarityEngine};
 
@@ -72,6 +74,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lastfm_key = std::env::var("LASTFM_API_KEY").ok();
     let similarity = Arc::new(CompositeSimilarityEngine::new(lastfm_key, db.clone()));
     let resolver = Arc::new(MediaResolver::new(cache_dir.clone(), db.clone()));
+
+    let daemon = Arc::new(QueueDaemon::new(
+        db.clone(),
+        resolver.clone(),
+        2, // Lookahead window of 2 tracks
+        std::time::Duration::from_secs(5),
+    ));
+    daemon.start();
 
     let (tx, _rx) = broadcast::channel::<WsMessage>(100);
 
