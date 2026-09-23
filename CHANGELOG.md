@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Routine maintenance, documentation updates, and operational improvements.
+
+## Previous Releases
+
+### [v0.1.0] - La Craia v0.1.0 - Automotive Audio & HUD MVP
+
 ### Features
   - (hud) implement mediasession capture, sync ticker and waze audio ducking (closes #10)
   - (hud) implement floating pill hud overlay with textswitcher and drag (closes #9)
@@ -17,6 +23,4 @@
   - (web) implement dioxus web player with media session integration
   - (core) implement axum orchestrator, stream resolver and ws telemetry hub
   - (shared) implement domain models, lrc parser, fuzzy filter and ws protocol
-
-## Previous Releases
 
