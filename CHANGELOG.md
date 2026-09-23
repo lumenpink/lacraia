@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 
-- Routine maintenance, documentation updates, and operational improvements.
+### Features
+  - (server) auto‑increment port if occupied (#12)
 
 ## Previous Releases
 

@@ -18,6 +18,10 @@ fi
 
 PORT="${PORT:-8080}"
 OPEN_BROWSER=0
+# Try to bind to the desired port; if it is already in use, increment until a free one is found
+while command -v lsof >/dev/null 2>&1 && lsof -i :"$PORT" >/dev/null 2>&1; do
+    PORT=$((PORT + 1))
+done
 
 while [ $# -gt 0 ]; do
     case "$1" in
