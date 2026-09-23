@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (site) add biomechanical idle twitching and cursor tracking to antennae (#24)
   - (site) add centipede head exoskeleton favicon and top panel icon (#23)
   - (site) add OG/Twitter Card meta tags, og preview banner, and reorder cadernos with why manifesto first (#1)
   - (site) implement quylopode spine navigation and field assembly zine (#1)

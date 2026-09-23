@@ -242,8 +242,55 @@
       stroke-width: 2.5;
       fill: none;
       stroke-linecap: round;
-      filter: drop-shadow(0 0 4px var(--veneno-eletrico));
-      transition: transform 0.2s ease-out;
+      filter: drop-shadow(0 0 5px var(--veneno-eletrico));
+      transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+      overflow: visible;
+    }
+
+    .antenna {
+      transition: stroke 0.2s;
+    }
+
+    .left-antenna {
+      transform-origin: 32px 34px;
+      animation: twitch-left 3.2s infinite ease-in-out;
+    }
+
+    .right-antenna {
+      transform-origin: 40px 34px;
+      animation: twitch-right 3.9s infinite ease-in-out;
+    }
+
+    .centipede-head:active .left-antenna {
+      animation: none;
+      transform: rotate(-16deg) scale(1.08);
+      stroke: var(--fucsia-furacao);
+    }
+
+    .centipede-head:active .right-antenna {
+      animation: none;
+      transform: rotate(16deg) scale(1.08);
+      stroke: var(--fucsia-furacao);
+    }
+
+    @keyframes twitch-left {
+      0%, 100% { transform: rotate(0deg); }
+      14%      { transform: rotate(-7deg) scale(1.02); }
+      28%      { transform: rotate(-1deg); }
+      42%      { transform: rotate(-9deg) translateY(-1px); }
+      60%      { transform: rotate(-3deg); }
+      75%      { transform: rotate(-8deg); }
+      90%      { transform: rotate(-2deg); }
+    }
+
+    @keyframes twitch-right {
+      0%, 100% { transform: rotate(0deg); }
+      18%      { transform: rotate(8deg) scale(1.02); }
+      32%      { transform: rotate(2deg); }
+      50%      { transform: rotate(10deg) translateY(-1px); }
+      68%      { transform: rotate(1deg); }
+      82%      { transform: rotate(7deg); }
+      92%      { transform: rotate(3deg); }
     }
 
     .head-plate {
@@ -270,6 +317,12 @@
       background: var(--veneno-eletrico);
       border-radius: 50%;
       box-shadow: 0 0 6px var(--veneno-eletrico);
+      animation: ocelli-breathe 2.4s infinite alternate ease-in-out;
+    }
+
+    @keyframes ocelli-breathe {
+      from { opacity: 0.65; transform: scale(0.9); }
+      to   { opacity: 1.0; transform: scale(1.2); box-shadow: 0 0 8px var(--veneno-eletrico); }
     }
 
     .spine-title {
