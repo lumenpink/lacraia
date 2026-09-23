@@ -148,3 +148,11 @@ A tela principal do software organiza-se como um chassi modular aparafusado:
    Todo texto corrido mantém contraste estrito para leitura confortável no cockpit noturno.
 4. **Respeito a `prefers-reduced-motion`:**  
    Desativa imediatamente os piscares de LED, animações de pernas e trepidações mecânicas caso o usuário solicite redução de movimento no sistema.
+
+---
+
+## 8. Implementações de Referência
+
+* **Portal de Documentação (`site/index.html`):**  
+  Implementação viva de referência dos tokens CSS, chassi de ferro com pintura bate-pedra, leds de telemetria, divisórias de fita isolante zebrada, os 4 callouts temáticos e o botão com efeito tátil mecânico `[ CLACK! ]`.
+
