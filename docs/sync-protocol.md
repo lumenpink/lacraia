@@ -47,3 +47,22 @@ When audio is playing on a fixed server (e.g. Baquara Debian host via MPV or hea
 * `PREVIOUS`: Restart current track or move to previous track
 * `SEEK`: Move playhead to `{ positionMs: number }`
 * `QUEUE_APPEND`: Append track ID or search query to radio queue
+
+---
+
+## 3. Server PlaybackHub & Ticker Lifecycle (`ws.rs`)
+
+The WebSocket endpoint `/ws` is backed by `PlaybackHub`:
+
+1. **Immediate Initial Snapshot:**
+   Whenever a client (Web Player or Android HUD) connects to `/ws`, the server immediately transmits the latest `STATE_UPDATE` snapshot so the UI syncs instantly without waiting for a ticker pulse.
+2. **1Hz Heartbeat & Playhead Advance:**
+   An internal Tokio timer ticks every 1000ms:
+   * When state is `PLAYING`, increments `position_ms` by 1000ms.
+   * Compares `position_ms` against current track `duration_ms`. When the song ends, dispatches an automatic `NEXT` command to smoothly transition tracks.
+3. **Reactive Command Dispatching:**
+   When a client sends a `COMMAND`:
+   * `PLAY` / `PAUSE` updates playback state.
+   * `SEEK` jumps playhead position.
+   * `NEXT` calls `db.advance_queue()`, updates the active track, resets position to 0, and notifies all connected clients via broadcast.
+   * `QUEUE_APPEND` inserts a new item into the SQLite `queue`.
