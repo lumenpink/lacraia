@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (app) rebrand hud to simbiotyka and migrate to multiplatform lacraia-app (closes #21)
   - (tooling) implement automated demo launcher script (closes #20)
   - (server) auto‑increment port if occupied (#12)
 

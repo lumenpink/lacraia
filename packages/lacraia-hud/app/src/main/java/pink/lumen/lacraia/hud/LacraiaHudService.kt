@@ -29,7 +29,7 @@ class LacraiaHudService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "La Craia HUD Overlay",
+                "La Craia Simbiótyka Overlay",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -37,7 +37,7 @@ class LacraiaHudService : Service() {
         }
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("La Craia HUD Active")
+            .setContentTitle("La Craia Simbiótyka HUD Active")
             .setContentText("Projecting synchronized lyrics over GPS navigation")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .build()

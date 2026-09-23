@@ -1,8 +1,11 @@
 [application]
-name = "lacraia-web"
-default_platform = "web"
+name = "lacraia-app"
+default_platform = "desktop"
 out_dir = "dist"
 asset_dir = "assets"
+
+[application.desktop]
+title = "La Craia Cockpit Player"
 
 [web.app]
 title = "La Craia Player"

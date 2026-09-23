@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "packages/lacraia-shared",
     "packages/lacraia-core",
-    "packages/lacraia-web",
+    "packages/lacraia-app",
 ]
 
 [workspace.package]
