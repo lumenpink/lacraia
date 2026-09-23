@@ -20,7 +20,7 @@ lacraia/
 │   ├── lacraia-shared/    # Shared models, LRC parser, fuzzy validator, WS protocol (Rust)
 │   ├── lacraia-core/      # Backend service: Axum, SQLite, yt-dlp, Last.fm, WS hub (Rust)
 │   ├── lacraia-app/       # Automotive player & cockpit UI in Dioxus (Linux Native & Web/PWA)
-│   └── lacraia-hud/       # "La Craia Simbiótyka" Android Foreground Service overlay (Kotlin)
+│   └── lacraia-android/   # Native Android workspace: :app (Player) & :simbiotyka (HUD Overlay)
 ├── docs/                  # Design system, identity manual and technical specifications
 ├── site/                  # Static documentation site deployed to Cloudflare Workers
 ├── serve.sh               # Local preview HTTP server for site/

@@ -40,18 +40,18 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
        │ (REST / WebSocket)            │ (MediaSession / WebSocket)
        ▼                               ▼
 ┌───────────────────────────┐   ┌───────────────────────────────┐
-│  packages/lacraia-app     │   │  packages/lacraia-hud         │
-│  Stack: Rust / Dioxus     │   │  "La Craia Simbiótyka"        │
+│  packages/lacraia-app     │   │  packages/lacraia-android     │
+│  Stack: Rust / Dioxus     │   │  Modules: :app & :simbiotyka  │
 │  Target: Linux & WASM/PWA │   │  Language: Kotlin (Android)   │
 │  ├── Multiplatform Engine │   │                               │
-│  ├── MediaSession Handler │   │  ├── NotificationListener     │
-│  └── Cockpit Dashboard    │   │  ├── LRCLIB Client & Parser   │
-└───────────────────────────┘   │  └── WindowManager Overlay UI │
-                                └──────────────┬────────────────┘
+│  ├── MediaSession Handler │   │  ├── :app (Cockpit & Jukebox) │
+│  └── Cockpit Dashboard    │   │  └── :simbiotyka (HUD Overlay)│
+└───────────────────────────┘   └──────────────┬────────────────┘
                                                │ Projects over
                                                ▼
                                   ┌─────────────────────────────┐
-                                  │ WAZE (Active GPS Navigation)│
+                                  │ GPS Navigation Apps (Waze,  │
+                                  │ Google Maps, Organic Maps)  │
                                   └─────────────────────────────┘
 ```
 
@@ -60,7 +60,9 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
 * **`packages/lacraia-shared` (Rust Crate):** Shared domain models, `serde` serialization, WebSocket protocol packets (`StateUpdate`, `Command`), in-memory `.lrc` lyrics parser, and duration/title fuzzy sanitizer.
 * **`packages/lacraia-core` (Rust Crate):** Backend orchestrator running on the Linux host server. Handles track resolution, disk caching in Opus, SQLite state storage, and WebSocket broadcasts.
 * **`packages/lacraia-app` (Rust / Dioxus Crate):** Automotive cockpit player supporting both native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets (WASM/PWA). Acts as the track library, playlist controller, and audio engine.
-* **`packages/lacraia-hud` ("La Craia Simbiótyka" - Android Kotlin App):** Native Android background service (`Foreground Service`). Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD directly over Waze via `WindowManager`.
+* **`packages/lacraia-android` (Android Kotlin Multi-Module Workspace):**
+  * **`:app` (`in._2lp.lacraia.app`):** Native Android Cockpit & Jukebox application (`lacraia-app.apk`) with full-screen automotive immersion, MediaSession background playback, cabin onboarding and crew interaction.
+  * **`:simbiotyka` (`in._2lp.lacraia.simbiotyka`):** Floating HUD companion (`simbiotyka.apk`) running as an Android Foreground Service. Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD over GPS navigation apps via `WindowManager`.
 
 ---
 

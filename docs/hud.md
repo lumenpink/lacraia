@@ -1,13 +1,30 @@
-# La Craia Simbiótyka: Android HUD Micro-App (`lacraia-hud`)
+# Simbiótyka: Android HUD Micro-App (`packages/lacraia-android/simbiotyka`)
 
-* **Component:** Heads-Up Display (HUD) overlay and GPS audio-ducking companion
+* **Component:** Floating Heads-Up Display (HUD) overlay and GPS audio-ducking companion
+* **Package / Namespace:** `in._2lp.lacraia.simbiotyka`
+* **Artifact:** `simbiotyka.apk` (Production Release)
 * **Language:** Kotlin
 * **Compatibility:** Min SDK 26 (Android 8.0 Oreo) | Target SDK 34 (Android 14)
 * **Architecture:** Decoupled background service (`Foreground Service`), no persistent fullscreen activity.
 
 ---
 
-## 1. System Permissions (`AndroidManifest.xml`)
+## 1. Múltiplos Casos de Uso e Cenários de Operação
+
+Simbiótyka não é amarrada a nenhum aplicativo específico; opera de forma agnóstica como uma camada sensorial flutuante sobre o ecossistema Android:
+
+1. **Navegação GPS Ativa em Trânsito:**
+   Projeta a pílula de letra flutuante diretamente sobre qualquer aplicativo de mapas e navegação (Waze, Google Maps, Organic Maps, OSMAnd, MapFactor), mantendo a rota e as instruções de direção sempre visíveis no primeiro plano, sem necessidade de alternar janelas.
+2. **Viagens em Grupo, Caronas e Vans:**
+   Permite que o motorista e os passageiros acompanhem a letra e cantem juntos em tempo real enquanto o tablet do painel ou celular do suporte continua exibindo o trajeto e os alertas de velocidade.
+3. **Karaokê de Estrada & Paredão Ambulante:**
+   Oferece sincronização precisa milissegundo a milissegundo das estrofes com cache SQLite local (`LrcCacheHelper`). Em trechos sem cobertura de dados (serras, túneis, áreas rurais), as letras previamente cacheadas continuam disponíveis sem internet.
+4. **Captura Universal e Agnóstica de Mídia:**
+   Intercepta eventos de reprodução via `NotificationListenerService` e `MediaSessionManager`. Funciona tanto com o próprio servidor `lacraia-core` quanto com qualquer player de mídia instalado no dispositivo (Spotify, YouTube Music, VLC, MPV, rádios online).
+
+---
+
+## 2. System Permissions (`AndroidManifest.xml`)
 
 ```xml
 <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -18,9 +35,9 @@
 
 ---
 
-## 2. Universal Media Capture & Audio Ducking (`MediaCaptureListener.kt`)
+## 3. Universal Media Capture & Audio Ducking (`MediaCaptureListener.kt`)
 
-`lacraia-hud` does not need to know which media player is currently producing sound:
+Simbiótyka does not need to know which media player is currently producing sound:
 1. **Notification & MediaSession Capture:**
    * Registers a `NotificationListenerService`.
    * Queries `MediaSessionManager.getActiveSessions()` to extract active media controllers.
@@ -33,17 +50,17 @@
    * Broadcasts `ACTION_UPDATE_HUD` to dynamically update the floating pill overlay.
 3. **Automotive GPS Audio Ducking:**
    * Registers an `AudioManager.OnAudioFocusChangeListener`.
-   * Intercepts `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` when Waze, Google Maps, or native vehicle navigation emits turn-by-turn spoken guidance.
+   * Intercepts `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` when GPS navigation apps emit turn-by-turn spoken guidance.
    * Scales active media stream volume down to **20%** (`LyricSyncCoordinator.DUCK_RATIO`).
    * Automatically restores full pre-ducking volume level on `AUDIOFOCUS_GAIN`.
 4. **Transport Controls Delegation:**
    * Receives `ACTION_TOGGLE_PLAYBACK` and `ACTION_NEXT_TRACK` broadcast from the floating pill touch targets and dispatches `transportControls.play()`, `pause()`, or `skipToNext()` directly to the active media session.
 
 > 📡 **[ TRANSMISSÃO DE CABINE ]**  
-> O HUD opera como um parasita acústico simbiótico: intercepta o canal de áudio automotivo sem que o aplicativo reprodutor primário saiba da sua existência, extraindo letras e metadados ao vivo diretamente do fluxo do sistema.
+> Simbiótyka opera como um parasita acústico simbiótico: intercepta o canal de áudio automotivo sem que o aplicativo reprodutor primário saiba da sua existência, extraindo letras e metadados ao vivo diretamente do fluxo do sistema.
 
 > ⚡ **[ FIO DESENCAPADO ]**  
-> O evento `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` ativado pelo Waze ou Google Maps atenua o volume da música para 20%. Se o sistema de som do carro tentar forçar o ganho manualmente nesse intervalo, o limitador digital segura o estouro para evitar distorção destrutiva.
+> O evento `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` ativado por apps de navegação atenua o volume da música para 20%. Se o sistema de som do carro tentar forçar o ganho manualmente nesse intervalo, o limitador digital segura o estouro para evitar distorção destrutiva.
 
 
 ---
@@ -70,9 +87,9 @@ When a track change event triggers, `LrcApiClient` first checks local SQLite sto
 
 ---
 
-## 4. Floating Pill Overlay over Waze (`HudViewController.kt`)
+## 4. Floating Pill Overlay over Navigation & Cockpit (`HudViewController.kt`)
 
-Injected directly into Android's `WindowManager` via `LacraiaHudService`:
+Injected directly into Android's `WindowManager` via `SimbiotykaService`:
 
 ```kotlin
 val params = WindowManager.LayoutParams(
