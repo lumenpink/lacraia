@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (app) add standalone web cockpit at /app and unified start script (fixes #7)
   - (android) implement multi-module workspace with lacraia-app and simbiotyka production apks (#27)
   - (site) add download hub for android apk, desktop linux, and core daemon (#26)
   - (cabin) implement multi-cabin auth, door lock, passenger jukebox, and crew ejection (#25)

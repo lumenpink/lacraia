@@ -96,14 +96,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let app = Router::new()
+    let site_dir = std::env::var("LACRAIA_SITE_DIR").unwrap_or_else(|_| "./site".into());
+    let mut app = Router::new()
         .route("/health", get(health_check))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
         .route("/api/cabin/join", post(handle_cabin_join))
         .route("/api/cabin/:id", get(handle_cabin_info))
         .route("/ws", get(ws_handler))
-        .nest_service("/cache", ServeDir::new(cache_dir))
+        .nest_service("/cache", ServeDir::new(cache_dir));
+
+    if std::path::Path::new(&site_dir).exists() {
+        app = app.fallback_service(ServeDir::new(&site_dir));
+    }
+
+    let app = app
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state);

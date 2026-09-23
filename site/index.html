@@ -965,6 +965,18 @@
       color: #fff;
     }
 
+    .btn-download.btn-web {
+      border-color: var(--veneno-eletrico);
+    }
+    .btn-download.btn-web:hover {
+      background: rgba(57, 255, 20, 0.08);
+      border-color: var(--veneno-eletrico);
+    }
+    .btn-download.btn-web .btn-pill {
+      background: var(--veneno-eletrico);
+      color: #000;
+    }
+
     .btn-icon {
       font-size: 1.6rem;
       line-height: 1;
@@ -1045,10 +1057,11 @@
   <div class="chassis">
     <!-- BARRA SUPERIOR DO CHASSI COM TELEMETRIA AUTOMOTIVA -->
     <div class="top-panel">
-      <div style="display: flex; align-items: center; gap: 0.6rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
         <img src="assets/icon.svg" alt="Ícone La Craia" width="24" height="24" style="vertical-align: middle; filter: drop-shadow(0 0 4px var(--veneno-eletrico));">
         <span class="badge-lambe">LA CRAIA :: BANCADA</span>
         <span style="margin-left: 0.2rem; color: var(--grafite-mono);">v0.2.0-dev • GPLv3+ • SISTEMA DISSIDENTE</span>
+        <a href="/app/" style="margin-left: 0.5rem; color: var(--veneno-eletrico); text-decoration: none; border: 1px solid var(--veneno-eletrico); padding: 0.2rem 0.5rem; font-size: 0.72rem; font-weight: bold; background: rgba(57,255,20,0.1); border-radius: 2px;">[ 🚀 COCKPIT WEB ]</a>
       </div>
       <div class="telemetry-leds">
         <span class="led-wrapper"><span class="led led-green"></span> SISTEMA: ALIMENTADO</span>
@@ -1200,6 +1213,14 @@
             <span>⚡ [ BANCADA DE EMBARQUE :: PACOTES DE PRODUÇÃO &amp; INSTALAÇÃO ]</span>
           </div>
           <div class="download-grid">
+            <a href="/app/" class="btn-download btn-web" title="Abrir Cockpit Automotivo Web &amp; PWA diretamente no Navegador">
+              <span class="btn-icon">🌐</span>
+              <div class="btn-text">
+                <span class="btn-main">ABRIR COCKPIT WEB</span>
+                <span class="btn-sub">PWA Instantâneo • Sem Instalação</span>
+              </div>
+              <span class="btn-pill">/APP</span>
+            </a>
             <a href="https://codeberg.org/lumenpink/lacraia/releases/download/nightly/lacraia-app.apk" class="btn-download btn-apk" title="Baixar La Craia App para Android (Cockpit & Jukebox)">
               <span class="btn-icon">📱</span>
               <div class="btn-text">

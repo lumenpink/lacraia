@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LA CRAIA :: Cockpit Automotivo Web &amp; PWA</title>
+  
+  <meta name="description" content="Cockpit automotivo da La Craia: reprodutor de cabine, controle de portas, jukebox colaborativo e streaming por afinidade acústica.">
+  <meta name="theme-color" content="#0a0b0d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" type="image/svg+xml" href="/assets/icon.svg">
+
+  <style>
+    :root {
+      --asfalto-frio: #0a0b0d;
+      --ferro-bate-pedra: #151618;
+      --concreto-rachado: #24272c;
+      --borda-chassi: #343a40;
+      --fucsia-furacao: #ff0055;
+      --veneno-eletrico: #39ff14;
+      --alerta-solavanco: #ffdd00;
+      --papel-jornal-molhado: #eae7dc;
+      --chumbo: #888888;
+      --chumbo-escuro: #444444;
+      --font-mono: ui-monospace, SFMono-Regular, "Liberation Mono", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--asfalto-frio);
+      color: var(--papel-jornal-molhado);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Top Bar */
+    header {
+      background: var(--ferro-bate-pedra);
+      border-bottom: 2px solid var(--borda-chassi);
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-section svg {
+      width: 28px;
+      height: 28px;
+      filter: drop-shadow(0 0 6px var(--fucsia-furacao));
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      color: var(--papel-jornal-molhado);
+    }
+
+    .brand-title span {
+      color: var(--fucsia-furacao);
+    }
+
+    .top-telemetry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border: 1px solid var(--borda-chassi);
+      background: var(--concreto-rachado);
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-radius: 2px;
+    }
+
+    .badge-pilot {
+      border-color: var(--fucsia-furacao);
+      color: var(--fucsia-furacao);
+      background: rgba(255, 0, 85, 0.1);
+    }
+
+    .badge-live {
+      border-color: var(--veneno-eletrico);
+      color: var(--veneno-eletrico);
+    }
+
+    .badge-locked {
+      border-color: var(--alerta-solavanco);
+      color: var(--alerta-solavanco);
+    }
+
+    .badge-btn {
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: var(--papel-jornal-molhado);
+      text-decoration: none;
+    }
+
+    .badge-btn:hover {
+      background: var(--papel-jornal-molhado);
+      color: var(--asfalto-frio);
+      border-color: var(--papel-jornal-molhado);
+    }
+
+    /* Cockpit Layout Grid */
+    main {
+      flex: 1;
+      padding: 16px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 860px) {
+      main {
+        grid-template-columns: 1.2fr 0.8fr;
+      }
+    }
+
+    /* Metameric Panel Style */
+    .cockpit-panel {
+      background: var(--ferro-bate-pedra);
+      border: 2px solid var(--borda-chassi);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      background: var(--concreto-rachado);
+      padding: 8px 12px;
+      border-bottom: 2px solid var(--borda-chassi);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      color: var(--papel-jornal-molhado);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-header span.tag {
+      color: var(--fucsia-furacao);
+    }
+
+    .panel-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+    }
+
+    /* Visualizer & Cover Art */
+    .deck-top {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .cassette-box {
+      width: 96px;
+      height: 96px;
+      background: var(--asfalto-frio);
+      border: 2px solid var(--fucsia-furacao);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.2);
+    }
+
+    .cassette-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .cassette-icon {
+      font-size: 40px;
+      color: var(--fucsia-furacao);
+      animation: spin-slow 12s linear infinite;
+    }
+
+    .paused .cassette-icon {
+      animation-play-state: paused;
+    }
+
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .track-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .track-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .track-artist {
+      font-size: 15px;
+      font-weight: bold;
+      color: var(--veneno-eletrico);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+    }
+
+    .track-requester {
+      font-size: 11px;
+      color: var(--alerta-solavanco);
+      font-weight: bold;
+    }
+
+    /* Waveform visualizer canvas */
+    .visualizer-container {
+      background: var(--asfalto-frio);
+      border: 1px solid var(--borda-chassi);
+      height: 70px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    canvas#visualizer {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Progress Seek Bar */
+    .seek-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .time-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--chumbo);
+      font-weight: bold;
+    }
+
+    .progress-track {
+      height: 12px;
+      background: var(--asfalto-frio);
+      border: 1px solid var(--borda-chassi);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--fucsia-furacao);
+      width: 0%;
+      transition: width 0.1s linear;
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: "";
+      position: absolute;
+      right: -3px;
+      top: -2px;
+      width: 6px;
+      height: 14px;
+      background: #ffffff;
+      box-shadow: 0 0 6px var(--fucsia-furacao);
+    }
+
+    /* Transport Controls */
+    .transport-controls {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      background: var(--concreto-rachado);
+      border: 2px solid var(--borda-chassi);
+      color: var(--papel-jornal-molhado);
+      padding: 12px 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.1s ease;
+      touch-action: manipulation;
+    }
+
+    .btn:active {
+      transform: translateY(2px);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+    }
+
+    .btn-main {
+      border-color: var(--fucsia-furacao);
+      background: rgba(255, 0, 85, 0.15);
+      color: #ffffff;
+      font-size: 14px;
+    }
+
+    .btn-main:hover {
+      background: var(--fucsia-furacao);
+      color: var(--asfalto-frio);
+    }
+
+    .btn-danger {
+      border-color: var(--fucsia-furacao);
+      color: var(--fucsia-furacao);
+    }
+
+    .btn-danger:hover {
+      background: var(--fucsia-furacao);
+      color: #ffffff;
+    }
+
+    .btn-alert {
+      border-color: var(--alerta-solavanco);
+      color: var(--alerta-solavanco);
+    }
+
+    .btn-alert:hover {
+      background: var(--alerta-solavanco);
+      color: var(--asfalto-frio);
+    }
+
+    .btn-active {
+      border-color: var(--veneno-eletrico);
+      background: rgba(57, 255, 20, 0.15);
+      color: var(--veneno-eletrico);
+    }
+
+    /* Gain Scale 0..11 */
+    .gain-strip {
+      background: var(--asfalto-frio);
+      border: 1px solid var(--borda-chassi);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .gain-label {
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--alerta-solavanco);
+      white-space: nowrap;
+    }
+
+    .gain-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 8px;
+      background: var(--concreto-rachado);
+      border: 1px solid var(--borda-chassi);
+      outline: none;
+    }
+
+    .gain-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 22px;
+      background: var(--fucsia-furacao);
+      border: 1px solid #ffffff;
+      cursor: pointer;
+    }
+
+    .gain-value {
+      font-size: 14px;
+      font-weight: 900;
+      color: #ffffff;
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* Stations Dial */
+    .station-dial {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+    }
+
+    .station-btn {
+      padding: 8px 6px;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    /* Cabin & Crew Panel */
+    .crew-panel-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .crew-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--borda-chassi);
+      background: var(--asfalto-frio);
+      padding: 8px;
+    }
+
+    .crew-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background: var(--ferro-bate-pedra);
+      border-left: 3px solid var(--veneno-eletrico);
+      font-size: 12px;
+    }
+
+    .crew-item.pilot-item {
+      border-left-color: var(--fucsia-furacao);
+    }
+
+    .crew-item-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .crew-item-name {
+      font-weight: bold;
+      color: #ffffff;
+    }
+
+    .crew-item-device {
+      font-size: 10px;
+      color: var(--chumbo);
+    }
+
+    .crew-item-btn {
+      padding: 2px 6px;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    /* Jukebox Enqueue */
+    .enqueue-box {
+      display: flex;
+      gap: 8px;
+    }
+
+    .enqueue-input {
+      flex: 1;
+      background: var(--asfalto-frio);
+      border: 1px solid var(--borda-chassi);
+      color: #ffffff;
+      padding: 8px 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .enqueue-input:focus {
+      border-color: var(--fucsia-furacao);
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 11, 13, 0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--ferro-bate-pedra);
+      border: 3px solid var(--fucsia-furacao);
+      box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
+      max-width: 440px;
+      width: 100%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--fucsia-furacao);
+      text-transform: uppercase;
+    }
+
+    .qr-render {
+      background: #ffffff;
+      padding: 16px;
+      display: inline-block;
+      margin: 0 auto;
+      border: 4px solid var(--asfalto-frio);
+    }
+
+    .qr-render canvas {
+      display: block;
+    }
+
+    /* Fullscreen Ejection Screen */
+    #ejection-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000000;
+      z-index: 999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    #ejection-screen.active {
+      display: flex;
+    }
+
+    .ejection-glitch {
+      font-size: 48px;
+      margin-bottom: 20px;
+      animation: pulse-danger 0.8s infinite alternate;
+    }
+
+    .ejection-text {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--fucsia-furacao);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.05em;
+    }
+
+    .ejection-sub {
+      color: var(--chumbo);
+      font-size: 14px;
+      max-width: 480px;
+      margin-bottom: 24px;
+    }
+
+    @keyframes pulse-danger {
+      from { transform: scale(1); filter: drop-shadow(0 0 4px var(--fucsia-furacao)); }
+      to { transform: scale(1.15); filter: drop-shadow(0 0 20px var(--fucsia-furacao)); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand-section">
+      <a href="/" title="Voltar ao portal La Craia">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="14" fill="#151618" stroke="#ff0055" stroke-width="2"/>
+          <path d="M8 12C10 6 12 4 16 4C20 4 22 6 24 12" stroke="#ff0055" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="12" cy="15" rx="2" ry="3" fill="#39ff14"/>
+          <ellipse cx="20" cy="15" rx="2" ry="3" fill="#39ff14"/>
+          <path d="M11 20L16 26L21 20" stroke="#ff0055" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <div>
+        <div class="brand-title">LA CRAIA <span>//</span> COCKPIT</div>
+        <div style="font-size: 10px; color: var(--chumbo);">AUTOMOTIVE WEB PLAYER &bull; v0.2.0</div>
+      </div>
+    </div>
+
+    <div class="top-telemetry">
+      <div id="ws-badge" class="badge" title="Clique para reconfigurar conexão">
+        <span id="ws-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--chumbo);"></span>
+        <span id="ws-text">WS :: OFFLINE</span>
+      </div>
+      <div id="role-badge" class="badge badge-pilot">PILOTO</div>
+      <div id="door-badge" class="badge badge-locked">🔓 PORTAS ABERTAS</div>
+      <a href="/" class="badge badge-btn">&larr; BANCADA</a>
+    </div>
+  </header>
+
+  <!-- Main Cockpit Console -->
+  <main>
+    <!-- Left Column: Master Playback Deck -->
+    <div class="cockpit-panel">
+      <div class="panel-header">
+        <span>DECK METAMÉRICO <span class="tag">#01</span></span>
+        <span id="station-indicator">ESTAÇÃO :: MPB &amp; SAMBA</span>
+      </div>
+
+      <div class="panel-body">
+        <!-- Deck Top: Cover + Track Info -->
+        <div class="deck-top">
+          <div class="cassette-box" id="cassette-container">
+            <span class="cassette-icon">✹</span>
+          </div>
+          <div class="track-meta">
+            <div class="track-title" id="track-title">CONSTRUÇÃO</div>
+            <div class="track-artist" id="track-artist">CHICO BUARQUE</div>
+            <div class="track-requester" id="track-requester">[ PILOTO / SISTEMA ]</div>
+          </div>
+        </div>
+
+        <!-- 32-Segment Bio-Mechanical Visualizer -->
+        <div class="visualizer-container">
+          <canvas id="visualizer"></canvas>
+        </div>
+
+        <!-- Seek Progress Bar -->
+        <div class="seek-container">
+          <div class="progress-track" id="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="time-labels">
+            <span id="time-current">00:00</span>
+            <span id="time-total">04:18</span>
+          </div>
+        </div>
+
+        <!-- Master Transport Buttons -->
+        <div class="transport-controls">
+          <button class="btn" id="btn-prev" title="Faixa Anterior">
+            <span>⏪</span> VOLTAR
+          </button>
+          <button class="btn btn-main" id="btn-play-pause" title="Tocar / Pausar">
+            <span id="play-icon">▶</span> <span id="play-text">TOCAR</span>
+          </button>
+          <button class="btn" id="btn-next" title="Próxima Faixa">
+            AVANÇAR <span>⏩</span>
+          </button>
+        </div>
+
+        <!-- Volume / Gain to 11 -->
+        <div class="gain-strip">
+          <span class="gain-label">POTÊNCIA (0..11)</span>
+          <input type="range" class="gain-slider" id="gain-slider" min="0" max="11" step="1" value="8">
+          <span class="gain-value" id="gain-val-display">8/11</span>
+        </div>
+
+        <!-- Station Selector Dial -->
+        <div>
+          <div style="font-size: 11px; font-weight: 900; color: var(--chumbo); margin-bottom: 8px;">
+            DIAL DE ESTAÇÕES POR GRAFO
+          </div>
+          <div class="station-dial" id="stations-grid">
+            <button class="btn station-btn btn-active" data-station="MPB & Samba">MPB & Samba</button>
+            <button class="btn station-btn" data-station="Synthwave Drive">Synthwave Drive</button>
+            <button class="btn station-btn" data-station="Rock Clássico">Rock Clássico</button>
+            <button class="btn station-btn" data-station="Lo-Fi Road Trip">Lo-Fi Road Trip</button>
+            <button class="btn station-btn" data-station="Paredão Autônomo">Paredão Autônomo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Cabin, Crew & Jukebox -->
+    <div class="cockpit-panel">
+      <div class="panel-header">
+        <span>CABINE &amp; TRIPULAÇÃO <span class="tag">#02</span></span>
+        <span id="crew-count">1 TRIPULANTE</span>
+      </div>
+
+      <div class="panel-body">
+        <!-- Door & QR Code Actions -->
+        <div class="crew-panel-actions">
+          <button class="btn btn-alert" id="btn-toggle-door" style="flex:1;">
+            <span id="door-btn-icon">🔓</span> <span id="door-btn-text">TRANCAR CABINE</span>
+          </button>
+          <button class="btn btn-active" id="btn-open-qr" style="flex:1;">
+            📲 EMBARQUE QR
+          </button>
+        </div>
+
+        <!-- Crew Passenger List -->
+        <div>
+          <div style="font-size: 11px; font-weight: 900; color: var(--chumbo); margin-bottom: 6px;">
+            TRIPULANTES EMBARCADOS
+          </div>
+          <div class="crew-list" id="crew-list">
+            <div class="crew-item pilot-item">
+              <div class="crew-item-info">
+                <span class="crew-item-name">MOTORISTA (Você)</span>
+                <span class="crew-item-device">Cockpit Central &bull; Piloto</span>
+              </div>
+              <span class="badge badge-pilot">PILOTO</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Emergency Eject All Lever -->
+        <button class="btn btn-danger" id="btn-eject-all">
+          💥 EJETAR TODOS OS PASSAGEIROS
+        </button>
+
+        <!-- Passenger Jukebox Request -->
+        <div>
+          <div style="font-size: 11px; font-weight: 900; color: var(--chumbo); margin-bottom: 6px;">
+            ENFILEIRAR CANTIGA (JUKEBOX)
+          </div>
+          <form id="enqueue-form" class="enqueue-box">
+            <input type="text" id="enqueue-input" class="enqueue-input" placeholder="Artista ou título da música..." required>
+            <button type="submit" class="btn btn-main" style="padding:8px 12px;">FILA</button>
+          </form>
+        </div>
+
+        <!-- Connection Settings Box -->
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid var(--borda-chassi); font-size: 11px; color: var(--chumbo);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>DAEMON CORE:</span>
+            <button id="btn-config-ws" style="background:none; border:none; color:var(--veneno-eletrico); font-family:var(--font-mono); font-size:11px; cursor:pointer; text-decoration:underline;">
+              CONFIGURAR WS
+            </button>
+          </div>
+          <div id="core-url-display" style="font-size: 10px; color: var(--chumbo-escuro); margin-top: 2px;">
+            auto: ws://${location.host}/ws
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal: QR Code Embarque -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal-card">
+      <div class="modal-title">📲 EMBARQUE DE PASSAGEIRO</div>
+      <div style="font-size: 12px; color: var(--papel-jornal-molhado);">
+        Aponte a câmera do celular para entrar na cabine e solicitar cantigas no som do carro:
+      </div>
+      <div class="qr-render" id="qr-code-box">
+        <canvas id="qr-canvas" width="180" height="180"></canvas>
+      </div>
+      <div id="qr-link-text" style="font-size: 10px; color: var(--chumbo); word-break: break-all;">
+        https://lacraia.2lp.in/app?cabin=automotive
+      </div>
+      <button class="btn btn-main" id="btn-close-qr">FECHAR [ESC]</button>
+    </div>
+  </div>
+
+  <!-- Fullscreen Ejection Screen (When passenger is kicked) -->
+  <div id="ejection-screen">
+    <div class="ejection-glitch">🦂 👢 💥</div>
+    <div class="ejection-text">VOCÊ FOI EJETADO DA CABINE!</div>
+    <div class="ejection-sub" id="ejection-reason-text">
+      O motorista acionou a alavanca de segurança e encerrou a sua sessão no som do carro.
+    </div>
+    <button class="btn btn-main" onclick="location.reload();">TENTAR RECONECTAR</button>
+  </div>
+
+  <!-- Audio Node (Hidden for local WebAudio & playback) -->
+  <audio id="audio-engine" crossorigin="anonymous" preload="none"></audio>
+
+  <!-- Cockpit Logic & Audio Engine -->
+  <script>
+    (function() {
+      // Configuration & Initial State
+      const DEMO_PLAYLIST = [
+        { id: "trk_1", title: "Construção", artist: "Chico Buarque", duration_ms: 258000, requested_by: "PILOTO" },
+        { id: "trk_2", title: "Águas de Março", artist: "Elis Regina & Tom Jobim", duration_ms: 212000, requested_by: "@Mari" },
+        { id: "trk_3", title: "Chega de Saudade", artist: "João Gilberto", duration_ms: 121000, requested_by: "@Davi" },
+        { id: "trk_4", title: "One More Time", artist: "Daft Punk", duration_ms: 320000, requested_by: "SISTEMA" },
+        { id: "trk_5", title: "Autobahn", artist: "Kraftwerk", duration_ms: 1360000, requested_by: "PILOTO" }
+      ];
+
+      let state = {
+        isPlaying: false,
+        currentIndex: 0,
+        positionMs: 0,
+        durationMs: DEMO_PLAYLIST[0].duration_ms,
+        volume: 0.72, // 8 / 11
+        isLocked: false,
+        role: "PILOTO",
+        crew: [
+          { id: "pilot", name: "MOTORISTA (Você)", device: "Cockpit Central", role: "PILOTO" },
+          { id: "p1", name: "@Mari", device: "Pixel 8", role: "PASSAGEIRO", track: "Águas de Março" },
+          { id: "p2", name: "@Davi", device: "iPhone 14", role: "PASSAGEIRO", track: "Chega de Saudade" }
+        ],
+        station: "MPB & Samba",
+        wsConnected: false
+      };
+
+      // Elements
+      const audio = document.getElementById("audio-engine");
+      const trackTitle = document.getElementById("track-title");
+      const trackArtist = document.getElementById("track-artist");
+      const trackRequester = document.getElementById("track-requester");
+      const cassetteContainer = document.getElementById("cassette-container");
+      const btnPlayPause = document.getElementById("btn-play-pause");
+      const playIcon = document.getElementById("play-icon");
+      const playText = document.getElementById("play-text");
+      const btnPrev = document.getElementById("btn-prev");
+      const btnNext = document.getElementById("btn-next");
+      const progressTrack = document.getElementById("progress-track");
+      const progressFill = document.getElementById("progress-fill");
+      const timeCurrent = document.getElementById("time-current");
+      const timeTotal = document.getElementById("time-total");
+      const gainSlider = document.getElementById("gain-slider");
+      const gainValDisplay = document.getElementById("gain-val-display");
+      const wsBadge = document.getElementById("ws-badge");
+      const wsDot = document.getElementById("ws-dot");
+      const wsText = document.getElementById("ws-text");
+      const doorBadge = document.getElementById("door-badge");
+      const btnToggleDoor = document.getElementById("btn-toggle-door");
+      const doorBtnIcon = document.getElementById("door-btn-icon");
+      const doorBtnText = document.getElementById("door-btn-text");
+      const crewList = document.getElementById("crew-list");
+      const crewCount = document.getElementById("crew-count");
+      const btnEjectAll = document.getElementById("btn-eject-all");
+      const btnOpenQr = document.getElementById("btn-open-qr");
+      const btnCloseQr = document.getElementById("btn-close-qr");
+      const qrModal = document.getElementById("qr-modal");
+      const qrCanvas = document.getElementById("qr-canvas");
+      const stationsGrid = document.getElementById("stations-grid");
+      const stationIndicator = document.getElementById("station-indicator");
+      const enqueueForm = document.getElementById("enqueue-form");
+      const enqueueInput = document.getElementById("enqueue-input");
+      const ejectionScreen = document.getElementById("ejection-screen");
+      const btnConfigWs = document.getElementById("btn-config-ws");
+      const coreUrlDisplay = document.getElementById("core-url-display");
+
+      // Time formatter
+      function formatTime(ms) {
+        const sec = Math.floor(ms / 1000);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+
+      // UI Render Sync
+      function renderState() {
+        const trk = DEMO_PLAYLIST[state.currentIndex];
+        trackTitle.textContent = trk.title;
+        trackArtist.textContent = trk.artist;
+        trackRequester.textContent = `[ ${trk.requested_by || 'PILOTO'} ]`;
+        state.durationMs = trk.duration_ms;
+
+        timeCurrent.textContent = formatTime(state.positionMs);
+        timeTotal.textContent = formatTime(state.durationMs);
+
+        const pct = (state.positionMs / state.durationMs) * 100;
+        progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+
+        if (state.isPlaying) {
+          cassetteContainer.classList.remove("paused");
+          playIcon.textContent = "⏸";
+          playText.textContent = "PAUSAR";
+        } else {
+          cassetteContainer.classList.add("paused");
+          playIcon.textContent = "▶";
+          playText.textContent = "TOCAR";
+        }
+
+        // Doors
+        if (state.isLocked) {
+          doorBadge.textContent = "🔒 TRANCADAS";
+          doorBadge.className = "badge badge-locked";
+          doorBtnIcon.textContent = "🔓";
+          doorBtnText.textContent = "ABRIR PORTAS";
+        } else {
+          doorBadge.textContent = "🔓 PORTAS ABERTAS";
+          doorBadge.className = "badge badge-live";
+          doorBtnIcon.textContent = "🔒";
+          doorBtnText.textContent = "TRANCAR CABINE";
+        }
+
+        // Crew
+        crewCount.textContent = `${state.crew.length} ${state.crew.length === 1 ? 'TRIPULANTE' : 'TRIPULANTES'}`;
+        crewList.innerHTML = "";
+        state.crew.forEach(p => {
+          const item = document.createElement("div");
+          item.className = `crew-item ${p.role === 'PILOTO' ? 'pilot-item' : ''}`;
+          
+          const info = document.createElement("div");
+          info.className = "crew-item-info";
+          
+          const name = document.createElement("span");
+          name.className = "crew-item-name";
+          name.textContent = p.name;
+          
+          const dev = document.createElement("span");
+          dev.className = "crew-item-device";
+          dev.textContent = `${p.device} ${p.track ? `• Solicitou: ${p.track}` : ''}`;
+          
+          info.appendChild(name);
+          info.appendChild(dev);
+          item.appendChild(info);
+
+          if (p.role !== 'PILOTO') {
+            const ejectBtn = document.createElement("button");
+            ejectBtn.className = "btn btn-danger crew-item-btn";
+            ejectBtn.textContent = "👢";
+            ejectBtn.title = `Ejetar ${p.name}`;
+            ejectBtn.onclick = () => ejectPassenger(p.id);
+            item.appendChild(ejectBtn);
+          } else {
+            const badge = document.createElement("span");
+            badge.className = "badge badge-pilot";
+            badge.textContent = "PILOTO";
+            item.appendChild(badge);
+          }
+
+          crewList.appendChild(item);
+        });
+
+        // MediaSession support for steering wheel controls & Android HUD
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: trk.title,
+            artist: trk.artist,
+            album: "La Craia Automotive",
+            artwork: [{ src: "/assets/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
+          });
+          navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused";
+        }
+      }
+
+      // Playback loop
+      let timer = null;
+      function startPlaybackLoop() {
+        if (timer) clearInterval(timer);
+        timer = setInterval(() => {
+          if (state.isPlaying) {
+            state.positionMs += 1000;
+            if (state.positionMs >= state.durationMs) {
+              nextTrack();
+            } else {
+              renderState();
+            }
+          }
+        }, 1000);
+      }
+
+      function togglePlayPause() {
+        state.isPlaying = !state.isPlaying;
+        renderState();
+        sendWsCommand({ type: state.isPlaying ? "Play" : "Pause" });
+      }
+
+      function nextTrack() {
+        state.currentIndex = (state.currentIndex + 1) % DEMO_PLAYLIST.length;
+        state.positionMs = 0;
+        renderState();
+        sendWsCommand({ type: "Next" });
+      }
+
+      function prevTrack() {
+        if (state.positionMs > 4000) {
+          state.positionMs = 0;
+        } else {
+          state.currentIndex = (state.currentIndex - 1 + DEMO_PLAYLIST.length) % DEMO_PLAYLIST.length;
+          state.positionMs = 0;
+        }
+        renderState();
+        sendWsCommand({ type: "Previous" });
+      }
+
+      function seekTo(pct) {
+        state.positionMs = Math.floor(state.durationMs * pct);
+        renderState();
+        sendWsCommand({ type: "Seek", position_ms: state.positionMs });
+      }
+
+      function setGain(val) {
+        state.volume = val / 11;
+        gainSlider.value = val;
+        gainValDisplay.textContent = `${val}/11`;
+        audio.volume = state.volume;
+        sendWsCommand({ type: "SetVolume", volume: state.volume });
+      }
+
+      function toggleDoors() {
+        state.isLocked = !state.isLocked;
+        renderState();
+        sendWsCommand({ type: state.isLocked ? "LockCabin" : "UnlockCabin" });
+      }
+
+      function ejectPassenger(id) {
+        state.crew = state.crew.filter(p => p.id !== id);
+        renderState();
+        sendWsCommand({ type: "EjectPassenger", passenger_id: id });
+      }
+
+      function ejectAll() {
+        state.crew = state.crew.filter(p => p.role === "PILOTO");
+        renderState();
+        sendWsCommand({ type: "EjectAll" });
+      }
+
+      // Event Listeners
+      btnPlayPause.addEventListener("click", togglePlayPause);
+      btnNext.addEventListener("click", nextTrack);
+      btnPrev.addEventListener("click", prevTrack);
+      btnToggleDoor.addEventListener("click", toggleDoors);
+      btnEjectAll.addEventListener("click", ejectAll);
+
+      gainSlider.addEventListener("input", (e) => {
+        setGain(parseInt(e.target.value, 10));
+      });
+
+      progressTrack.addEventListener("click", (e) => {
+        const rect = progressTrack.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const pct = Math.max(0, Math.min(1, clickX / rect.width));
+        seekTo(pct);
+      });
+
+      // Stations
+      stationsGrid.addEventListener("click", (e) => {
+        const btn = e.target.closest(".station-btn");
+        if (!btn) return;
+        document.querySelectorAll(".station-btn").forEach(b => b.classList.remove("btn-active"));
+        btn.classList.add("btn-active");
+        state.station = btn.dataset.station;
+        stationIndicator.textContent = `ESTAÇÃO :: ${state.station.toUpperCase()}`;
+        state.positionMs = 0;
+        renderState();
+      });
+
+      // Enqueue
+      enqueueForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = enqueueInput.value.trim();
+        if (!text) return;
+        DEMO_PLAYLIST.push({
+          id: `trk_${Date.now()}`,
+          title: text,
+          artist: "Tripulação",
+          duration_ms: 210000,
+          requested_by: "CABINE"
+        });
+        enqueueInput.value = "";
+        alert(`Faixa "${text}" enfileirada com sucesso na fila do paredão!`);
+      });
+
+      // Modal QR Code
+      function drawQrPreview() {
+        const ctx = qrCanvas.getContext("2d");
+        const w = qrCanvas.width;
+        const h = qrCanvas.height;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        
+        ctx.fillStyle = "#000000";
+        // Corner markers
+        const drawMarker = (x, y) => {
+          ctx.fillRect(x, y, 40, 40);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(x + 6, y + 6, 28, 28);
+          ctx.fillStyle = "#000000";
+          ctx.fillRect(x + 12, y + 12, 16, 16);
+        };
+        drawMarker(10, 10);
+        drawMarker(w - 50, 10);
+        drawMarker(10, h - 50);
+
+        // Pseudorandom grid for stylized QR
+        for (let i = 0; i < 18; i++) {
+          for (let j = 0; j < 18; j++) {
+            if ((i < 6 && j < 6) || (i > 11 && j < 6) || (i < 6 && j > 11)) continue;
+            if ((i * 7 + j * 13) % 3 === 0) {
+              ctx.fillRect(10 + i * 9, 10 + j * 9, 7, 7);
+            }
+          }
+        }
+      }
+
+      btnOpenQr.addEventListener("click", () => {
+        drawQrPreview();
+        qrModal.classList.add("active");
+      });
+      btnCloseQr.addEventListener("click", () => qrModal.classList.remove("active"));
+      qrModal.addEventListener("click", (e) => {
+        if (e.target === qrModal) qrModal.classList.remove("active");
+      });
+
+      // Keyboard Controls
+      window.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT") return;
+        if (e.code === "Space") {
+          e.preventDefault();
+          togglePlayPause();
+        } else if (e.code === "ArrowRight") {
+          nextTrack();
+        } else if (e.code === "ArrowLeft") {
+          prevTrack();
+        } else if (e.code === "Escape") {
+          qrModal.classList.remove("active");
+        }
+      });
+
+      // 32-Bar Bio-Mechanical Neon Visualizer Canvas
+      const canvas = document.getElementById("visualizer");
+      const ctx = canvas.getContext("2d");
+      function resizeCanvas() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      let animPhase = 0;
+      function renderVisualizer() {
+        requestAnimationFrame(renderVisualizer);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const bars = 32;
+        const gap = 3;
+        const barWidth = (canvas.width - (bars - 1) * gap) / bars;
+
+        animPhase += 0.05;
+        for (let i = 0; i < bars; i++) {
+          let heightPct;
+          if (state.isPlaying) {
+            heightPct = 0.2 + 0.7 * Math.abs(Math.sin(animPhase + i * 0.3) * Math.cos(animPhase * 0.7 - i * 0.15));
+          } else {
+            heightPct = 0.08 + 0.04 * Math.sin(animPhase * 0.3 + i * 0.2);
+          }
+          const barHeight = Math.max(3, heightPct * canvas.height);
+          const x = i * (barWidth + gap);
+          const y = canvas.height - barHeight;
+
+          // Metameric segment neon gradient
+          ctx.fillStyle = i % 2 === 0 ? "#ff0055" : "#39ff14";
+          ctx.fillRect(x, y, barWidth, barHeight);
+        }
+      }
+      renderVisualizer();
+
+      // WebSocket Hub Connection
+      let ws = null;
+      let targetWsUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`;
+      if (location.protocol === 'file:' || location.host.includes('lacraia.2lp.in')) {
+        targetWsUrl = `ws://localhost:8080/ws`;
+      }
+
+      function updateWsStatus(connected) {
+        state.wsConnected = connected;
+        if (connected) {
+          wsBadge.className = "badge badge-live";
+          wsDot.style.background = "var(--veneno-eletrico)";
+          wsText.textContent = "WS :: CONECTADO";
+          coreUrlDisplay.textContent = targetWsUrl;
+        } else {
+          wsBadge.className = "badge";
+          wsDot.style.background = "var(--chumbo)";
+          wsText.textContent = "WS :: DEMO LOCAL";
+          coreUrlDisplay.textContent = `${targetWsUrl} (offline - fallback autônomo)`;
+        }
+      }
+
+      function connectWs() {
+        try {
+          ws = new WebSocket(targetWsUrl);
+          ws.onopen = () => {
+            updateWsStatus(true);
+          };
+          ws.onclose = () => {
+            updateWsStatus(false);
+            setTimeout(connectWs, 5000);
+          };
+          ws.onerror = () => {
+            updateWsStatus(false);
+          };
+          ws.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (msg.type === "StateUpdate" && msg.payload) {
+                if (msg.payload.track) {
+                  DEMO_PLAYLIST[state.currentIndex] = msg.payload.track;
+                }
+                if (msg.payload.is_locked !== undefined) {
+                  state.isLocked = msg.payload.is_locked;
+                }
+                renderState();
+              } else if (msg.type === "CrewUpdate") {
+                state.crew = msg.passengers || state.crew;
+                state.isLocked = msg.is_locked !== undefined ? msg.is_locked : state.isLocked;
+                renderState();
+              } else if (msg.type === "Ejected") {
+                ejectionScreen.classList.add("active");
+              }
+            } catch (err) {}
+          };
+        } catch (e) {
+          updateWsStatus(false);
+        }
+      }
+
+      function sendWsCommand(cmd) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ Command: cmd }));
+        }
+      }
+
+      btnConfigWs.addEventListener("click", () => {
+        const input = prompt("Endereço WebSocket do Lacraia Core (ex: ws://localhost:8080/ws):", targetWsUrl);
+        if (input && input.trim()) {
+          targetWsUrl = input.trim();
+          if (ws) ws.close();
+          connectWs();
+        }
+      });
+
+      // Initial Boot
+      renderState();
+      startPlaybackLoop();
+      connectWs();
+    })();
+  </script>
+</body>
+</html>

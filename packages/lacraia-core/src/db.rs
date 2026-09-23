@@ -173,6 +173,11 @@ impl Database {
                 ON queue(cabin_id, position ASC, state);
             "#,
         )?;
+
+        // Ensure backwards compatibility with earlier queue table versions
+        let _ = conn.execute("ALTER TABLE queue ADD COLUMN cabin_id TEXT NOT NULL DEFAULT 'default'", []);
+        let _ = conn.execute("ALTER TABLE queue ADD COLUMN requested_by TEXT", []);
+
         Ok(())
     }
 

@@ -1,0 +1,24 @@
+{
+  "name": "LA CRAIA :: Cockpit Automotivo",
+  "short_name": "La Craia",
+  "description": "Suíte automotiva dissidente: streaming por grafo de afinidade acústica, paredão offline e jukebox de cabine.",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0b0d",
+  "theme_color": "#0a0b0d",
+  "icons": [
+    {
+      "src": "/assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
