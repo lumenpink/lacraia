@@ -2,11 +2,11 @@ use axum::{
     extract::{ws::WebSocketUpgrade, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use lacraia_shared::{Track, WsMessage};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::broadcast;
 use tower_http::{
@@ -100,6 +100,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
+        .route("/api/cabin/join", post(handle_cabin_join))
+        .route("/api/cabin/:id", get(handle_cabin_info))
         .route("/ws", get(ws_handler))
         .nest_service("/cache", ServeDir::new(cache_dir))
         .layer(cors)
@@ -123,6 +125,87 @@ async fn health_check() -> &'static str {
     "OK"
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CabinJoinRequest {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub name: String,
+    pub device: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinJoinResponse {
+    pub token: String,
+    #[serde(rename = "passengerId")]
+    pub passenger_id: String,
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub role: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinDetailsResponse {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "isLocked")]
+    pub is_locked: bool,
+    #[serde(rename = "passengersCount")]
+    pub passengers_count: usize,
+}
+
+async fn handle_cabin_join(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinJoinRequest>,
+) -> Result<Json<CabinJoinResponse>, (StatusCode, String)> {
+    if state.db.is_cabin_locked(&payload.cabin_id).unwrap_or(false) {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "CABIN_LOCKED: Portas trancadas pelo piloto".into(),
+        ));
+    }
+
+    // Generate random dynamic token
+    let token = format!("psg_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+    match state.db.add_passenger(&payload.cabin_id, &payload.name, payload.device.as_deref(), &token) {
+        Ok(record) => {
+            // Broadcast crew update via websocket hub
+            let passengers = state.db.get_active_passengers(&payload.cabin_id).unwrap_or_default();
+            let is_locked = state.db.is_cabin_locked(&payload.cabin_id).unwrap_or(false);
+            let _ = state.hub.tx.send(WsMessage::CrewUpdate(lacraia_shared::CrewUpdate {
+                cabin_id: payload.cabin_id.clone(),
+                is_locked,
+                passengers,
+            }));
+
+            Ok(Json(CabinJoinResponse {
+                token: record.token,
+                passenger_id: record.id,
+                cabin_id: record.cabin_id,
+                role: "PASSENGER".into(),
+            }))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to register passenger: {}", e),
+        )),
+    }
+}
+
+async fn handle_cabin_info(
+    State(state): State<AppState>,
+    axum::extract::Path(cabin_id): axum::extract::Path<String>,
+) -> Result<Json<CabinDetailsResponse>, (StatusCode, String)> {
+    let is_locked = state.db.is_cabin_locked(&cabin_id).unwrap_or(false);
+    let passengers = state.db.get_active_passengers(&cabin_id).unwrap_or_default();
+
+    Ok(Json(CabinDetailsResponse {
+        id: cabin_id.clone(),
+        name: format!("Cabine {}", cabin_id),
+        is_locked,
+        passengers_count: passengers.len(),
+    }))
+}
+
 async fn handle_radio(
     State(state): State<AppState>,
     Query(query): Query<RadioQuery>,
@@ -142,6 +225,7 @@ async fn handle_radio(
                     duration_ms: c.duration_sec.unwrap_or(210) * 1000,
                     cover_url: None,
                     stream_url: None,
+                    requested_by: None,
                 })
                 .collect();
             Ok(Json(tracks))
@@ -175,6 +259,7 @@ async fn handle_resolve(
             duration_ms: resolution.duration_sec * 1000,
             cover_url: None,
             stream_url: Some(resolution.stream_url),
+            requested_by: None,
         })),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -185,7 +270,8 @@ async fn handle_resolve(
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
+    Query(params): Query<ws::WsParams>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| ws::handle_socket(socket, state.hub))
+    ws.on_upgrade(move |socket| ws::handle_socket(socket, state.hub, params))
 }

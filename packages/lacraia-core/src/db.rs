@@ -1,4 +1,5 @@
 use chrono::Utc;
+use lacraia_shared::{PassengerInfo, Role};
 use rusqlite::{params, Connection, Result};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -10,6 +11,28 @@ pub enum DbError {
     Sqlite(#[from] rusqlite::Error),
     #[error("Track not found: {0}")]
     TrackNotFound(String),
+    #[error("Cabin locked: {0}")]
+    CabinLocked(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CabinRecord {
+    pub id: String,
+    pub name: String,
+    pub is_locked: bool,
+    pub pilot_token: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PassengerRecord {
+    pub id: String,
+    pub cabin_id: String,
+    pub name: String,
+    pub device: Option<String>,
+    pub token: String,
+    pub is_active: bool,
+    pub joined_at: i64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +81,8 @@ pub struct QueueEntry {
     pub position: i64,
     pub state: QueueState,
     pub created_at: i64,
+    pub cabin_id: String,
+    pub requested_by: Option<String>,
 }
 
 #[derive(Clone)]
@@ -114,17 +139,38 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_edges_lookup 
                 ON similarity_edges(source_track_id, weight DESC);
 
+            CREATE TABLE IF NOT EXISTS cabins (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                is_locked INTEGER NOT NULL DEFAULT 0,
+                pilot_token TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS passengers (
+                id TEXT PRIMARY KEY,
+                cabin_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                device TEXT,
+                token TEXT NOT NULL UNIQUE,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                joined_at INTEGER NOT NULL,
+                FOREIGN KEY (cabin_id) REFERENCES cabins(id) ON DELETE CASCADE
+            );
+
             CREATE TABLE IF NOT EXISTS queue (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 track_id TEXT NOT NULL,
                 position INTEGER NOT NULL,
                 state TEXT NOT NULL DEFAULT 'pending',
                 created_at INTEGER NOT NULL,
+                cabin_id TEXT NOT NULL DEFAULT 'default',
+                requested_by TEXT,
                 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
             );
 
             CREATE INDEX IF NOT EXISTS idx_queue_pos 
-                ON queue(position ASC, state);
+                ON queue(cabin_id, position ASC, state);
             "#,
         )?;
         Ok(())
@@ -259,13 +305,22 @@ impl Database {
     }
 
     pub fn enqueue_track(&self, track_id: &str) -> Result<i64, DbError> {
+        self.enqueue_track_with_meta(track_id, None, "default")
+    }
+
+    pub fn enqueue_track_with_meta(
+        &self,
+        track_id: &str,
+        requested_by: Option<&str>,
+        cabin_id: &str,
+    ) -> Result<i64, DbError> {
         let conn = self.conn.lock().unwrap();
         let now = Utc::now().timestamp();
 
         let max_pos: Option<i64> = conn
             .query_row(
-                "SELECT MAX(position) FROM queue",
-                [],
+                "SELECT MAX(position) FROM queue WHERE cabin_id = ?1",
+                params![cabin_id],
                 |row| row.get(0),
             )
             .unwrap_or(None);
@@ -274,29 +329,33 @@ impl Database {
 
         conn.execute(
             r#"
-            INSERT INTO queue (track_id, position, state, created_at)
-            VALUES (?1, ?2, 'pending', ?3)
+            INSERT INTO queue (track_id, position, state, created_at, cabin_id, requested_by)
+            VALUES (?1, ?2, 'pending', ?3, ?4, ?5)
             "#,
-            params![track_id, next_pos, now],
+            params![track_id, next_pos, now, cabin_id, requested_by],
         )?;
 
         Ok(conn.last_insert_rowid())
     }
 
     pub fn get_queue(&self) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
+        self.get_queue_for_cabin("default")
+    }
+
+    pub fn get_queue_for_cabin(&self, cabin_id: &str) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"
-            SELECT q.id, q.track_id, q.position, q.state, q.created_at,
+            SELECT q.id, q.track_id, q.position, q.state, q.created_at, q.cabin_id, q.requested_by,
                    t.artist, t.title, t.duration_sec, t.cached_path, t.genres, t.last_played_at
             FROM queue q
             JOIN tracks t ON t.id = q.track_id
-            WHERE q.state != 'played'
+            WHERE q.state != 'played' AND q.cabin_id = ?1
             ORDER BY q.position ASC
             "#,
         )?;
 
-        let rows = stmt.query_map([], |row| {
+        let rows = stmt.query_map(params![cabin_id], |row| {
             let state_str: String = row.get(3)?;
             Ok((
                 QueueEntry {
@@ -305,15 +364,17 @@ impl Database {
                     position: row.get(2)?,
                     state: QueueState::from_str(&state_str),
                     created_at: row.get(4)?,
+                    cabin_id: row.get(5)?,
+                    requested_by: row.get(6)?,
                 },
                 TrackRecord {
                     id: row.get(1)?,
-                    artist: row.get(5)?,
-                    title: row.get(6)?,
-                    duration_sec: row.get(7)?,
-                    cached_path: row.get(8)?,
-                    genres: row.get(9)?,
-                    last_played_at: row.get(10)?,
+                    artist: row.get(7)?,
+                    title: row.get(8)?,
+                    duration_sec: row.get(9)?,
+                    cached_path: row.get(10)?,
+                    genres: row.get(11)?,
+                    last_played_at: row.get(12)?,
                 },
             ))
         })?;
@@ -326,18 +387,22 @@ impl Database {
     }
 
     pub fn advance_queue(&self) -> Result<Option<QueueEntry>, DbError> {
+        self.advance_queue_for_cabin("default")
+    }
+
+    pub fn advance_queue_for_cabin(&self, cabin_id: &str) -> Result<Option<QueueEntry>, DbError> {
         let conn = self.conn.lock().unwrap();
-        // Mark current 'playing' as 'played'
+        // Mark current 'playing' as 'played' for this cabin
         conn.execute(
-            "UPDATE queue SET state = 'played' WHERE state = 'playing'",
-            [],
+            "UPDATE queue SET state = 'played' WHERE state = 'playing' AND cabin_id = ?1",
+            params![cabin_id],
         )?;
 
         // Find next eligible track
         let next_id: Option<i64> = conn
             .query_row(
-                "SELECT id FROM queue WHERE state IN ('pending', 'cached') ORDER BY position ASC LIMIT 1",
-                [],
+                "SELECT id FROM queue WHERE state IN ('pending', 'cached') AND cabin_id = ?1 ORDER BY position ASC LIMIT 1",
+                params![cabin_id],
                 |row| row.get(0),
             )
             .ok();
@@ -349,7 +414,7 @@ impl Database {
             )?;
 
             let entry = conn.query_row(
-                "SELECT id, track_id, position, state, created_at FROM queue WHERE id = ?1",
+                "SELECT id, track_id, position, state, created_at, cabin_id, requested_by FROM queue WHERE id = ?1",
                 params![id],
                 |row| {
                     let state_str: String = row.get(3)?;
@@ -359,6 +424,8 @@ impl Database {
                         position: row.get(2)?,
                         state: QueueState::from_str(&state_str),
                         created_at: row.get(4)?,
+                        cabin_id: row.get(5)?,
+                        requested_by: row.get(6)?,
                     })
                 },
             )?;
@@ -379,6 +446,162 @@ impl Database {
             params![track_id],
         )?;
         Ok(())
+    }
+
+    pub fn get_or_create_cabin(&self, id: &str, name: &str, pilot_token: &str) -> Result<CabinRecord, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+        conn.execute(
+            r#"
+            INSERT INTO cabins (id, name, is_locked, pilot_token, created_at)
+            VALUES (?1, ?2, 0, ?3, ?4)
+            ON CONFLICT(id) DO NOTHING
+            "#,
+            params![id, name, pilot_token, now],
+        )?;
+
+        let cabin = conn.query_row(
+            "SELECT id, name, is_locked, pilot_token, created_at FROM cabins WHERE id = ?1",
+            params![id],
+            |row| {
+                Ok(CabinRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    is_locked: row.get::<_, i64>(2)? == 1,
+                    pilot_token: row.get(3)?,
+                    created_at: row.get(4)?,
+                })
+            },
+        )?;
+        Ok(cabin)
+    }
+
+    pub fn set_cabin_locked(&self, cabin_id: &str, locked: bool) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE cabins SET is_locked = ?1 WHERE id = ?2",
+            params![if locked { 1 } else { 0 }, cabin_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn is_cabin_locked(&self, cabin_id: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let locked: Option<i64> = conn
+            .query_row(
+                "SELECT is_locked FROM cabins WHERE id = ?1",
+                params![cabin_id],
+                |row| row.get(0),
+            )
+            .ok();
+        Ok(locked.unwrap_or(0) == 1)
+    }
+
+    pub fn add_passenger(
+        &self,
+        cabin_id: &str,
+        name: &str,
+        device: Option<&str>,
+        token: &str,
+    ) -> Result<PassengerRecord, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+        let prefix = if token.len() >= 8 { &token[..8] } else { token };
+        let passenger_id = format!("psg_{}", prefix);
+
+        conn.execute(
+            r#"
+            INSERT INTO passengers (id, cabin_id, name, device, token, is_active, joined_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)
+            "#,
+            params![passenger_id, cabin_id, name, device, token, now],
+        )?;
+
+        Ok(PassengerRecord {
+            id: passenger_id,
+            cabin_id: cabin_id.to_string(),
+            name: name.to_string(),
+            device: device.map(|d| d.to_string()),
+            token: token.to_string(),
+            is_active: true,
+            joined_at: now,
+        })
+    }
+
+    pub fn get_active_passengers(&self, cabin_id: &str) -> Result<Vec<PassengerInfo>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id, name, device, joined_at
+            FROM passengers
+            WHERE cabin_id = ?1 AND is_active = 1
+            ORDER BY joined_at ASC
+            "#,
+        )?;
+
+        let rows = stmt.query_map(params![cabin_id], |row| {
+            Ok(PassengerInfo {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                device: row.get(2)?,
+                joined_at: row.get(3)?,
+            })
+        })?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
+    }
+
+    pub fn eject_passenger(&self, passenger_id: &str) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE passengers SET is_active = 0 WHERE id = ?1",
+            params![passenger_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn eject_all_passengers(&self, cabin_id: &str) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE passengers SET is_active = 0 WHERE cabin_id = ?1",
+            params![cabin_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn validate_token(&self, cabin_id: &str, token: &str) -> Result<Option<Role>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        // Check if token matches cabin pilot
+        let is_pilot: Option<String> = conn
+            .query_row(
+                "SELECT id FROM cabins WHERE id = ?1 AND pilot_token = ?2",
+                params![cabin_id, token],
+                |row| row.get(0),
+            )
+            .ok();
+
+        if is_pilot.is_some() {
+            return Ok(Some(Role::Pilot));
+        }
+
+        // Check if token matches active passenger
+        let is_passenger: Option<String> = conn
+            .query_row(
+                "SELECT id FROM passengers WHERE cabin_id = ?1 AND token = ?2 AND is_active = 1",
+                params![cabin_id, token],
+                |row| row.get(0),
+            )
+            .ok();
+
+        if is_passenger.is_some() {
+            return Ok(Some(Role::Passenger));
+        }
+
+        Ok(None)
     }
 }
 
@@ -468,4 +691,47 @@ mod tests {
         assert!(advanced.is_some());
         assert_eq!(advanced.unwrap().state, QueueState::Playing);
     }
+
+    #[test]
+    fn test_db_cabin_and_passenger_operations() {
+        let db = Database::open_in_memory().unwrap();
+
+        // 1. Create cabin
+        let cabin = db.get_or_create_cabin("van-furacao", "Van Furacão", "pilot-secret-123").unwrap();
+        assert_eq!(cabin.id, "van-furacao");
+        assert_eq!(cabin.name, "Van Furacão");
+        assert!(!cabin.is_locked);
+
+        // 2. Validate pilot token
+        let role = db.validate_token("van-furacao", "pilot-secret-123").unwrap();
+        assert_eq!(role, Some(Role::Pilot));
+
+        // 3. Add passenger
+        let passenger = db.add_passenger("van-furacao", "Mari", Some("iPhone 14"), "psg-token-999").unwrap();
+        assert_eq!(passenger.name, "Mari");
+        assert!(passenger.is_active);
+
+        // 4. Validate passenger token
+        let pass_role = db.validate_token("van-furacao", "psg-token-999").unwrap();
+        assert_eq!(pass_role, Some(Role::Passenger));
+
+        // 5. Active passengers count
+        let passengers = db.get_active_passengers("van-furacao").unwrap();
+        assert_eq!(passengers.len(), 1);
+        assert_eq!(passengers[0].name, "Mari");
+
+        // 6. Test door locking
+        db.set_cabin_locked("van-furacao", true).unwrap();
+        assert!(db.is_cabin_locked("van-furacao").unwrap());
+
+        // 7. Eject passenger
+        db.eject_passenger(&passenger.id).unwrap();
+        let remaining = db.get_active_passengers("van-furacao").unwrap();
+        assert_eq!(remaining.len(), 0);
+
+        // Token should now be invalid
+        let invalid_role = db.validate_token("van-furacao", "psg-token-999").unwrap();
+        assert_eq!(invalid_role, None);
+    }
 }
+

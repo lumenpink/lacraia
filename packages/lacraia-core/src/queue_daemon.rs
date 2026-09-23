@@ -143,6 +143,8 @@ mod tests {
             position: id,
             state,
             created_at: 0,
+            cabin_id: "default".into(),
+            requested_by: None,
         };
 
         // Scenario: Track 1 is Playing, Track 2 is Pending, Track 3 is Pending, Track 4 is Pending
@@ -202,6 +204,8 @@ mod tests {
             position: id,
             state,
             created_at: 0,
+            cabin_id: "default".into(),
+            requested_by: None,
         };
 
         let queue = vec![

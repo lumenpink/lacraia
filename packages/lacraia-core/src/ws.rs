@@ -2,20 +2,28 @@ use crate::db::Database;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        State,
+        Query, State,
     },
     response::IntoResponse,
 };
 use chrono::Utc;
 use futures::{SinkExt, StreamExt};
 use lacraia_shared::{
-    CommandAction, PlaybackDetails, PlaybackState, StatePayload, StateUpdate, Track, WsMessage,
+    CabinLockedNotification, CommandAction, CrewUpdate, EjectedNotification, PlaybackDetails,
+    PlaybackState, Role, StatePayload, StateUpdate, Track, WsMessage,
 };
+use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, Mutex};
 use tokio::time::sleep;
 use tracing::{info, warn};
+
+#[derive(Debug, Deserialize, Default)]
+pub struct WsParams {
+    pub cabin: Option<String>,
+    pub token: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct PlaybackHub {
@@ -24,6 +32,7 @@ pub struct PlaybackHub {
     pub current_track: Arc<Mutex<Option<Track>>>,
     pub playback_state: Arc<Mutex<PlaybackState>>,
     pub position_ms: Arc<Mutex<u64>>,
+    pub cabin_id: Arc<Mutex<String>>,
 }
 
 impl PlaybackHub {
@@ -34,6 +43,7 @@ impl PlaybackHub {
             current_track: Arc::new(Mutex::new(None)),
             playback_state: Arc::new(Mutex::new(PlaybackState::Stopped)),
             position_ms: Arc::new(Mutex::new(0)),
+            cabin_id: Arc::new(Mutex::new("default".into())),
         }
     }
 
@@ -42,6 +52,8 @@ impl PlaybackHub {
         let track = self.current_track.lock().await.clone();
         let state = *self.playback_state.lock().await;
         let pos = *self.position_ms.lock().await;
+        let cabin_id = self.cabin_id.lock().await.clone();
+        let is_locked = self.db.is_cabin_locked(&cabin_id).unwrap_or(false);
 
         WsMessage::StateUpdate(StateUpdate {
             payload: StatePayload {
@@ -52,13 +64,33 @@ impl PlaybackHub {
                     updated_at: Utc::now().timestamp_millis(),
                 },
                 has_lrc: true,
+                cabin_id: Some(cabin_id),
+                is_locked: Some(is_locked),
             },
         })
     }
 
-    /// Dispatches a command action, mutates internal state, queries the database if needed,
-    /// and broadcasts the resulting state update.
     pub async fn dispatch_command(&self, action: CommandAction) -> Result<WsMessage, String> {
+        self.dispatch_command_with_role(action, Some(Role::Pilot)).await
+    }
+
+    /// Dispatches a command action, mutates internal state, queries the database if needed,
+    /// checks permissions according to caller role, and broadcasts the resulting state update.
+    pub async fn dispatch_command_with_role(
+        &self,
+        action: CommandAction,
+        caller_role: Option<Role>,
+    ) -> Result<WsMessage, String> {
+        // Enforce role-based access control: passengers may only append to the queue
+        if let Some(Role::Passenger) = caller_role {
+            match &action {
+                CommandAction::QueueAppend { .. } => { /* Allowed */ }
+                _ => return Err("FORBIDDEN: Apenas o piloto pode comandar a cabine".to_string()),
+            }
+        }
+
+        let cabin_id = self.cabin_id.lock().await.clone();
+
         match action {
             CommandAction::Play => {
                 *self.playback_state.lock().await = PlaybackState::Playing;
@@ -71,7 +103,7 @@ impl PlaybackHub {
             }
             CommandAction::Next => {
                 *self.position_ms.lock().await = 0;
-                match self.db.advance_queue() {
+                match self.db.advance_queue_for_cabin(&cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
                             let track = Track {
@@ -82,6 +114,7 @@ impl PlaybackHub {
                                 duration_ms: record.duration_sec * 1000,
                                 cover_url: None,
                                 stream_url: record.cached_path.map(|p| format!("/cache/{}", p)),
+                                requested_by: entry.requested_by,
                             };
                             *self.current_track.lock().await = Some(track);
                             *self.playback_state.lock().await = PlaybackState::Playing;
@@ -97,10 +130,46 @@ impl PlaybackHub {
             CommandAction::Previous => {
                 *self.position_ms.lock().await = 0;
             }
-            CommandAction::QueueAppend { track_id } => {
-                if let Err(e) = self.db.enqueue_track(&track_id) {
+            CommandAction::QueueAppend { track_id, requested_by } => {
+                if let Err(e) = self.db.enqueue_track_with_meta(&track_id, requested_by.as_deref(), &cabin_id) {
                     return Err(format!("Failed to enqueue track: {}", e));
                 }
+            }
+            CommandAction::LockCabin { locked } => {
+                let _ = self.db.set_cabin_locked(&cabin_id, locked);
+                let passengers = self.db.get_active_passengers(&cabin_id).unwrap_or_default();
+                let _ = self.tx.send(WsMessage::CrewUpdate(CrewUpdate {
+                    cabin_id: cabin_id.clone(),
+                    is_locked: locked,
+                    passengers,
+                }));
+            }
+            CommandAction::EjectPassenger { passenger_id } => {
+                let _ = self.db.eject_passenger(&passenger_id);
+                let _ = self.tx.send(WsMessage::Ejected(EjectedNotification {
+                    cabin_id: cabin_id.clone(),
+                    reason: "Chute da cabine pelo piloto".into(),
+                }));
+                let passengers = self.db.get_active_passengers(&cabin_id).unwrap_or_default();
+                let is_locked = self.db.is_cabin_locked(&cabin_id).unwrap_or(false);
+                let _ = self.tx.send(WsMessage::CrewUpdate(CrewUpdate {
+                    cabin_id: cabin_id.clone(),
+                    is_locked,
+                    passengers,
+                }));
+            }
+            CommandAction::EjectAll => {
+                let _ = self.db.eject_all_passengers(&cabin_id);
+                let _ = self.tx.send(WsMessage::Ejected(EjectedNotification {
+                    cabin_id: cabin_id.clone(),
+                    reason: "Todos os passageiros foram ejetados pelo piloto".into(),
+                }));
+                let is_locked = self.db.is_cabin_locked(&cabin_id).unwrap_or(false);
+                let _ = self.tx.send(WsMessage::CrewUpdate(CrewUpdate {
+                    cabin_id: cabin_id.clone(),
+                    is_locked,
+                    passengers: vec![],
+                }));
             }
         }
 
@@ -148,18 +217,54 @@ impl PlaybackHub {
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
+    Query(params): Query<WsParams>,
     State(hub): State<Arc<PlaybackHub>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, hub))
+    ws.on_upgrade(move |socket| handle_socket(socket, hub, params))
 }
 
-pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>) {
+pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsParams) {
     let (mut sender, mut receiver) = socket.split();
     let mut rx = hub.tx.subscribe();
+
+    let cabin_id = params.cabin.unwrap_or_else(|| "default".to_string());
+
+    // Check role from token if provided
+    let role = if let Some(ref tok) = params.token {
+        hub.db.validate_token(&cabin_id, tok).unwrap_or(None)
+    } else if cabin_id == "default" {
+        Some(Role::Pilot)
+    } else {
+        None
+    };
+
+    // If cabin is locked and user has no role, notify and abort connection
+    if hub.db.is_cabin_locked(&cabin_id).unwrap_or(false) && role.is_none() {
+        let locked_msg = WsMessage::CabinLocked(CabinLockedNotification {
+            cabin_id: cabin_id.clone(),
+            message: "Portas trancadas pelo piloto".into(),
+        });
+        if let Ok(json) = serde_json::to_string(&locked_msg) {
+            let _ = sender.send(Message::Text(json)).await;
+        }
+        return;
+    }
 
     // Send initial snapshot state immediately upon client connection
     let initial_state = hub.build_state_update().await;
     if let Ok(json) = serde_json::to_string(&initial_state) {
+        let _ = sender.send(Message::Text(json)).await;
+    }
+
+    // Send initial crew update
+    let passengers = hub.db.get_active_passengers(&cabin_id).unwrap_or_default();
+    let is_locked = hub.db.is_cabin_locked(&cabin_id).unwrap_or(false);
+    let crew_msg = WsMessage::CrewUpdate(CrewUpdate {
+        cabin_id: cabin_id.clone(),
+        is_locked,
+        passengers,
+    });
+    if let Ok(json) = serde_json::to_string(&crew_msg) {
         let _ = sender.send(Message::Text(json)).await;
     }
 
@@ -178,11 +283,14 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>) {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             match serde_json::from_str::<WsMessage>(&text) {
                 Ok(WsMessage::Command(cmd)) => {
-                    info!("WebSocket Hub: dispatching command {:?}", cmd.payload);
-                    let _ = hub_clone.dispatch_command(cmd.payload).await;
+                    info!("WebSocket Hub: dispatching command {:?} with role {:?}", cmd.payload, role);
+                    let _ = hub_clone.dispatch_command_with_role(cmd.payload, role).await;
                 }
                 Ok(WsMessage::StateUpdate(_)) => {
                     warn!("Client sent unexpected StateUpdate, ignoring");
+                }
+                Ok(WsMessage::CrewUpdate(_)) | Ok(WsMessage::Ejected(_)) | Ok(WsMessage::CabinLocked(_)) => {
+                    // Outgoing notifications ignored from client input
                 }
                 Err(e) => {
                     warn!("Failed to parse WebSocket message from client: {}", e);
@@ -254,6 +362,76 @@ mod tests {
                 assert_eq!(u.payload.track.unwrap().title, "Heroes");
             }
             _ => panic!("Expected StateUpdate"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_playback_hub_role_authorization_and_cabin_controls() {
+        let db = Database::open_in_memory().unwrap();
+        let (tx, mut rx) = broadcast::channel(10);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+
+        // 1. Passenger cannot Pause/Stop (forbidden)
+        let res = hub
+            .dispatch_command_with_role(CommandAction::Pause, Some(Role::Passenger))
+            .await;
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("FORBIDDEN"));
+
+        // 2. Passenger CAN append to queue
+        let track = TrackRecord {
+            id: "trk_party".into(),
+            artist: "Daft Punk".into(),
+            title: "One More Time".into(),
+            duration_sec: 320,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track).unwrap();
+
+        let queue_res = hub
+            .dispatch_command_with_role(
+                CommandAction::QueueAppend {
+                    track_id: "trk_party".into(),
+                    requested_by: Some("@Mari".into()),
+                },
+                Some(Role::Passenger),
+            )
+            .await;
+        assert!(queue_res.is_ok());
+
+        // Drain state update
+        let _ = rx.recv().await.unwrap();
+
+        // 3. Pilot locks cabin
+        hub.dispatch_command(CommandAction::LockCabin { locked: true })
+            .await
+            .unwrap();
+        let crew_msg = rx.recv().await.unwrap();
+        match crew_msg {
+            WsMessage::CrewUpdate(c) => {
+                assert!(c.is_locked);
+            }
+            _ => panic!("Expected CrewUpdate with is_locked=true"),
+        }
+
+        // Drain subsequent state update from dispatch_command
+        let _ = rx.recv().await.unwrap();
+
+        // 4. Pilot ejects passenger
+        hub.dispatch_command(CommandAction::EjectPassenger {
+            passenger_id: "psg_test".into(),
+        })
+        .await
+        .unwrap();
+
+        let eject_msg = rx.recv().await.unwrap();
+        match eject_msg {
+            WsMessage::Ejected(e) => {
+                assert!(e.reason.contains("piloto"));
+            }
+            _ => panic!("Expected Ejected message"),
         }
     }
 }

@@ -1,4 +1,4 @@
-use lacraia_shared::{PlaybackState, StateUpdate, Track, WsMessage};
+use lacraia_shared::{PassengerInfo, PlaybackState, Role, StateUpdate, Track, WsMessage};
 use serde::{Deserialize, Serialize};
 
 /// Formats millisecond duration into "mm:ss" display string
@@ -119,6 +119,13 @@ pub struct PlayerState {
     pub volume: f64,
     pub active_station: String,
     pub available_stations: Vec<String>,
+    pub role: Role,
+    pub is_locked: bool,
+    pub cabin_id: String,
+    pub crew: Vec<PassengerInfo>,
+    pub is_ejected: bool,
+    pub ejection_reason: Option<String>,
+    pub show_qr_modal: bool,
 }
 
 impl Default for PlayerState {
@@ -136,6 +143,13 @@ impl Default for PlayerState {
                 "Rock Clássico".to_string(),
                 "Lo-Fi Road Trip".to_string(),
             ],
+            role: Role::Pilot,
+            is_locked: false,
+            cabin_id: "default".to_string(),
+            crew: vec![],
+            is_ejected: false,
+            ejection_reason: None,
+            show_qr_modal: false,
         }
     }
 }
@@ -150,6 +164,24 @@ impl PlayerState {
                 }
                 self.position_ms = payload.playback.position_ms;
                 self.playback_state = payload.playback.state;
+                if let Some(cid) = payload.cabin_id {
+                    self.cabin_id = cid;
+                }
+                if let Some(locked) = payload.is_locked {
+                    self.is_locked = locked;
+                }
+            }
+            WsMessage::CrewUpdate(crew_update) => {
+                self.cabin_id = crew_update.cabin_id;
+                self.is_locked = crew_update.is_locked;
+                self.crew = crew_update.passengers;
+            }
+            WsMessage::Ejected(ejected) => {
+                self.is_ejected = true;
+                self.ejection_reason = Some(ejected.reason);
+            }
+            WsMessage::CabinLocked(_) => {
+                self.is_locked = true;
             }
             WsMessage::Command(_) => {}
         }
@@ -208,6 +240,7 @@ mod tests {
             duration_ms: 180000,
             cover_url: None,
             stream_url: None,
+            requested_by: Some("@Mari".into()),
         };
         let t2 = Track {
             id: "2".into(),
@@ -217,6 +250,7 @@ mod tests {
             duration_ms: 210000,
             cover_url: None,
             stream_url: None,
+            requested_by: None,
         };
 
         qc.add_track(t1);
@@ -263,6 +297,7 @@ mod tests {
             duration_ms: 250000,
             cover_url: None,
             stream_url: None,
+            requested_by: Some("PILOTO".into()),
         };
 
         let msg = WsMessage::StateUpdate(StateUpdate {
@@ -274,6 +309,8 @@ mod tests {
                     updated_at: 1727047200000,
                 },
                 has_lrc: true,
+                cabin_id: Some("van-furacao".into()),
+                is_locked: Some(false),
             },
         });
 
@@ -283,6 +320,33 @@ mod tests {
         assert_eq!(state.duration_ms, 250000);
         assert_eq!(state.progress_pct(), 50.0);
         assert_eq!(state.current_track.as_ref().unwrap().title, "Construção");
+        assert_eq!(state.cabin_id, "van-furacao");
+        assert!(!state.is_locked);
+
+        // Test CrewUpdate message
+        let crew_msg = WsMessage::CrewUpdate(lacraia_shared::CrewUpdate {
+            cabin_id: "van-furacao".into(),
+            is_locked: true,
+            passengers: vec![PassengerInfo {
+                id: "psg_1".into(),
+                name: "Mari".into(),
+                device: Some("iPhone 14".into()),
+                joined_at: 1727048000000,
+            }],
+        });
+        state.handle_ws_message(crew_msg);
+        assert!(state.is_locked);
+        assert_eq!(state.crew.len(), 1);
+        assert_eq!(state.crew[0].name, "Mari");
+
+        // Test Ejected message
+        let eject_msg = WsMessage::Ejected(lacraia_shared::EjectedNotification {
+            cabin_id: "van-furacao".into(),
+            reason: "Chute da cabine pelo piloto".into(),
+        });
+        state.handle_ws_message(eject_msg);
+        assert!(state.is_ejected);
+        assert_eq!(state.ejection_reason.as_deref(), Some("Chute da cabine pelo piloto"));
 
         state.set_volume(1.2);
         assert_eq!(state.volume, 1.0);

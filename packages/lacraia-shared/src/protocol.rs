@@ -1,4 +1,4 @@
-use crate::models::{PlaybackState, Track};
+use crate::models::{PassengerInfo, PlaybackState, Track};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -8,6 +8,35 @@ pub enum WsMessage {
     StateUpdate(StateUpdate),
     #[serde(rename = "COMMAND")]
     Command(Command),
+    #[serde(rename = "CREW_UPDATE")]
+    CrewUpdate(CrewUpdate),
+    #[serde(rename = "EJECTED")]
+    Ejected(EjectedNotification),
+    #[serde(rename = "CABIN_LOCKED")]
+    CabinLocked(CabinLockedNotification),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CrewUpdate {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    #[serde(rename = "isLocked")]
+    pub is_locked: bool,
+    pub passengers: Vec<PassengerInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EjectedNotification {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CabinLockedNotification {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -21,6 +50,10 @@ pub struct StatePayload {
     pub playback: PlaybackDetails,
     #[serde(rename = "hasLrc")]
     pub has_lrc: bool,
+    #[serde(rename = "cabinId", default)]
+    pub cabin_id: Option<String>,
+    #[serde(rename = "isLocked", default)]
+    pub is_locked: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -51,7 +84,17 @@ pub enum CommandAction {
     QueueAppend {
         #[serde(rename = "trackId")]
         track_id: String,
+        #[serde(rename = "requestedBy", default)]
+        requested_by: Option<String>,
     },
+    LockCabin {
+        locked: bool,
+    },
+    EjectPassenger {
+        #[serde(rename = "passengerId")]
+        passenger_id: String,
+    },
+    EjectAll,
 }
 
 #[cfg(test)]
@@ -70,6 +113,7 @@ mod tests {
                     duration_ms: 180000,
                     cover_url: None,
                     stream_url: None,
+                    requested_by: Some("@Mari".into()),
                 }),
                 playback: PlaybackDetails {
                     state: PlaybackState::Playing,
@@ -77,12 +121,16 @@ mod tests {
                     updated_at: 1727047200000,
                 },
                 has_lrc: true,
+                cabin_id: Some("van-furacao".into()),
+                is_locked: Some(false),
             },
         });
 
         let json = serde_json::to_string(&update).unwrap();
         assert!(json.contains("STATE_UPDATE"));
         assert!(json.contains("trk_123"));
+        assert!(json.contains("@Mari"));
+        assert!(json.contains("van-furacao"));
     }
 
     #[test]
@@ -94,4 +142,67 @@ mod tests {
             _ => panic!("Expected Command"),
         }
     }
+
+    #[test]
+    fn test_deserialize_cabin_commands() {
+        let json_lock = r#"{"type":"COMMAND","payload":{"action":"LOCK_CABIN","locked":true}}"#;
+        let msg_lock: WsMessage = serde_json::from_str(json_lock).unwrap();
+        match msg_lock {
+            WsMessage::Command(cmd) => assert_eq!(cmd.payload, CommandAction::LockCabin { locked: true }),
+            _ => panic!("Expected LockCabin"),
+        }
+
+        let json_eject = r#"{"type":"COMMAND","payload":{"action":"EJECT_PASSENGER","passengerId":"psg_42"}}"#;
+        let msg_eject: WsMessage = serde_json::from_str(json_eject).unwrap();
+        match msg_eject {
+            WsMessage::Command(cmd) => assert_eq!(
+                cmd.payload,
+                CommandAction::EjectPassenger {
+                    passenger_id: "psg_42".into()
+                }
+            ),
+            _ => panic!("Expected EjectPassenger"),
+        }
+
+        let json_queue = r#"{"type":"COMMAND","payload":{"action":"QUEUE_APPEND","trackId":"trk_99","requestedBy":"@Mari"}}"#;
+        let msg_queue: WsMessage = serde_json::from_str(json_queue).unwrap();
+        match msg_queue {
+            WsMessage::Command(cmd) => assert_eq!(
+                cmd.payload,
+                CommandAction::QueueAppend {
+                    track_id: "trk_99".into(),
+                    requested_by: Some("@Mari".into()),
+                }
+            ),
+            _ => panic!("Expected QueueAppend"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_crew_and_ejected_notifications() {
+        let crew_msg = WsMessage::CrewUpdate(CrewUpdate {
+            cabin_id: "van-furacao".into(),
+            is_locked: true,
+            passengers: vec![PassengerInfo {
+                id: "psg_1".into(),
+                name: "Mari".into(),
+                device: Some("iPhone 14".into()),
+                joined_at: 1727048000000,
+            }],
+        });
+        let json_crew = serde_json::to_string(&crew_msg).unwrap();
+        assert!(json_crew.contains("CREW_UPDATE"));
+        assert!(json_crew.contains("van-furacao"));
+        assert!(json_crew.contains("Mari"));
+        assert!(json_crew.contains("iPhone 14"));
+
+        let ejected_msg = WsMessage::Ejected(EjectedNotification {
+            cabin_id: "van-furacao".into(),
+            reason: "Chute da cabine pelo motorista".into(),
+        });
+        let json_ejected = serde_json::to_string(&ejected_msg).unwrap();
+        assert!(json_ejected.contains("EJECTED"));
+        assert!(json_ejected.contains("Chute da cabine"));
+    }
 }
+

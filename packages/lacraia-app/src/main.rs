@@ -248,6 +248,117 @@ body {
   border-left: 4px solid var(--fucsia-furacao);
   font-weight: 700;
 }
+
+.door-toggle {
+  background: var(--ferro-bate-pedra);
+  border: 1px solid var(--metal-cantoneira);
+  padding: 0.3rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #000;
+  transition: all 0.1s;
+}
+
+.door-toggle.unlocked {
+  color: var(--fio-massa-verde);
+  border-color: var(--fio-massa-verde);
+}
+
+.door-toggle.locked {
+  color: var(--curto-circuito);
+  border-color: var(--curto-circuito);
+  background: rgba(255, 34, 0, 0.15);
+}
+
+.btn-embarque {
+  background: var(--veneno-eletrico);
+  color: #000;
+  border: 1px solid #000;
+  padding: 0.3rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #000;
+  margin-left: 0.5rem;
+}
+
+.qr-modal {
+  background: #111215;
+  border: 2px solid var(--veneno-eletrico);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 0 15px rgba(212, 255, 0, 0.15);
+  text-align: center;
+}
+
+.qr-code-svg {
+  display: inline-block;
+  margin: 0.75rem auto;
+  border: 3px solid #000;
+}
+
+.badge-vivente {
+  background: rgba(212, 255, 0, 0.15);
+  border: 1px solid var(--veneno-eletrico);
+  color: var(--veneno-eletrico);
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  font-weight: 700;
+  margin-left: 0.5rem;
+  display: inline-block;
+}
+
+.crew-section {
+  background: var(--ferro-bate-pedra);
+  border: 2px solid var(--metal-cantoneira);
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.crew-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px dashed var(--metal-cantoneira);
+  font-size: 0.85rem;
+}
+
+.btn-eject {
+  background: var(--curto-circuito);
+  color: #fff;
+  border: 1px solid #000;
+  padding: 0.2rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-eject-all {
+  background: var(--curto-circuito);
+  color: #fff;
+  border: 2px solid #000;
+  padding: 0.6rem 1rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: 1rem;
+  width: 100%;
+  box-shadow: 3px 3px 0 #000;
+}
+
+.ejected-screen {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  background: #111215;
+  border: 3px solid var(--curto-circuito);
+  box-shadow: 0 0 25px rgba(255, 34, 0, 0.4);
+}
 "#;
 
 #[component]
@@ -267,6 +378,7 @@ fn App() -> Element {
                 duration_ms: 258000,
                 cover_url: None,
                 stream_url: Some("/stream/track-1.opus".into()),
+                requested_by: Some("PILOTO".into()),
             });
             qc.add_track(Track {
                 id: "track-2".into(),
@@ -276,6 +388,7 @@ fn App() -> Element {
                 duration_ms: 212000,
                 cover_url: None,
                 stream_url: Some("/stream/track-2.opus".into()),
+                requested_by: Some("@Mari".into()),
             });
             qc.add_track(Track {
                 id: "track-3".into(),
@@ -285,6 +398,7 @@ fn App() -> Element {
                 duration_ms: 121000,
                 cover_url: None,
                 stream_url: Some("/stream/track-3.opus".into()),
+                requested_by: Some("@Paulinho".into()),
             });
 
             if let Some(first) = qc.current_track() {
@@ -295,6 +409,32 @@ fn App() -> Element {
             }
         }
     });
+
+    let is_ejected = player_state.read().is_ejected;
+    let ejection_reason = player_state.read().ejection_reason.clone();
+    let is_locked = player_state.read().is_locked;
+    let cabin_id = player_state.read().cabin_id.clone();
+    let show_qr_modal = player_state.read().show_qr_modal;
+    let crew = player_state.read().crew.clone();
+
+    if is_ejected {
+        let reason_text = ejection_reason.unwrap_or_else(|| "Aqui no paredão quem manda na agulha é o piloto. Comporte-se melhor na próxima curva.".into());
+        return rsx! {
+            style { "{BRUTALIST_CSS}" }
+            div { class: "chassis-app",
+                div { class: "ejected-screen",
+                    div { style: "font-size: 3rem; margin-bottom: 1rem;", "🦂💥" }
+                    h1 { style: "color: var(--curto-circuito); font-size: 1.8rem; text-transform: uppercase; margin: 0 0 1rem 0;", "VOCÊ FOI EJETADO DA CABINE!" }
+                    p { style: "color: var(--papel-mimeografo); font-size: 1.05rem; max-width: 580px; margin: 1.5rem auto; line-height: 1.5;",
+                        "{reason_text}"
+                    }
+                    div { style: "margin-top: 2rem; color: var(--alta-voltagem); font-weight: 700; font-size: 0.85rem;",
+                        "[ SINAL DE ÁUDIO CORTADO • TRANSMISSÃO DE CABINE ENCERRADA ]"
+                    }
+                }
+            }
+        };
+    }
 
     let is_playing = matches!(player_state.read().playback_state, PlaybackState::Playing);
     let current_title = player_state
@@ -360,14 +500,29 @@ fn App() -> Element {
         style { "{BRUTALIST_CSS}" }
 
         div { class: "chassis-app",
-            // Barra superior do chassi
+            // Barra superior do chassi com controles de cabine
             div { class: "chassis-header",
-                div {
+                div { style: "display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;",
                     span { class: "badge-lambe", "LA CRAIA :: COCKPIT" }
-                    span { style: "margin-left: 0.5rem; color: var(--grafite-mono);", "PAREDÃO & SIMBIÓTYKA" }
+                    span { style: "color: var(--veneno-eletrico); font-weight: 700; font-size: 0.8rem;", "[CABINE: {cabin_id}]" }
                 }
-                div { style: "display: flex; gap: 0.75rem; align-items: center;",
-                    span { style: "color: var(--fio-massa-verde);", "● STATUS: OK" }
+                div { style: "display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;",
+                    button {
+                        class: if is_locked { "door-toggle locked" } else { "door-toggle unlocked" },
+                        onclick: move |_| {
+                            let cur = player_state.read().is_locked;
+                            player_state.write().is_locked = !cur;
+                        },
+                        if is_locked { "🔒 PORTAS TRANCADAS" } else { "🔓 PORTAS ABERTAS" }
+                    }
+                    button {
+                        class: "btn-embarque",
+                        onclick: move |_| {
+                            let cur = player_state.read().show_qr_modal;
+                            player_state.write().show_qr_modal = !cur;
+                        },
+                        if show_qr_modal { "[ ✕ FECHAR EMBARQUE ]" } else { "[ 📲 EMBARQUE / QR ]" }
+                    }
                     span { class: "gain-badge", "GANHO: {gain_11}/11" }
                 }
             }
@@ -375,6 +530,58 @@ fn App() -> Element {
             div { class: "fita-isolante" }
 
             div { class: "cockpit-body",
+                // Modal de QR Code e Embarque de Passageiros (Toggleável)
+                if show_qr_modal {
+                    div { class: "qr-modal",
+                        div { style: "color: var(--veneno-eletrico); font-weight: 800; font-size: 1.1rem; text-transform: uppercase;",
+                            "📲 EMBARQUE DE PASSAGEIRO • CABINE: {cabin_id}"
+                        }
+                        p { style: "font-size: 0.85rem; color: var(--papel-mimeografo); margin: 0.5rem 0;",
+                            "Aponte a câmera do celular para pedir cantigas na van ou copie o link fixo:"
+                        }
+
+                        // Representação vetorial SVG estilizada de QR Code
+                        svg {
+                            class: "qr-code-svg",
+                            width: "160",
+                            height: "160",
+                            view_box: "0 0 160 160",
+                            rect { x: "0", y: "0", width: "160", height: "160", fill: "#d4ff00" }
+                            rect { x: "12", y: "12", width: "40", height: "40", fill: "#151618" }
+                            rect { x: "20", y: "20", width: "24", height: "24", fill: "#d4ff00" }
+                            rect { x: "108", y: "12", width: "40", height: "40", fill: "#151618" }
+                            rect { x: "116", y: "20", width: "24", height: "24", fill: "#d4ff00" }
+                            rect { x: "12", y: "108", width: "40", height: "40", fill: "#151618" }
+                            rect { x: "20", y: "116", width: "24", height: "24", fill: "#d4ff00" }
+                            // Dados centrais estilizados
+                            rect { x: "64", y: "20", width: "12", height: "12", fill: "#151618" }
+                            rect { x: "84", y: "20", width: "12", height: "24", fill: "#151618" }
+                            rect { x: "64", y: "44", width: "32", height: "12", fill: "#151618" }
+                            rect { x: "20", y: "64", width: "24", height: "12", fill: "#151618" }
+                            rect { x: "56", y: "68", width: "48", height: "24", fill: "#151618" }
+                            rect { x: "116", y: "64", width: "24", height: "12", fill: "#151618" }
+                            rect { x: "64", y: "104", width: "12", height: "36", fill: "#151618" }
+                            rect { x: "88", y: "104", width: "20", height: "12", fill: "#151618" }
+                            rect { x: "120", y: "104", width: "20", height: "36", fill: "#151618" }
+                            rect { x: "88", y: "128", width: "20", height: "20", fill: "#151618" }
+                        }
+
+                        div { style: "background: #000; padding: 0.5rem; border: 1px dashed var(--metal-cantoneira); font-size: 0.8rem; color: var(--veneno-eletrico); word-break: break-all;",
+                            "https://lacraia.2lp.in/app?c={cabin_id}&join=1"
+                        }
+
+                        if is_locked {
+                            div { style: "color: var(--curto-circuito); font-weight: 800; font-size: 0.85rem; margin-top: 0.75rem;",
+                                "⚠️ ATENÇÃO: PORTAS TRANCADAS — Novos embarques serão recusados pelo piloto."
+                            }
+                        } else {
+                            div { style: "color: var(--fio-massa-verde); font-weight: 800; font-size: 0.85rem; margin-top: 0.75rem;",
+                                "✅ PORTAS ABERTAS — Passageiros autorizados a embarcar e pedir cantigas."
+                            }
+                        }
+                    }
+                }
+
                 // Seletor de estações em fita crepe
                 div { class: "station-panel",
                     span { style: "font-weight: 800; color: var(--veneno-eletrico); font-size: 0.85rem;", "[ ESTAÇÃO ]:" }
@@ -453,9 +660,9 @@ fn App() -> Element {
                     }
                 }
 
-                // Metâmero de Fila
+                // Metâmero de Fila (com identificação do Vivente que pediu a cantiga)
                 div { class: "queue-section",
-                    div { class: "queue-header", "[ METÂMEROS DA FILA ]" }
+                    div { class: "queue-header", "[ METÂMEROS DA FILA :: QUEM PEDIU A CANTIGA ]" }
                     div {
                         for (idx, track) in queue_tracks.into_iter().enumerate() {
                             div {
@@ -471,9 +678,59 @@ fn App() -> Element {
                                         ps.playback_state = PlaybackState::Playing;
                                     }
                                 },
-                                span { "[SEG.0{idx + 1}] {track.title}" }
+                                div { style: "display: flex; align-items: center;",
+                                    span { "[SEG.0{idx + 1}] {track.title}" }
+                                    if let Some(ref vivente) = track.requested_by {
+                                        span { class: "badge-vivente", "por: {vivente}" }
+                                    }
+                                }
                                 span { style: "color: var(--veneno-eletrico);", "{track.artist}" }
                                 span { style: "color: var(--grafite-mono);", "{format_time(track.duration_ms)}" }
+                            }
+                        }
+                    }
+                }
+
+                // Metâmero de Tripulação & Alavanca de Ejeção de Passageiros
+                div { class: "crew-section",
+                    div { style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;",
+                        div { class: "queue-header", style: "margin: 0;", "[ MANIFESTO DE BORDO :: TRIPULAÇÃO ({crew.len()}) ]" }
+                        if !crew.is_empty() {
+                            button {
+                                class: "btn-eject",
+                                onclick: move |_| {
+                                    player_state.write().crew.clear();
+                                },
+                                "[ 💥 EJETAR GERAL ]"
+                            }
+                        }
+                    }
+                    if crew.is_empty() {
+                        div { style: "color: var(--grafite-mono); font-size: 0.85rem; padding: 0.5rem 0;",
+                            "Nenhum passageiro conectado. Clique em [ 📲 EMBARQUE / QR ] no painel superior para exibir o QR Code."
+                        }
+                    } else {
+                        div {
+                            for p in crew.iter() {
+                                {
+                                    let pid = p.id.clone();
+                                    let pname = p.name.clone();
+                                    let device_name = p.device.clone().unwrap_or_else(|| "Dispositivo".into());
+                                    rsx! {
+                                        div {
+                                            key: "{pid}",
+                                            class: "crew-item",
+                                            span { "🟢 {pname} ({device_name})" }
+                                            button {
+                                                class: "btn-eject",
+                                                onclick: move |_| {
+                                                    player_state.write().crew.retain(|item| item.id != pid);
+                                                },
+                                                "[ 👢 CHUTAR ]"
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

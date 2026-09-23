@@ -155,6 +155,7 @@ mod tests {
             duration_ms: 274000,
             cover_url: None,
             stream_url: Some("/cache/rebel.opus".into()),
+            requested_by: None,
         };
 
         engine.load_track(track.clone());
@@ -189,6 +190,7 @@ mod tests {
             duration_ms: 360000,
             cover_url: Some("https://example.com/cover.jpg".into()),
             stream_url: None,
+            requested_by: None,
         };
 
         let meta = AudioMetadata::from(&track);
