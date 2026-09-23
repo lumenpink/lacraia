@@ -155,6 +155,8 @@ A tela principal do software organiza-se como um chassi modular aparafusado:
 
 * **Portal de Documentação (`site/index.html`):**  
   Implementação viva de referência dos tokens CSS, chassi de ferro com pintura bate-pedra, leds de telemetria, divisórias de fita isolante zebrada, os 4 callouts temáticos e o botão com efeito tátil mecânico `[ CLACK! ]`. Organizado em 6 cadernos metaméricos (iniciando pelo manifesto de soberania acústica em Caderno 01 e finalizando no Manual de Identidade Visual em Caderno 06).
+* **Favicon e Identidade Vetorial do Exoesqueleto (`site/favicon.svg` e `site/assets/icon.svg`):**  
+  Ícone geométrico puro da cabeça sensorial da lacraia combinando placa cefálica com chanfro brutalista em `--fucsia-furacao` e `--ferro-painel`, ocelos em `--veneno-eletrico`, forcípulas peçonhentas e antenas curvas estilizadas. Empregado como favicon SVG universal e exibido no painel de comando (`top-panel`) do chassi.
 * **Social Share Preview & Open Graph Card (`scripts/generate_og_image.py`):**  
   Banner de compartilhamento em alta resolução (1200×630px, `site/assets/og_preview.png`) com Safe Zone 4:3 centralizada, imune aos recortes do WhatsApp, Telegram e Twitter Card (`summary_large_image`). Base em ferro bate-pedra com hachura diagonal, ambient glow fúcsia/glitter, fita isolante zebrada sob a marca e rodapé com telemetria ativa.
 * **Cockpit Player (`packages/lacraia-app`):**  
