@@ -86,3 +86,17 @@ WHERE e.source_track_id = ?1 AND t.cached_path IS NOT NULL
 ORDER BY e.weight DESC
 LIMIT ?2;
 ```
+
+---
+
+## 4. Multi-Provider Similarity Engine (`similarity.rs`)
+
+`lacraia-core` coordinates similarity queries through a composite engine with automatic fallback and local SQLite auto-indexing:
+
+1. **`LastFmProvider`:** Queries the Last.fm `track.getsimilar` API using the configured `LASTFM_API_KEY`. Extracts track names, artist names, `match` floating-point scores (0.0 - 1.0), and canonical `mbid` values.
+2. **`MetaBrainzProvider`:** Queries the open MusicBrainz API (`https://musicbrainz.org/ws/2/recording`) without requiring proprietary keys, identifying recording IDs and relevance scores.
+3. **`CompositeSimilarityEngine`:**
+   * Tries Last.fm first when credentials are provided.
+   * Seamlessly falls back to MetaBrainz/ListenBrainz when Last.fm is unavailable or rate-limited.
+   * **Auto-indexing:** Every candidate returned from online sources is immediately upserted into SQLite (`tracks`) and wired into `similarity_edges` with its weight.
+   * **100% Offline Mode:** When the host server has no external internet connectivity, the engine queries the local SQLite similarity graph directly.
