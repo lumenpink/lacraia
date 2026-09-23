@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>La Craia — Decentralized Automotive Audio &amp; HUD</title>
+  <meta name="description" content="Decentralized acoustic similarity audio streaming and synchronized heads-up display (HUD) lyrics projected over GPS navigation.">
+  <style>
+    :root {
+      --bg: #0d0e12;
+      --card-bg: #14171f;
+      --card-border: #222838;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #22c55e;
+      --accent-glow: rgba(34, 197, 94, 0.15);
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      padding: 2rem 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .wrapper {
+      max-width: 960px;
+      width: 100%;
+    }
+
+    header {
+      padding: 3rem 0 2rem;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 2.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      background-color: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    h1 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.75rem;
+      color: #ffffff;
+    }
+
+    .subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 650px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .code-block {
+      background: #090a0f;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      color: #7ee787;
+    }
+
+    section {
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #ffffff;
+      border-left: 4px solid var(--accent);
+      padding-left: 0.75rem;
+    }
+
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding-top: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <div class="badge">Automotive Audio Ecosystem • v0.1.0</div>
+      <h1>La Craia</h1>
+      <p class="subtitle">Decentralized acoustic similarity audio streaming and synchronized HUD lyrics projected live over GPS navigation.</p>
+    </header>
+
+    <section>
+      <h2>Architecture &amp; Core Modules</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>lacraia-shared (Rust)</h3>
+          <p>Common domain models, LRC parser, audio fuzzy duration/title sanitizer, and bidirectional WebSocket telemetry protocols.</p>
+        </div>
+        <div class="card">
+          <h3>lacraia-core (Rust / Axum)</h3>
+          <p>Debian Baquara host engine. Acoustic graph traversal via Last.fm, yt-dlp media resolver, static Opus cache, and telemetry hub.</p>
+        </div>
+        <div class="card">
+          <h3>lacraia-web (Rust / Dioxus)</h3>
+          <p>High-performance WebAssembly PWA player with native MediaSession integration for background playback control.</p>
+        </div>
+        <div class="card">
+          <h3>lacraia-hud (Kotlin / Android)</h3>
+          <p>Native background service projecting a 56dp semi-transparent lyric pill directly over Waze using WindowManager overlays.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Quickstart</h2>
+      <p>Clone the repository and inspect the Cargo workspace:</p>
+      <div class="code-block">git clone ssh://git@codeberg.org/lumenpink/lacraia.git
+cd lacraia
+cargo test --workspace</div>
+      <p>Preview local documentation and site assets:</p>
+      <div class="code-block">./serve.sh --port 8080</div>
+    </section>
+
+    <footer>
+      <span>La Craia • Crafted by <a href="https://codeberg.org/lumenpink" target="_blank" rel="noopener">lumenpink</a></span>
+      <span>Hosted on Cloudflare Workers • <a href="https://lacraia.2lp.in">lacraia.2lp.in</a></span>
+    </footer>
+  </div>
+</body>
+</html>

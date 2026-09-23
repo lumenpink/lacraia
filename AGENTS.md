@@ -1,0 +1,1 @@
+.antigravity/AGENTS.md
