@@ -121,6 +121,7 @@ A tela principal do software organiza-se como um chassi modular aparafusado:
 ### 6.1. O Índice Lateral: A Coluna Vertebral do Bicho
 * Em vez de listagem simples, o sumário lateral é desenhado como uma linha vertical contínua com nós articulados (o corpo segmentado da lacraia).
 * Cada página ou subtítulo é um par de patas: ao fazer scroll, as "pernas" do índice acendem em `--veneno-eletrico` simulando o animal rastejando junto à leitura.
+* **A Cabeça Sensorial e Antenas Biomecânicas:** A extremidade superior do cordão neural ostenta a placa cefálica com ocelos fluorescentes pulsantes (`ocelli-breathe`) e duas antenas articuladas com micro-movimentos orgânicos contínuos e assíncronos (`twitch-left` e `twitch-right`), simulando o animal farejando ativamente o ambiente no escuro. As antenas orientam-se dinamicamente conforme o deslocamento do cursor e realizam contração defensiva instantânea ao clique.
 
 ### 6.2. Caixas de Chamada (Callouts) com Identidade Própria
 
