@@ -160,7 +160,7 @@ def create_og_image(output_path: str = "site/assets/og_preview.png") -> None:
     # 6. TITLE BLOCK (safe zone body): two lines centered
     # ------------------------------------------------------------------
     t1 = "Streaming por Grafo de Afinidade Acústica"
-    t2 = "HUD Simbiótico de Letras sobre Waze · Paredão Autônomo"
+    t2 = "HUD Simbiótyka de Letras Sincronizadas · Paredão Autônomo"
 
     t1_y = bar_y + 28
     draw_centered_text(draw, t1_y, t1, f_title, fill=C_PAPEL,
@@ -172,7 +172,7 @@ def create_og_image(output_path: str = "site/assets/og_preview.png") -> None:
     # ------------------------------------------------------------------
     # 7. METAMERY INDICATOR: 4 segment tags as visual decoration
     # ------------------------------------------------------------------
-    tags = ["lacraia-shared", "lacraia-core", "lacraia-app", "Simbiótyka HUD"]
+    tags = ["lacraia-shared", "lacraia-core", "lacraia-app", "Simbiótyka"]
     tag_total_w = sum(
         draw.textbbox((0, 0), f"[ {t} ]", font=f_badge)[2] for t in tags
     ) + (len(tags) - 1) * 20

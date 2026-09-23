@@ -16,6 +16,9 @@
   - (tooling) implement automated demo launcher script (closes #20)
   - (server) auto‑increment port if occupied (#12)
 
+### Bug Fixes
+  - (site) sanitize open graph and twitter card metadata and headers (fixes #6)
+
 ## Previous Releases
 
 ### [v0.1.0] - La Craia v0.1.0 - Automotive Audio & HUD MVP
