@@ -117,3 +117,18 @@ LIMIT ?2;
    Downloads and converts audio directly into `/var/cache/la-craia/{track_id}.opus` via `yt-dlp` and `ffmpeg`.
 4. **Static Range Delivery:**
    Exposed over `/cache/{track_id}.opus` with native HTTP Range Request support (`206 Partial Content`) for immediate seeking in the frontend player.
+
+---
+
+## 6. Lookahead Queue Daemon & Gapless Playback (`queue_daemon.rs`)
+
+`lacraia-core` spawns an asynchronous background worker (`QueueDaemon`) tasked with maintaining continuous audio on the road:
+
+1. **Active Playhead Tracking:**
+   Continuously monitors queue states (`playing`, `cached`, `pending`) in SQLite.
+2. **Two-Track Lookahead Window:**
+   Identifies the next 2 tracks immediately subsequent to the currently playing song that are still in `pending` state.
+3. **Proactive Background Caching:**
+   Triggers `MediaResolver::resolve_and_cache` before the current track finishes. Once the `.opus` file is saved to disk, the database updates the queue state from `pending` to `cached`.
+4. **Resilience to Network Drops:**
+   By maintaining two fully resolved tracks cached in advance, the driver experiences zero playback interruptions even when passing through cellular dead zones.
