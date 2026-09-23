@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (site) add download hub for android apk, desktop linux, and core daemon (#26)
   - (cabin) implement multi-cabin auth, door lock, passenger jukebox, and crew ejection (#25)
   - (site) add biomechanical idle twitching and cursor tracking to antennae (#24)
   - (site) add centipede head exoskeleton favicon and top panel icon (#23)

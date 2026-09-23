@@ -842,6 +842,150 @@
       letter-spacing: 0.05em;
     }
 
+    /* BANCADA DE EMBARQUE :: DOWNLOAD HUB */
+    .download-chassis {
+      background: #0d0f12;
+      border: 2px solid var(--veneno-eletrico);
+      box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.9), 0 8px 24px rgba(0, 0, 0, 0.8);
+      padding: 1.25rem;
+      margin: 1.5rem 0 2rem 0;
+      position: relative;
+    }
+
+    .download-label {
+      font-family: var(--font-stencil);
+      font-size: 0.85rem;
+      color: var(--veneno-eletrico);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .btn-download {
+      background: #151618;
+      border: 2px solid var(--metal-cantoneira);
+      color: var(--papel-mimeografo);
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      box-shadow: 3px 3px 0 #000;
+      transition: all 0.15s cubic-bezier(0.2, 0.9, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-download:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 5px 5px 0 #000;
+      border-color: var(--veneno-eletrico);
+      color: #fff;
+    }
+
+    .btn-download:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 #000;
+    }
+
+    .btn-download.btn-apk {
+      border-color: var(--fio-massa-verde);
+    }
+    .btn-download.btn-apk:hover {
+      background: rgba(0, 255, 102, 0.08);
+      border-color: var(--fio-massa-verde);
+    }
+    .btn-download.btn-apk .btn-pill {
+      background: var(--fio-massa-verde);
+      color: #000;
+    }
+
+    .btn-download.btn-desktop {
+      border-color: var(--fucsia-furacao);
+    }
+    .btn-download.btn-desktop:hover {
+      background: rgba(255, 0, 85, 0.08);
+      border-color: var(--fucsia-furacao);
+    }
+    .btn-download.btn-desktop .btn-pill {
+      background: var(--fucsia-furacao);
+      color: #000;
+    }
+
+    .btn-download.btn-core {
+      border-color: var(--alta-voltagem);
+    }
+    .btn-download.btn-core:hover {
+      background: rgba(255, 183, 0, 0.08);
+      border-color: var(--alta-voltagem);
+    }
+    .btn-download.btn-core .btn-pill {
+      background: var(--alta-voltagem);
+      color: #000;
+    }
+
+    .btn-download.btn-releases {
+      border-color: var(--glitter-roxo);
+    }
+    .btn-download.btn-releases:hover {
+      background: rgba(128, 0, 255, 0.08);
+      border-color: var(--glitter-roxo);
+    }
+    .btn-download.btn-releases .btn-pill {
+      background: var(--glitter-roxo);
+      color: #fff;
+    }
+
+    .btn-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .btn-text {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn-main {
+      font-family: var(--font-stencil);
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+      color: #fff;
+    }
+
+    .btn-sub {
+      font-size: 0.72rem;
+      color: var(--grafite-mono);
+      font-family: var(--font-mono);
+      margin-top: 0.2rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-pill {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.2rem 0.45rem;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+      border-radius: 2px;
+    }
+
     /* RODAPÉ DO CHASSI */
     footer {
       border-top: 3px solid var(--metal-cantoneira);
@@ -1029,6 +1173,47 @@
             Documentação unificada do ecossistema La Craia. Uma máquina de som de guerrilha, fora dos silos corporativos, combinando reprodução gapless com pre-caching preditivo em Debian e companion flutuante para cockpit automotivo.
           </p>
         </header>
+
+        <!-- BANCADA DE EMBARQUE :: PACOTES E DOWNLOADS -->
+        <div class="download-chassis">
+          <div class="download-label">
+            <span>⚡ [ BANCADA DE EMBARQUE :: PACOTES DE PRODUÇÃO &amp; INSTALAÇÃO ]</span>
+          </div>
+          <div class="download-grid">
+            <a href="https://codeberg.org/lumenpink/lacraia/releases/download/nightly/lacraia-hud-debug.apk" class="btn-download btn-apk" title="Baixar APK Android para HUD Simbiótico">
+              <span class="btn-icon">📱</span>
+              <div class="btn-text">
+                <span class="btn-main">BAIXAR APK ANDROID</span>
+                <span class="btn-sub">HUD Simbiótico • Android 8.0+</span>
+              </div>
+              <span class="btn-pill">.APK</span>
+            </a>
+            <a href="https://codeberg.org/lumenpink/lacraia/releases/download/nightly/lacraia-app-linux-x86_64" class="btn-download btn-desktop" title="Baixar Executável Desktop Linux (Dioxus Native)">
+              <span class="btn-icon">💻</span>
+              <div class="btn-text">
+                <span class="btn-main">BAIXAR DESKTOP LINUX</span>
+                <span class="btn-sub">Cockpit Dioxus • x86_64 Nativo</span>
+              </div>
+              <span class="btn-pill">APP</span>
+            </a>
+            <a href="https://codeberg.org/lumenpink/lacraia/releases/download/nightly/lacraia-core-linux-x86_64" class="btn-download btn-core" title="Baixar Daemon Headless para Debian/Servidor">
+              <span class="btn-icon">🎛️</span>
+              <div class="btn-text">
+                <span class="btn-main">BAIXAR DAEMON CORE</span>
+                <span class="btn-sub">Axum + Cache Opus • Debian/Alpine</span>
+              </div>
+              <span class="btn-pill">CORE</span>
+            </a>
+            <a href="https://codeberg.org/lumenpink/lacraia/releases" target="_blank" rel="noopener" class="btn-download btn-releases" title="Ver Todas as Releases e Checksums no Codeberg">
+              <span class="btn-icon">📦</span>
+              <div class="btn-text">
+                <span class="btn-main">RELEASES &amp; NIGHTLY</span>
+                <span class="btn-sub">Código-fonte, SHA256 &amp; Tags</span>
+              </div>
+              <span class="btn-pill">FORGEJO</span>
+            </a>
+          </div>
+        </div>
 
         <div class="fita-isolante"></div>
 
