@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (core) implement multi-provider similarity engine with lastfm and metabrainz (closes #2)
   - (core) implement sqlite storage and similarity graph schema (closes #1)
   - (hud) implement android overlay foreground service and media capture
   - (web) implement dioxus web player with media session integration

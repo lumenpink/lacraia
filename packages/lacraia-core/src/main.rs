@@ -21,12 +21,15 @@ use tower_http::{
 use tracing::info;
 
 pub mod db;
+pub mod similarity;
 
 use db::Database;
+use similarity::{CompositeSimilarityEngine, SimilarityEngine};
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: Database,
+    pub similarity: Arc<CompositeSimilarityEngine>,
     pub cache_dir: PathBuf,
     pub tx: broadcast::Sender<WsMessage>,
     pub current_track: Arc<Mutex<Option<Track>>>,
@@ -63,10 +66,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_path = std::env::var("LACRAIA_DB_PATH").unwrap_or_else(|_| "./lacraia.sqlite".into());
     let db = Database::open(&db_path)?;
 
+    let lastfm_key = std::env::var("LASTFM_API_KEY").ok();
+    let similarity = Arc::new(CompositeSimilarityEngine::new(lastfm_key, db.clone()));
+
     let (tx, _rx) = broadcast::channel::<WsMessage>(100);
 
     let state = AppState {
         db,
+        similarity,
         cache_dir: cache_dir.clone(),
         tx,
         current_track: Arc::new(Mutex::new(None)),
@@ -106,22 +113,33 @@ async fn health_check() -> &'static str {
 }
 
 async fn handle_radio(
+    State(state): State<AppState>,
     Query(query): Query<RadioQuery>,
 ) -> Result<Json<Vec<Track>>, (StatusCode, String)> {
+    let limit = query.limit.unwrap_or(20);
     info!("Radio query for artist={}, track={}", query.artist, query.track);
-    // In actual deployment, queries Last.fm API. Mocked here for clean initial scaffold.
-    let sample = vec![
-        Track {
-            id: "trk_seed".into(),
-            title: query.track.clone(),
-            artist: query.artist.clone(),
-            album: None,
-            duration_ms: 240000,
-            cover_url: None,
-            stream_url: Some(format!("/cache/seed.opus")),
-        },
-    ];
-    Ok(Json(sample))
+
+    match state.similarity.find_similar(&query.artist, &query.track, limit).await {
+        Ok(candidates) => {
+            let tracks: Vec<Track> = candidates
+                .into_iter()
+                .map(|c| Track {
+                    id: c.id,
+                    title: c.title,
+                    artist: c.artist,
+                    album: None,
+                    duration_ms: c.duration_sec.unwrap_or(210) * 1000,
+                    cover_url: None,
+                    stream_url: None,
+                })
+                .collect();
+            Ok(Json(tracks))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Similarity query failed: {}", e),
+        )),
+    }
 }
 
 async fn handle_resolve(
