@@ -145,3 +145,21 @@ LIMIT ?2;
    Registers active song metadata (`title`, `artist`, `album`, and 512x512 artwork) directly on `navigator.mediaSession`.
 3. **OS Lockscreen & Keybinding Handlers:**
    Registers system action handlers for `play`, `pause`, `nexttrack`, `previoustrack`, and `seekto`, enabling hardware vehicle steering wheel buttons and lockscreen controls to operate seamlessly.
+
+---
+
+## 8. Web Player UI, Queue Controller & PWA Capabilities (`lacraia-web`)
+
+The automotive frontend is optimized for driver touch targets and cockpit display visibility:
+
+1. **Automotive Cockpit UI (`ui.rs` & `main.rs`):**
+   * High-contrast dark theme (`#121212` background, vibrant accent `#ff007f`) avoiding glare while driving at night.
+   * Large touch targets (buttons $\ge 48\text{dp}$) for previous, play/pause, next track, and volume slider.
+   * Prominent elapsed time and duration readout with millisecond formatting (`format_time`).
+2. **Station & Queue Controller:**
+   * Station seeds with instant switching (e.g. MPB & Samba, Synthwave Drive, Rock Clássico, Lo-Fi Road Trip).
+   * Up-next queue list with active track indicator and direct track selection.
+3. **PWA Manifest & Offline Shell Caching (`manifest.json` & `sw.js`):**
+   * Configured as standalone web application (`display: "standalone"`) with automotive categories.
+   * Service worker caches core application shell (`/`, `/manifest.json`, `/index.html`) while streaming requests (`/stream/*`) and WebSocket traffic pass through dynamically.
+
