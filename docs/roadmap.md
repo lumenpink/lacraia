@@ -202,6 +202,16 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Autocomplete no Cockpit Web (`site/app/index.html`):** Componente debounced (250ms) com dropdown estilizado no tema cyberpunk automotivo, badges de status (`CACHED` vs `NUVEM`) e botão de ação direta `[ ➕ FILA ]`.
   - **Despacho WebSocket com Identificação:** Transmissão de `QUEUE_APPEND` com identificação do solicitante (`PILOTO` ou `@Passageiro`), notificação toast temporária e atualização otimista da fila.
 
+---
+
+### Ticket #5: Diretiva de Gênero Feminino para La Craia na Configuração CCCP
+* **Package:** Repository & CCCP (`.cccprc`, `.antigravity/AGENTS.md`, `docs`)
+* **Goal:** Incluir na configuração do CCCP e nas diretrizes dos agentes a regra obrigatória de tratar a aplicação "La Craia" sempre no gênero feminino ("a La Craia", "da La Craia", "na La Craia").
+* **Acceptance Criteria:**
+  - **Configuração no `.cccprc`:** Adicionadas chaves `agent_var_extras`, `agent_var_additional_directives` e `extras` determinando explicitamente o tratamento feminino.
+  - **Diretrizes em `AGENTS.md`:** Seção de princípios operacionais estipula a política de concordância de gênero para todos os agentes autônomos.
+
+
 
 
 
