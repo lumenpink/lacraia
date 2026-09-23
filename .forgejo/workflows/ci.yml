@@ -1,22 +1,25 @@
-name: CI & Documentation Deploy
+name: CI, Build & Distribution
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["main"]
     tags: ["v*"]
   pull_request:
-    branches: ["main", "develop"]
+    branches: ["main"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+permissions:
+  contents: write
+
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 1 — Rust Workspace: Tests & Formatting
+  # JOB 1 — Rust Workspace: Tests & Release Binaries
   # ─────────────────────────────────────────────────────────────────────────────
-  rust-check:
-    name: "Rust Workspace — Tests & Check"
+  test-and-build-rust:
+    name: "Rust Workspace — Tests & Binaries"
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout repository"
@@ -24,42 +27,252 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "Setup Rust toolchain"
+      - name: "Install System Dependencies (WebKit & ALSA)"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libasound2-dev \
+            libssl-dev \
+            pkg-config
+
+      - name: "Setup Rust Toolchain"
         uses: https://github.com/actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: "Check Cargo workspace"
+      - name: "Cargo Check Workspace"
         run: cargo check --workspace
 
-      - name: "Run workspace tests"
+      - name: "Run Workspace Unit Tests"
         run: cargo test --workspace
 
+      - name: "Compile Release Binaries (lacraia-core & lacraia-app)"
+        run: |
+          cargo build --release -p lacraia-core -p lacraia-app
+          mkdir -p dist
+          cp target/release/lacraia-core dist/lacraia-core-linux-x86_64
+          cp target/release/lacraia-app dist/lacraia-app-linux-x86_64
+          chmod +x dist/lacraia-core-linux-x86_64 dist/lacraia-app-linux-x86_64
+
+      - name: "Upload Rust Binaries Artifact"
+        uses: https://github.com/actions/upload-artifact@v4
+        with:
+          name: rust-binaries
+          path: dist/*
+
   # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 2 — Deploy Static Documentation (Cloudflare Workers)
+  # JOB 2 — Android HUD: Kotlin Unit Tests & APK Assembly
   # ─────────────────────────────────────────────────────────────────────────────
-  deploy-docs:
+  build-apk:
+    name: "Android HUD — Build APK"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repository"
+        uses: https://github.com/actions/checkout@v4
+
+      - name: "Setup Java JDK (17)"
+        uses: https://github.com/actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: "Setup Android SDK"
+        uses: https://github.com/android-actions/setup-android@v3
+
+      - name: "Setup Gradle"
+        uses: https://github.com/gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: "Test & Assemble Android APK"
+        run: |
+          cd packages/lacraia-hud
+          gradle test
+          gradle assembleDebug
+          mkdir -p ../../dist
+          cp app/build/outputs/apk/debug/app-debug.apk ../../dist/lacraia-hud-debug.apk
+
+      - name: "Upload Android APK Artifact"
+        uses: https://github.com/actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: dist/lacraia-hud-debug.apk
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 3 — Deploy Static Documentation Site (Cloudflare + Codeberg Pages)
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy-site:
     name: "Deploy Documentation Site (lacraia.2lp.in)"
     runs-on: ubuntu-latest
-    needs: [rust-check]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test-and-build-rust, build-apk]
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: "Checkout repository"
         uses: https://github.com/actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Setup Node.js for Wrangler"
-        uses: https://github.com/actions/setup-node@v4
-        with:
-          node-version: 20
-
       - name: "Deploy to Cloudflare Workers"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "::warning::Cloudflare credentials (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID) not configured in secrets. Skipping Cloudflare deployment."
           else
             echo "Publishing documentation site to lacraia.2lp.in via Cloudflare Workers..."
-            npx wrangler deploy
+            npx wrangler deploy || echo "::warning::Cloudflare deployment failed, proceeding to Codeberg Pages fallback."
           fi
+
+      - name: "Deploy to Codeberg Pages (Redundancy Fallback)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@codeberg.org"
+
+          WORKTREE_DIR=$(mktemp -d)
+          if git ls-remote --exit-code --heads origin pages >/dev/null 2>&1; then
+            git fetch origin pages:pages
+            git worktree add "$WORKTREE_DIR" pages
+          else
+            git worktree add --orphan -b pages "$WORKTREE_DIR"
+          fi
+
+          rm -rf "${WORKTREE_DIR:?}"/*
+          cp -r site/* "$WORKTREE_DIR/"
+
+          cd "$WORKTREE_DIR"
+          rm -f CNAME
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No documentation changes to deploy to Codeberg Pages."
+          else
+            git commit -m "docs(site): deploy documentation to Codeberg Pages [skip ci]"
+            git push origin pages
+            echo "Successfully deployed documentation to Codeberg Pages."
+          fi
+          cd - >/dev/null
+          git worktree remove "$WORKTREE_DIR" --force || true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 4 — Release & Nightly Rolling Distribution (Codeberg)
+  # ─────────────────────────────────────────────────────────────────────────────
+  release:
+    name: "Publish Release / Nightly Distribution"
+    runs-on: ubuntu-latest
+    needs: [test-and-build-rust, build-apk]
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
+    steps:
+      - name: "Checkout repository"
+        uses: https://github.com/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Download All Built Artifacts"
+        uses: https://github.com/actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: "Assemble Release Directory & Compute Checksums"
+        run: |
+          mkdir -p dist
+          find artifacts -type f -exec cp {} dist/ \;
+          cd dist
+          chmod +x lacraia-core-linux-x86_64 lacraia-app-linux-x86_64 2>/dev/null || true
+
+          # Create release tarball for Linux binaries
+          VERSION="$(head -n 1 ../VERSION 2>/dev/null | tr -d ' \r\n' || echo '0.2.0')"
+          tar -czf "lacraia-${VERSION}-linux-x86_64.tar.gz" lacraia-core-linux-x86_64 lacraia-app-linux-x86_64
+          sha256sum * > checksums.sha256
+          ls -lh
+
+      # ── Nightly Rolling Release (Push to main) ──
+      - name: "Delete Previous Nightly Tag & Release"
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_URL: ${{ github.api_url || 'https://codeberg.org/api/v1' }}
+          REPO: ${{ github.repository }}
+        run: |
+          git push --delete origin nightly 2>/dev/null \
+            && echo "Remote nightly tag deleted" \
+            || echo "Remote nightly tag not found (initial run?)"
+
+          REL_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "$API_URL/repos/$REPO/releases/tags/nightly" | grep -o '"id":[0-9]*' | head -n 1 | cut -d: -f2 || true)
+          if [ -n "$REL_ID" ]; then
+            echo "Deleting previous nightly release ID: $REL_ID"
+            curl -sf -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+              "$API_URL/repos/$REPO/releases/$REL_ID" || echo "Warning: Failed to delete release $REL_ID"
+          fi
+
+      - name: "Create Annotated Nightly Tag"
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "actions-user"
+          git config user.email "actions@codeberg.org"
+          git tag -d nightly 2>/dev/null || true
+          git tag -a nightly -m "Nightly build - $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          git push origin nightly
+
+      - name: "Publish Nightly Release"
+        if: github.ref == 'refs/heads/main'
+        uses: https://github.com/softprops/action-gh-release@v2
+        with:
+          tag_name: "nightly"
+          name: "Nightly Build ($(git rev-parse --short HEAD))"
+          prerelease: true
+          files: |
+            dist/lacraia-hud-debug.apk
+            dist/lacraia-core-linux-x86_64
+            dist/lacraia-app-linux-x86_64
+            dist/*.tar.gz
+            dist/checksums.sha256
+          body: |
+            Automated rolling nightly build from branch `main` at commit `${{ github.sha }}`.
+
+            ### Download Direto
+            * 📱 **Android HUD:** [`lacraia-hud-debug.apk`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-hud-debug.apk)
+            * 💻 **Desktop Linux:** [`lacraia-app-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-app-linux-x86_64)
+            * 🎛️ **Server Daemon:** [`lacraia-core-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-core-linux-x86_64)
+
+      # ── Official Release (Tags v*) ──
+      - name: "Extract Release Notes"
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: notes
+        run: |
+          TAG="${{ github.ref_name }}"
+          CLEAN_VER="${TAG#v}"
+          TAG_SUBJECT=$(git tag -l --format="%(contents:subject)" "$TAG" 2>/dev/null || true)
+          RELEASE_TITLE="$TAG"
+          if echo "$TAG_SUBJECT" | grep -q ': '; then
+            TITLE_PART=$(echo "$TAG_SUBJECT" | sed -E 's/^[^:]+: //')
+            RELEASE_TITLE="$TAG - $TITLE_PART"
+          fi
+          echo "title=$RELEASE_TITLE" >> "$GITHUB_OUTPUT"
+
+          NOTES=$(awk -v t1="$TAG" -v t2="$CLEAN_VER" '
+            $0 ~ "^### \\[" t1 "\\]" || $0 ~ "^### \\[" t2 "\\]" { in_section = 1; next }
+            in_section && ($0 ~ "^###? \\[" || $0 ~ "^## ") { in_section = 0 }
+            in_section { print }
+          ' CHANGELOG.md)
+
+          if echo "$NOTES" | grep -q '^[[:space:]]*- '; then
+            echo "$NOTES" > /tmp/release_notes.md
+          else
+            echo "- La Craia production release $TAG with pre-cached audio engine and automotive companion HUD." > /tmp/release_notes.md
+          fi
+
+      - name: "Publish Official Release"
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: https://github.com/softprops/action-gh-release@v2
+        with:
+          tag_name: "${{ github.ref_name }}"
+          name: "${{ steps.notes.outputs.title }}"
+          files: |
+            dist/lacraia-hud-debug.apk
+            dist/lacraia-core-linux-x86_64
+            dist/lacraia-app-linux-x86_64
+            dist/*.tar.gz
+            dist/checksums.sha256
+          body_path: /tmp/release_notes.md
