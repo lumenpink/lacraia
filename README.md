@@ -21,7 +21,7 @@ lacraia/
 │   ├── lacraia-core/      # Backend service: Axum, SQLite, yt-dlp, Last.fm, WS hub (Rust)
 │   ├── lacraia-app/       # Automotive player & cockpit UI in Dioxus (Linux Native & Web/PWA)
 │   └── lacraia-hud/       # "La Craia Simbiótyka" Android Foreground Service overlay (Kotlin)
-├── docs/                  # In-depth technical specifications and architectural documentation
+├── docs/                  # Design system, identity manual and technical specifications
 ├── site/                  # Static documentation site deployed to Cloudflare Workers
 ├── serve.sh               # Local preview HTTP server for site/
 └── wrangler.jsonc         # Cloudflare Workers configuration for lacraia.2lp.in
