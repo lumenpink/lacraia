@@ -240,6 +240,21 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Asset Gráfico Oficial:** Geração e armazenamento de `docs/assets/lacraia-halftone.jpg` e `site/assets/lacraia-halftone.jpg` em alta resolução (896x1200) com textura de retícula meio-tom, detalhes em fita adesiva nos cantos, destaques na cor `--fucsia-furacao` e tipografia stencil "LACRAIA · PATRONA DO PAREDÃO".
   - **Integração na Documentação:** Arte incorporada com destaque no `README.md`, no Caderno 02 do `docs/design-system.md` e no Caderno 06 da página oficial (`site/index.html`).
 
+---
+
+### Ticket #10: Suporte Mobile, Reordenação de Decks e Miniplayer Persistente
+* **Package:** `site/app/index.html`, `docs/roadmap.md`
+* **Goal:** Otimizar o cockpit web e a jukebox para dispositivos móveis (360px–480px), reorganizar os decks lógicos e fornecer controle contínuo via miniplayer persistente.
+* **Acceptance Criteria:**
+  - **Reordenação Lógica dos Decks:**
+    - Deck #01: Master Playback & Paredão (fita, visualizador, seek, transport, ganho, estações).
+    - Deck #02: Fila do Paredão & Jukebox (busca integrada no topo com autocomplete debounced e lista lookahead ordenada).
+    - Deck #03: Cabine & Tripulação (ações de porta, QR Code de embarque, tripulantes e controles do piloto no final).
+  - **Miniplayer Persistente nos Decks 02 e 03:** Mini-dock com Play/Pause, Avançar, Título/Artista, tempo e mini seekline neon sincronizado em tempo real com o motor de áudio.
+  - **Sticky Bottom Miniplayer Mobile:** Barra flutuante de controle na base da tela ativada ao navegar pelas abas da Fila e da Cabine.
+  - **Seletor de Abas Mobile (< 860px):** Navegação tátil por abas (`PLAYER`, `FILA`, `CABINE`) com badges de contagem dinâmica e áreas de toque mínimas de 44px.
+
+
 
 
 
