@@ -134,3 +134,16 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
     - Chute individual (`[ 👢 ]`) revogando o token daquele vivente.
     - Ejeção total (`[ 💥 EJETAR GERAL ]`) limpando todos os passageiros da cabine.
     - Tela de bloqueio imediato no celular do passageiro com mensagem temática: `[ 🦂 VOCÊ FOI EJETADO DA CABINE PELO MOTORISTA! ]`.
+
+---
+
+### Ticket #26: Automação CI/CD no Forgejo, Build de APKs e Hub de Downloads
+* **Package:** CI & Site (`.forgejo`, `site`, `packages/lacraia-hud`)
+* **Goal:** Implementar o pipeline completo de integração contínua e distribuição no Forgejo Actions, incluindo compilação de binários nativos Rust, build de APK Android HUD via Gradle, deploy dual da documentação (Cloudflare + Codeberg Pages), canal contínuo Nightly e botões de download direto no site.
+* **Acceptance Criteria:**
+  - **Job Rust Workspace:** Validação de `cargo check`, testes unitários e compilação em `--release` dos binários `lacraia-core` e `lacraia-app` com upload de artefatos.
+  - **Job Android HUD:** Setup de JDK 17, Android SDK e Gradle 8.7 para executar testes unitários e compilar `lacraia-hud-debug.apk`.
+  - **Job Deploy Dual:** Publicação do portal estático via Wrangler no Cloudflare Workers (`lacraia.2lp.in`) com fallback automatizado para o branch `pages` no Codeberg Pages.
+  - **Job Release & Nightly:** Publicação de releases oficiais com tags `v*` (com notas extraídas de `CHANGELOG.md`) e canal rolling `nightly` atualizado a cada push na `main` com links diretos para APK e executáveis Linux.
+  - **Bancada de Embarque (Hub de Downloads no Site):** Painel estético brutalista na página principal com botões de download direto para APK Android, Desktop Linux, Daemon Core e releases do Codeberg.
+
