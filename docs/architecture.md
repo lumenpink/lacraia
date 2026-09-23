@@ -132,3 +132,16 @@ LIMIT ?2;
    Triggers `MediaResolver::resolve_and_cache` before the current track finishes. Once the `.opus` file is saved to disk, the database updates the queue state from `pending` to `cached`.
 4. **Resilience to Network Drops:**
    By maintaining two fully resolved tracks cached in advance, the driver experiences zero playback interruptions even when passing through cellular dead zones.
+
+---
+
+## 7. Web Audio Engine & MediaSession Integration (`lacraia-web`)
+
+`lacraia-web` acts as a progressive web application with native operating system media controls:
+
+1. **HTML5 Audio Engine (`audio.rs`):**
+   Manages `<audio>` playback via `web-sys::HtmlAudioElement` with support for volume clamping, precise millisecond seeking, and error recovery.
+2. **MediaSession API Synchronization:**
+   Registers active song metadata (`title`, `artist`, `album`, and 512x512 artwork) directly on `navigator.mediaSession`.
+3. **OS Lockscreen & Keybinding Handlers:**
+   Registers system action handlers for `play`, `pause`, `nexttrack`, `previoustrack`, and `seekto`, enabling hardware vehicle steering wheel buttons and lockscreen controls to operate seamlessly.
