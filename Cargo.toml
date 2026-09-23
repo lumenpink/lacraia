@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = [
+    "packages/lacraia-shared",
+    "packages/lacraia-core",
+    "packages/lacraia-web",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Lumen Pink <hi@lumen.pink>"]
+license = "MIT"
+repository = "https://codeberg.org/lumenpink/lacraia"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"

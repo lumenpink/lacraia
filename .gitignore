@@ -1,0 +1,30 @@
+# Rust
+target/
+**/*.rs.bk
+*.lock
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
+site/version
+
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+*.apk
+*.aab
+.idea/
+*.iml
+
+# CCCP / Agents
+.antigravity/
+tickets.md
+tickets.tmp
+*.tmp
+
+# Cache & Local environment
+.env
+.env.local
+/var/cache/la-craia/
