@@ -3,35 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LA CRAIA :: Paredão, Pipa &amp; Simbiótyka</title>
-  <meta name="description" content="Decentralized acoustic similarity audio streaming and synchronized heads-up display (HUD) lyrics projected over GPS navigation.">
+  <title>LA CRAIA :: Caderno de Montagem do Paredão &amp; Zine de Campo</title>
+  <meta name="description" content="Manual de Identidade, Arquitetura de Áudio Descentralizado e Companion HUD La Craia Simbiótyka.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       /* MATERIAIS BASE */
-      --madeira-compensado:     #2b1d14;
-      --madeira-veios:          #1f140e;
-      --ferro-bate-pedra:       #151618;
-      --ferro-painel:           #1f2126;
-      --metal-cantoneira:       #42464e;
+      --madeira-compensado:     #2b1d14; /* Fundo geral da carcaça */
+      --madeira-veios:          #1f140e; /* Linhas de fibra e nós */
+      --ferro-bate-pedra:       #151618; /* Módulos funcionais e carcaça de metal */
+      --ferro-painel:           #1f2126; /* Superfície dos consoles e caixas de texto */
+      --metal-cantoneira:       #42464e; /* Bordas de metal, cantoneiras e parafusos */
 
       /* O DEBOCHE & A PERFORMANCE (ACENTOS DISPARADORES) */
-      --fucsia-furacao:         #ff0055;
-      --cetim-magenta:          #d80064;
-      --glitter-roxo:           #8000ff;
+      --fucsia-furacao:         #ff0055; /* Rosa choque fluorescente de palco / Ação crítica */
+      --cetim-magenta:          #d80064; /* Sombra dura de botões e estados ativos */
+      --glitter-roxo:           #8000ff; /* Iluminação secundária e links da documentação */
 
       /* A PEÇONHA & A GAMBIARRA */
-      --veneno-eletrico:        #d4ff00;
-      --alta-voltagem:          #ffb700;
-      --fio-massa-verde:        #00ff66;
-      --curto-circuito:         #ff2200;
+      --veneno-eletrico:        #d4ff00; /* Amarelo-limão de pata de lacraia / Fita isolante */
+      --alta-voltagem:          #ffb700; /* Amarelo trânsito / Alertas de instabilidade */
+      --fio-massa-verde:        #00ff66; /* LED de sinal verde / Status OK */
+      --curto-circuito:         #ff2200; /* LED de pico / Clipping de áudio / Falha crítica */
 
       /* TIPOGRAFIA & LEITURA */
-      --papel-mimeografo:       #e8e6df;
-      --tinta-carimbo:          #0a0a0b;
-      --grafite-mono:           #8a909a;
+      --papel-mimeografo:       #e8e6df; /* Texto corrido da documentação */
+      --tinta-carimbo:          #0a0a0b; /* Texto sobre botões fluorescentes */
+      --grafite-mono:           #8a909a; /* Metadados, números de linha e comentários */
 
       --font-stencil: 'Bebas Neue', 'Impact', sans-serif;
       --font-mono: 'JetBrains Mono', 'Liberation Mono', monospace;
@@ -39,39 +39,63 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      background-color: var(--ferro-bate-pedra);
+      background-color: var(--madeira-compensado);
       background-image: 
-        radial-gradient(ellipse at top left, rgba(43, 29, 20, 0.4), transparent 60%),
-        repeating-linear-gradient(45deg, rgba(21, 22, 24, 0.4), rgba(21, 22, 24, 0.4) 2px, transparent 2px, transparent 6px);
+        radial-gradient(ellipse at 15% 10%, rgba(31, 20, 14, 0.95), transparent 70%),
+        repeating-linear-gradient(45deg, rgba(21, 22, 24, 0.4), rgba(21, 22, 24, 0.4) 3px, transparent 3px, transparent 8px),
+        radial-gradient(circle at 85% 85%, rgba(21, 22, 24, 0.9), transparent 60%);
       color: var(--papel-mimeografo);
       font-family: var(--font-mono);
       line-height: 1.6;
-      padding: 2rem 1.5rem;
+      padding: 1.5rem 1rem;
       display: flex;
       justify-content: center;
       min-height: 100vh;
     }
 
+    /* CHASSI PRINCIPAL */
     .chassis {
-      max-width: 980px;
+      max-width: 1240px;
       width: 100%;
-      background: var(--ferro-painel);
+      background: var(--ferro-bate-pedra);
       border: 3px solid var(--metal-cantoneira);
-      box-shadow: 0 0 0 1px #000, 0 12px 30px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 0 0 2px #000, 0 16px 40px rgba(0, 0, 0, 0.95);
       position: relative;
+      display: flex;
+      flex-direction: column;
     }
+
+    /* CANTONEIRAS COM REBITES DE FIXAÇÃO */
+    .chassis::before, .chassis::after {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #717782;
+      border: 2px solid #111;
+      border-radius: 50%;
+      box-shadow: inset 1px 1px 2px #fff, inset -1px -1px 2px #000;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .chassis::before { top: 8px; left: 8px; }
+    .chassis::after { top: 8px; right: 8px; }
 
     /* BARRA SUPERIOR DO CHASSI */
     .top-panel {
-      background: var(--ferro-bate-pedra);
+      background: #0d0e10;
       border-bottom: 3px solid var(--metal-cantoneira);
-      padding: 0.75rem 1.25rem;
+      padding: 0.85rem 1.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: 1rem;
       font-size: 0.85rem;
       text-transform: uppercase;
       font-weight: 700;
@@ -80,9 +104,9 @@
     .top-panel .badge-lambe {
       background: var(--fucsia-furacao);
       color: var(--tinta-carimbo);
-      padding: 0.2rem 0.5rem;
+      padding: 0.25rem 0.65rem;
       font-weight: 800;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       transform: rotate(-1.5deg);
       display: inline-block;
       box-shadow: 2px 2px 0 var(--tinta-carimbo);
@@ -91,7 +115,15 @@
     .telemetry-leds {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 1.25rem;
+    }
+
+    .led-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      color: var(--papel-mimeografo);
     }
 
     .led {
@@ -114,104 +146,447 @@
 
     .led-red {
       background: var(--curto-circuito);
-      box-shadow: 0 0 8px var(--curto-circuito);
-      animation: pulse-red 1.2s infinite alternate;
+      box-shadow: 0 0 10px var(--curto-circuito);
+      animation: pulse-red 1s infinite alternate ease-in-out;
     }
 
     @keyframes pulse-red {
-      from { opacity: 0.4; }
-      to { opacity: 1; }
+      from { opacity: 0.35; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1.1); }
     }
 
-    /* CONTEÚDO PRINCIPAL */
-    .main-content {
+    /* GRID DE LEITURA (COLUNA VERTEBRAL + CADERNO) */
+    .workspace-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 800px;
+      position: relative;
+    }
+
+    @media (max-width: 920px) {
+      .workspace-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* SIDEBAR: A COLUNA VERTEBRAL DO QUILÓPODE */
+    .spine-sidebar {
+      background: #111215;
+      border-right: 3px solid var(--metal-cantoneira);
+      padding: 1.75rem 1.25rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      max-height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: thin;
+      scrollbar-color: var(--metal-cantoneira) #111215;
+    }
+
+    @media (max-width: 920px) {
+      .spine-sidebar {
+        position: relative;
+        height: auto;
+        max-height: none;
+        border-right: none;
+        border-bottom: 3px solid var(--metal-cantoneira);
+      }
+    }
+
+    .spine-header {
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    /* CABEÇA DA LACRAIA COM ANTENAS */
+    .centipede-head {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      cursor: crosshair;
+    }
+
+    .antennae-svg {
+      width: 72px;
+      height: 38px;
+      stroke: var(--veneno-eletrico);
+      stroke-width: 2.5;
+      fill: none;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 4px var(--veneno-eletrico));
+      transition: transform 0.2s ease-out;
+    }
+
+    .head-plate {
+      width: 44px;
+      height: 28px;
+      background: var(--ferro-painel);
+      border: 2px solid var(--fucsia-furacao);
+      border-radius: 8px 8px 4px 4px;
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .head-ocelli {
+      display: flex;
+      gap: 12px;
+    }
+
+    .ocellus {
+      width: 5px;
+      height: 5px;
+      background: var(--veneno-eletrico);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--veneno-eletrico);
+    }
+
+    .spine-title {
+      font-family: var(--font-stencil);
+      font-size: 1.3rem;
+      letter-spacing: 0.06em;
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .spine-subtitle {
+      font-size: 0.7rem;
+      color: var(--grafite-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* LINHA VERTEBRAL CONTÍNUA E NÓS METAMÉRICOS */
+    .spine-track {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding: 0.5rem 0;
+      flex: 1;
+    }
+
+    .spine-cord {
+      position: absolute;
+      top: 15px;
+      bottom: 25px;
+      left: 23px;
+      width: 3px;
+      background: repeating-linear-gradient(to bottom, var(--metal-cantoneira), var(--metal-cantoneira) 6px, #000 6px, #000 12px);
+      z-index: 1;
+    }
+
+    .spine-node {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--papel-mimeografo);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      padding: 0.25rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    .spine-node:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* PATA ESQUERDA + VÉRTEBRA + PATA DIREITA */
+    .metamere-unit {
+      display: flex;
+      align-items: center;
+      position: relative;
+      width: 48px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .vertebra {
+      width: 22px;
+      height: 22px;
+      background: var(--ferro-painel);
+      border: 2px solid var(--metal-cantoneira);
+      border-radius: 4px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 3;
+      transition: all 0.25s ease;
+      box-shadow: inset 1px 1px 1px rgba(255,255,255,0.1), 0 2px 4px #000;
+    }
+
+    .vertebra::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 10px;
+      height: 10px;
+      background: #252830;
+      border-radius: 2px;
+      transition: all 0.25s ease;
+    }
+
+    .leg-svg {
+      position: absolute;
+      width: 48px;
+      height: 32px;
+      stroke: var(--metal-cantoneira);
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+
+    .node-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .node-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--grafite-mono);
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+
+    .node-label {
+      font-family: var(--font-stencil);
+      font-size: 1.15rem;
+      letter-spacing: 0.04em;
+      color: var(--papel-mimeografo);
+      line-height: 1.1;
+      transition: color 0.2s;
+    }
+
+    /* ESTADO ATIVO DO SEGMENTO (QUANDO EM VISÃO) */
+    .spine-node.active .vertebra {
+      border-color: var(--veneno-eletrico);
+      background: #000;
+      box-shadow: 0 0 10px var(--veneno-eletrico);
+      transform: scale(1.1);
+    }
+
+    .spine-node.active .vertebra::after {
+      background: var(--veneno-eletrico);
+      box-shadow: 0 0 6px var(--veneno-eletrico);
+    }
+
+    .spine-node.active .leg-svg {
+      stroke: var(--veneno-eletrico);
+      filter: drop-shadow(0 0 5px var(--veneno-eletrico));
+      transform: scale(1.08);
+    }
+
+    .spine-node.active .node-tag {
+      color: var(--fucsia-furacao);
+    }
+
+    .spine-node.active .node-label {
+      color: var(--veneno-eletrico);
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    .terminal-legs {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--metal-cantoneira);
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--grafite-mono);
+      text-transform: uppercase;
+    }
+
+    /* CORPO PRINCIPAL DO CADERNO */
+    .caderno-content {
+      background: var(--ferro-painel);
       padding: 2.5rem;
+      overflow-x: hidden;
     }
 
-    header {
+    @media (max-width: 640px) {
+      .caderno-content {
+        padding: 1.5rem 1rem;
+      }
+    }
+
+    header.caderno-header {
       margin-bottom: 2.5rem;
       position: relative;
     }
 
-    h1 {
-      font-family: var(--font-stencil);
-      font-size: 4rem;
+    .zine-tagline {
+      display: inline-block;
+      background: #000;
+      border: 1px solid var(--metal-cantoneira);
+      color: var(--alta-voltagem);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      text-transform: uppercase;
       letter-spacing: 0.05em;
+      margin-bottom: 0.8rem;
+    }
+
+    h1.hero-title {
+      font-family: var(--font-stencil);
+      font-size: 4.2rem;
+      letter-spacing: 0.04em;
       line-height: 0.95;
       color: #fff;
       text-transform: uppercase;
       margin-bottom: 0.75rem;
-      text-shadow: 3px 3px 0 var(--cetim-magenta);
+      text-shadow: 3px 3px 0 var(--fucsia-furacao);
     }
 
-    .lead-manifesto {
-      font-size: 1.1rem;
+    @media (max-width: 640px) {
+      h1.hero-title {
+        font-size: 3rem;
+      }
+    }
+
+    .hero-lead {
+      font-size: 1.05rem;
       color: var(--veneno-eletrico);
       text-transform: uppercase;
       font-weight: 700;
       letter-spacing: 0.03em;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-desc {
+      max-width: 800px;
+      font-size: 0.95rem;
+      color: var(--papel-mimeografo);
+      line-height: 1.7;
     }
 
     /* DIVISÓRIA ZEBRA DE FITA ISOLANTE */
     .fita-isolante {
-      height: 12px;
+      height: 14px;
       background: repeating-linear-gradient(45deg, var(--veneno-eletrico), var(--veneno-eletrico) 12px, #000 12px, #000 24px);
-      margin: 2rem 0;
+      margin: 2.5rem 0;
       border-top: 1px solid #000;
       border-bottom: 1px solid #000;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
     }
 
-    /* METÂMEROS / MÓDULOS */
-    h2 {
+    /* SEÇÕES DO CADERNO */
+    .caderno-section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 1.5rem;
+    }
+
+    .section-title {
       font-family: var(--font-stencil);
-      font-size: 2.2rem;
+      font-size: 2.4rem;
       color: #ffffff;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       margin-bottom: 1.25rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.6rem;
+      border-bottom: 2px solid var(--metal-cantoneira);
+      padding-bottom: 0.5rem;
     }
 
-    h2::before {
-      content: "[+]";
+    .section-title::before {
+      content: "[§]";
       color: var(--fucsia-furacao);
       font-family: var(--font-mono);
-      font-size: 1.2rem;
+      font-size: 1.3rem;
     }
 
-    .grid-metameros {
+    .section-desc {
+      font-size: 0.95rem;
+      color: var(--papel-mimeografo);
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+    }
+
+    /* TABELA DE TOKENS CROMÁTICOS */
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .palette-item {
+      background: var(--ferro-bate-pedra);
+      border: 1px solid var(--metal-cantoneira);
+      padding: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .color-swatch {
+      width: 36px;
+      height: 36px;
+      border: 2px solid #000;
+      box-shadow: 1px 1px 0 rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+
+    .color-info {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.75rem;
+    }
+
+    .color-var {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .color-hex {
+      color: var(--grafite-mono);
+      font-family: var(--font-mono);
+    }
+
+    /* GRID DE CARDS */
+    .grid-cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 1.25rem;
-      margin-bottom: 2.5rem;
+      margin: 1.5rem 0;
     }
 
-    .metamero-card {
+    .feature-card {
       background: var(--ferro-bate-pedra);
       border: 2px solid var(--metal-cantoneira);
-      padding: 1.5rem;
+      padding: 1.25rem;
       position: relative;
       transition: transform 0.15s, border-color 0.15s;
     }
 
-    .metamero-card:hover {
+    .feature-card:hover {
       border-color: var(--veneno-eletrico);
       transform: translateY(-2px);
     }
 
-    .metamero-tag {
-      font-size: 0.75rem;
+    .card-tag {
+      font-size: 0.7rem;
       color: var(--veneno-eletrico);
       font-weight: 800;
       text-transform: uppercase;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
       display: block;
     }
 
-    .metamero-card h3 {
+    .feature-card h3 {
       font-family: var(--font-stencil);
       font-size: 1.6rem;
       color: #fff;
@@ -219,48 +594,45 @@
       letter-spacing: 0.03em;
     }
 
-    .metamero-card p {
+    .feature-card p {
       color: var(--papel-mimeografo);
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       line-height: 1.5;
     }
 
     /* CALLOUTS DO MANUAL DE IDENTIDADE */
-    .callouts-section {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-bottom: 2.5rem;
-    }
-
     .callout {
-      padding: 1rem 1.25rem;
-      font-size: 0.9rem;
+      padding: 1.1rem 1.4rem;
+      font-size: 0.92rem;
+      margin: 1.5rem 0;
       background: var(--ferro-bate-pedra);
       position: relative;
+      line-height: 1.6;
     }
 
     .callout-title {
       font-weight: 800;
-      font-size: 0.85rem;
+      font-size: 0.88rem;
       text-transform: uppercase;
       margin-bottom: 0.4rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      letter-spacing: 0.04em;
     }
 
     /* [ TRANSMISSÃO DE CABINE ] */
     .callout-cabine {
       border: 2px solid var(--glitter-roxo);
       background: rgba(128, 0, 255, 0.08);
+      box-shadow: inset 0 0 15px rgba(128, 0, 255, 0.05);
     }
-    .callout-cabine .callout-title { color: var(--glitter-roxo); }
+    .callout-cabine .callout-title { color: #bf73ff; }
 
     /* [ FIO DESENCAPADO ] */
     .callout-fio {
       border: 2px dashed var(--alta-voltagem);
-      background: rgba(255, 183, 0, 0.06);
+      background: rgba(255, 183, 0, 0.07);
     }
     .callout-fio .callout-title { color: var(--alta-voltagem); }
 
@@ -268,17 +640,19 @@
     .callout-veneno {
       border: 2px solid var(--fucsia-furacao);
       background: rgba(255, 0, 85, 0.08);
+      box-shadow: inset 0 0 15px rgba(255, 0, 85, 0.05);
     }
     .callout-veneno .callout-title { color: var(--fucsia-furacao); }
 
     /* [ O PULO DA TRAVESTI ] */
     .callout-pulo {
       border: 2px solid var(--veneno-eletrico);
-      background: rgba(212, 255, 0, 0.06);
+      background: rgba(212, 255, 0, 0.07);
+      box-shadow: inset 0 0 15px rgba(212, 255, 0, 0.05);
     }
     .callout-pulo .callout-title { color: var(--veneno-eletrico); }
 
-    /* BLOCOS DE COMANDO COM SWITCH CLACK */
+    /* BLOCOS DE CÓDIGO COM CHAVE MECÂNICA */
     .code-box {
       background: #090a0c;
       border: 2px solid var(--metal-cantoneira);
@@ -294,27 +668,30 @@
       margin-bottom: 0.75rem;
       border-bottom: 1px dashed var(--metal-cantoneira);
       padding-bottom: 0.5rem;
+      gap: 1rem;
     }
 
     .code-box-label {
       font-size: 0.75rem;
       color: var(--grafite-mono);
       text-transform: uppercase;
+      font-weight: 700;
     }
 
     .btn-clack {
       background: var(--fucsia-furacao);
       color: #000;
       border: 1px solid #000;
-      padding: 0.25rem 0.6rem;
+      padding: 0.3rem 0.75rem;
       font-family: var(--font-mono);
       font-size: 0.75rem;
       font-weight: 800;
       cursor: pointer;
       text-transform: uppercase;
       box-shadow: 2px 2px 0 #000;
-      transform: rotate(-1deg);
+      transform: rotate(-1.5deg);
       transition: all 0.1s;
+      user-select: none;
     }
 
     .btn-clack:hover {
@@ -323,7 +700,8 @@
       box-shadow: 1px 1px 0 #000;
     }
 
-    .btn-clack:active {
+    .btn-clack:active, .btn-clack.clicked {
+      background: var(--fio-massa-verde);
       transform: translate(2px, 2px);
       box-shadow: none;
     }
@@ -333,14 +711,63 @@
       font-family: var(--font-mono);
       font-size: 0.85rem;
       overflow-x: auto;
-      line-height: 1.5;
+      line-height: 1.55;
+    }
+
+    /* CONTROLE ASSIMÉTRICO / GAIN KNOB */
+    .cockpit-strip {
+      background: #0e0f12;
+      border: 2px solid var(--metal-cantoneira);
+      padding: 1.25rem;
+      margin: 1.5rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .gain-knob-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .gain-knob {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #2a2d34 30%, #151618 80%);
+      border: 3px solid var(--metal-cantoneira);
+      box-shadow: 0 4px 8px #000;
+      position: relative;
+      transform: rotate(35deg);
+    }
+
+    .gain-knob::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 14px;
+      background: #fff;
+      border-radius: 1px;
+    }
+
+    .gain-label {
+      font-family: var(--font-stencil);
+      font-size: 1.8rem;
+      color: var(--curto-circuito);
+      letter-spacing: 0.05em;
     }
 
     /* RODAPÉ DO CHASSI */
     footer {
       border-top: 3px solid var(--metal-cantoneira);
-      background: var(--ferro-bate-pedra);
-      padding: 1.25rem 2.5rem;
+      background: #0d0e10;
+      padding: 1.25rem 2rem;
       font-size: 0.8rem;
       color: var(--grafite-mono);
       display: flex;
@@ -353,6 +780,7 @@
     footer a {
       color: var(--veneno-eletrico);
       text-decoration: none;
+      font-weight: 700;
     }
 
     footer a:hover {
@@ -362,7 +790,7 @@
 
     /* ACESSIBILIDADE: PREFERS REDUCED MOTION */
     @media (prefers-reduced-motion: reduce) {
-      *, .led-red, .btn-clack, .metamero-card {
+      *, .led-red, .btn-clack, .feature-card, .antennae-svg, .spine-node.active .vertebra {
         animation: none !important;
         transition: none !important;
         transform: none !important;
@@ -372,119 +800,468 @@
 </head>
 <body>
   <div class="chassis">
-    <!-- BARRA SUPERIOR DO CHASSI -->
+    <!-- BARRA SUPERIOR DO CHASSI COM TELEMETRIA AUTOMOTIVA -->
     <div class="top-panel">
       <div>
-        <span class="badge-lambe">LA CRAIA :: CORE</span>
-        <span style="margin-left: 0.5rem; color: var(--grafite-mono);">v0.2.0-dev • GPLv3+</span>
+        <span class="badge-lambe">LA CRAIA :: BANCADA</span>
+        <span style="margin-left: 0.6rem; color: var(--grafite-mono);">v0.2.0-dev • GPLv3+ • SISTEMA DISSIDENTE</span>
       </div>
       <div class="telemetry-leds">
-        <span><span class="led led-green"></span> SISTEMA: ATIVO</span>
-        <span><span class="led led-yellow"></span> SIMBIOSE: OK</span>
-        <span><span class="led led-red"></span> GANHO: 11</span>
+        <span class="led-wrapper"><span class="led led-green"></span> SISTEMA: ALIMENTADO</span>
+        <span class="led-wrapper"><span class="led led-yellow"></span> SIMBIOSE: ENGATADA</span>
+        <span class="led-wrapper"><span class="led led-red"></span> GANHO: 11 (OVERDRIVE)</span>
       </div>
     </div>
 
-    <!-- CONTEÚDO PRINCIPAL -->
-    <div class="main-content">
-      <header>
-        <h1>LA CRAIA</h1>
-        <p class="lead-manifesto">Decentralized Automotive Audio Suite • Paredão &amp; Simbiótyka HUD</p>
-        <p style="max-width: 720px; font-size: 0.95rem; color: var(--papel-mimeografo);">
-          Streaming contínuo guiado por grafos de similaridade acústica, rádio sem algoritmo corporativo e projeção tátil de letras em tempo real sincronizadas diretamente sobre a navegação GPS (Waze).
-        </p>
-      </header>
-
-      <div class="fita-isolante"></div>
-
-      <!-- METÂMEROS DA MÁQUINA -->
-      <section>
-        <h2>Metameria do Sistema</h2>
-        <div class="grid-metameros">
-          <div class="metamero-card">
-            <span class="metamero-tag">[ METÂMERO 01: COMPARTILHADO ]</span>
-            <h3>lacraia-shared</h3>
-            <p>Modelos de domínio, parser de letras LRC em centissegundos, higienizador acústico de duração/título e protocolo WebSocket de telemetria.</p>
+    <!-- GRID PRINCIPAL: COLUNA VERTEBRAL + CADERNO TÉCNICO -->
+    <div class="workspace-layout">
+      
+      <!-- SUMÁRIO DINÂMICO: A COLUNA VERTEBRAL DO QUILÓPODE -->
+      <aside class="spine-sidebar" aria-label="Coluna Vertebral do Quilópode">
+        <div class="spine-header">
+          <div class="centipede-head" id="centipedeHead" title="Exoesqueleto Sensorial da Lacraia">
+            <!-- ANTENAS ARTICULADAS -->
+            <svg class="antennae-svg" id="antennaeSvg" viewBox="0 0 72 38" aria-hidden="true">
+              <path class="antenna left-antenna" d="M 32 34 C 28 20, 16 10, 4 4" />
+              <path class="antenna right-antenna" d="M 40 34 C 44 20, 56 10, 68 4" />
+            </svg>
+            <!-- PLACA CEFÁLICA -->
+            <div class="head-plate">
+              <div class="head-ocelli">
+                <span class="ocellus"></span>
+                <span class="ocellus"></span>
+              </div>
+            </div>
           </div>
-
-          <div class="metamero-card">
-            <span class="metamero-tag">[ METÂMERO 02: ORQUESTRADOR ]</span>
-            <h3>lacraia-core</h3>
-            <p>Servidor Baquara (Debian 13). Grafo de afinidade em SQLite, extrator yt-dlp/ffmpeg, cache estático em Opus com HTTP Range e daemon antecipado de 2 faixas.</p>
-          </div>
-
-          <div class="metamero-card">
-            <span class="metamero-tag">[ METÂMERO 03: COCKPIT PLAYER ]</span>
-            <h3>lacraia-app</h3>
-            <p>Player nativo Linux Desktop e PWA em Dioxus. Seletor de estações, controle de fila e integração MediaSession com hardware automotivo.</p>
-          </div>
-
-          <div class="metamero-card">
-            <span class="metamero-tag">[ METÂMERO 04: O COMPANHEIRO ]</span>
-            <h3>La Craia Simbiótyka</h3>
-            <p>Micro-app Android (Kotlin Foreground Service). Intercepta sessões de mídia, sincroniza letras via LRCLIB e projeta overlay pill flutuante com ducking de áudio para avisos do Waze.</p>
-          </div>
+          <div class="spine-title">COLUNA VERTEBRAL</div>
+          <div class="spine-subtitle">Índice Metamérico • 21 Pares</div>
         </div>
-      </section>
 
-      <!-- CALLOUTS DO MANUAL DE IDENTIDADE -->
-      <section>
-        <h2>Comunicações de Bordo</h2>
-        <div class="callouts-section">
+        <nav class="spine-track">
+          <div class="spine-cord" aria-hidden="true"></div>
+
+          <!-- NÓ 01: DESIGN SYSTEM -->
+          <a href="#sec-identidade" class="spine-node active" data-target="sec-identidade">
+            <div class="metamere-unit">
+              <svg class="leg-svg" viewBox="0 0 48 32">
+                <path d="M 13 16 L 3 10 L 1 18" />
+                <path d="M 35 16 L 45 10 L 47 18" />
+              </svg>
+              <div class="vertebra"></div>
+            </div>
+            <div class="node-text">
+              <span class="node-tag">[SEG.01]</span>
+              <span class="node-label">Identidade &amp; Estética</span>
+            </div>
+          </a>
+
+          <!-- NÓ 02: ARQUITETURA DO PAREDÃO -->
+          <a href="#sec-arquitetura" class="spine-node" data-target="sec-arquitetura">
+            <div class="metamere-unit">
+              <svg class="leg-svg" viewBox="0 0 48 32">
+                <path d="M 13 16 L 2 12 L 0 20" />
+                <path d="M 35 16 L 46 12 L 48 20" />
+              </svg>
+              <div class="vertebra"></div>
+            </div>
+            <div class="node-text">
+              <span class="node-tag">[SEG.02]</span>
+              <span class="node-label">Arquitetura Baquara</span>
+            </div>
+          </a>
+
+          <!-- NÓ 03: SIMBIÓTYKA HUD -->
+          <a href="#sec-hud" class="spine-node" data-target="sec-hud">
+            <div class="metamere-unit">
+              <svg class="leg-svg" viewBox="0 0 48 32">
+                <path d="M 13 16 L 3 14 L 2 22" />
+                <path d="M 35 16 L 45 14 L 46 22" />
+              </svg>
+              <div class="vertebra"></div>
+            </div>
+            <div class="node-text">
+              <span class="node-tag">[SEG.03]</span>
+              <span class="node-label">Simbiótyka HUD</span>
+            </div>
+          </a>
+
+          <!-- NÓ 04: PROTOCOLO DE SINCRONIA -->
+          <a href="#sec-sync" class="spine-node" data-target="sec-sync">
+            <div class="metamere-unit">
+              <svg class="leg-svg" viewBox="0 0 48 32">
+                <path d="M 13 16 L 4 12 L 2 21" />
+                <path d="M 35 16 L 44 12 L 46 21" />
+              </svg>
+              <div class="vertebra"></div>
+            </div>
+            <div class="node-text">
+              <span class="node-tag">[SEG.04]</span>
+              <span class="node-label">Sincronia WebSocket</span>
+            </div>
+          </a>
+
+          <!-- NÓ 05: CADERNO DE CAMPO & ROADMAP -->
+          <a href="#sec-roadmap" class="spine-node" data-target="sec-roadmap">
+            <div class="metamere-unit">
+              <svg class="leg-svg" viewBox="0 0 48 32">
+                <path d="M 13 16 L 3 10 L 1 19" />
+                <path d="M 35 16 L 45 10 L 47 19" />
+              </svg>
+              <div class="vertebra"></div>
+            </div>
+            <div class="node-text">
+              <span class="node-tag">[SEG.05]</span>
+              <span class="node-label">Zine de Campo &amp; Demo</span>
+            </div>
+          </a>
+        </nav>
+
+        <div class="terminal-legs">
+          <p>21º Par de Patas Locomotoras</p>
+          <p style="color: var(--fucsia-furacao); margin-top: 0.2rem;">Quitina Rígida • Veneno Rápido</p>
+        </div>
+      </aside>
+
+      <!-- ÁREA DE LEITURA DO CADERNO TÉCNICO -->
+      <main class="caderno-content">
+        
+        <!-- HEADER PRINCIPAL -->
+        <header class="caderno-header">
+          <span class="zine-tagline">CADERNO DE MONTAGEM DO PAREDÃO • ZINE TÉCNICO DE CAMPO</span>
+          <h1 class="hero-title">LA CRAIA</h1>
+          <p class="hero-lead">Streaming por Grafo de Afinidade &amp; HUD Simbiótico sobre Waze</p>
+          <p class="hero-desc">
+            Documentação unificada do ecossistema La Craia. Uma máquina de som de guerrilha, fora dos silos corporativos, combinando reprodução gapless com pre-caching preditivo em Debian e companion flutuante para cockpit automotivo.
+          </p>
+        </header>
+
+        <div class="fita-isolante"></div>
+
+        <!-- MÓDULO 01: DESIGN SYSTEM -->
+        <section id="sec-identidade" class="caderno-section">
+          <h2 class="section-title">Caderno 01: Manual de Identidade Visual</h2>
+          <p class="section-desc">
+            A estética de La Craia recusa terminantemente a cartilha asséptica do minimalismo corporativo. Ela nasce da colisão entre o exoesqueleto segmentado do quilópode, a performance histórica e debochada de Lacraia nos palcos do funk dos anos 2000, e a gambiarra engenhosa dos paredões de som em compensado naval.
+          </p>
+
           <div class="callout callout-cabine">
             <div class="callout-title">📡 [ TRANSMISSÃO DE CABINE ]</div>
-            <div>A telemetria do sistema opera em 1Hz transmitindo instantaneamente a posição da agulha para o HUD e o cockpit player simultaneamente via WebSocket.</div>
+            <div>A interface gráfica não simula vidro translúcido nem papel polido. Ela reproduz a textura áspera da chapa de aço com pintura bate-pedra, compensado naval cortado no serrote e fita isolante amarela remendando a fiação exposta.</div>
           </div>
 
-          <div class="callout callout-fio">
-            <div class="callout-title">⚡ [ FIO DESENCAPADO ]</div>
-            <div>Ao passar por zonas sem cobertura celular, o sistema entra em modo 100% offline, operando pelo grafo local de faixas pré-resolvidas em cache.</div>
+          <h3 style="font-family: var(--font-stencil); font-size: 1.5rem; color: #fff; margin: 1.5rem 0 0.5rem 0;">Tokens Cromáticos Oficiais</h3>
+          <div class="palette-grid">
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--madeira-compensado);"></div>
+              <div class="color-info">
+                <span class="color-var">--madeira-compensado</span>
+                <span class="color-hex">#2b1d14 • Carcaça Base</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--ferro-bate-pedra);"></div>
+              <div class="color-info">
+                <span class="color-var">--ferro-bate-pedra</span>
+                <span class="color-hex">#151618 • Módulo Chassi</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--fucsia-furacao);"></div>
+              <div class="color-info">
+                <span class="color-var">--fucsia-furacao</span>
+                <span class="color-hex">#ff0055 • Choque de Palco</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--veneno-eletrico);"></div>
+              <div class="color-info">
+                <span class="color-var">--veneno-eletrico</span>
+                <span class="color-hex">#d4ff00 • Pata de Lacraia</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--alta-voltagem);"></div>
+              <div class="color-info">
+                <span class="color-var">--alta-voltagem</span>
+                <span class="color-hex">#ffb700 • Atenção Bordo</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--glitter-roxo);"></div>
+              <div class="color-info">
+                <span class="color-var">--glitter-roxo</span>
+                <span class="color-hex">#8000ff • Deboche Noturno</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cockpit-strip">
+            <div class="gain-knob-wrapper">
+              <div class="gain-knob" title="Potenciômetro com ganho até 11"></div>
+              <div>
+                <div style="font-size: 0.75rem; color: var(--grafite-mono); text-transform: uppercase;">Potenciômetro de Ganho</div>
+                <div class="gain-label">11.0 / 11 (MÁXIMO)</div>
+              </div>
+            </div>
+            <div style="font-size: 0.85rem; max-width: 480px; color: var(--papel-mimeografo);">
+              "Não paramos no 10. Quando a máquina exige potência bruta na rodovia, a escala é empurrada para além do limite de fábrica."
+            </div>
+          </div>
+        </section>
+
+        <div class="fita-isolante"></div>
+
+        <!-- MÓDULO 02: ARQUITETURA DO PAREDÃO -->
+        <section id="sec-arquitetura" class="caderno-section">
+          <h2 class="section-title">Caderno 02: Arquitetura do Paredão (lacraia-core)</h2>
+          <p class="section-desc">
+            O servidor central opera no host Debian 13 (Baquara). Ele combina banco SQLite local com grafo de adjacência de similaridade acústica, motor de resolução e streaming nativo em Opus com suporte a HTTP Range Requests (206 Partial Content).
+          </p>
+
+          <div class="grid-cards">
+            <div class="feature-card">
+              <span class="card-tag">[ COMPONENTE 01 ]</span>
+              <h3>Grafo em SQLite</h3>
+              <p>Tabelas <code>tracks</code> e <code>similarity_edges</code> armazenam conexões ponderadas. Toda busca em fontes online é gravada localmente para alimentar autonomia futura.</p>
+            </div>
+            <div class="feature-card">
+              <span class="card-tag">[ COMPONENTE 02 ]</span>
+              <h3>Queue Daemon</h3>
+              <p>Loop em background assegura que as próximas 2 faixas do grafo estejam 100% resolvidas e cacheadas em disco antes do término da música atual.</p>
+            </div>
+            <div class="feature-card">
+              <span class="card-tag">[ COMPONENTE 03 ]</span>
+              <h3>Streaming Opus 206</h3>
+              <p>Servido em <code>/cache/{id}.opus</code> permitindo seek instantâneo com zero transcodificação adicional no momento da reprodução.</p>
+            </div>
           </div>
 
           <div class="callout callout-veneno">
             <div class="callout-title">🦂 [ VENENO NA CARNE ]</div>
-            <div>Filtro de ruído acústico ativado: faixas com variação de tempo maior que 15 segundos ou títulos identificados como covers e tributes não autorizados são sumariamente expurgados da fila.</div>
+            <div>O higienizador acústico expurga áudios com divergência de tempo excessiva (&gt;15s) ou com títulos adulterados por gravações piratas de celular em shows. O filtro garante apenas gravações originais de estúdio.</div>
+          </div>
+
+          <div class="callout callout-fio">
+            <div class="callout-title">⚡ [ FIO DESENCAPADO ]</div>
+            <div>Se a van entrar em túneis ou trechos serranos sem sinal 4G/5G, o Queue Daemon recua imediatamente para o grafo local, assegurando zero segundos de silêncio na cabine.</div>
+          </div>
+
+          <div class="code-box">
+            <div class="code-box-header">
+              <span class="code-box-label">[ BASH :: COMPILAÇÃO E DISPARO DO CORE ]</span>
+              <button class="btn-clack" data-code="PORT=8080 LACRAIA_CACHE_DIR=/var/cache/la-craia cargo run -p lacraia-core">[ COPIAR ]</button>
+            </div>
+            <pre># Disparar o orquestrador com cache persistente e porta configurada:
+PORT=8080 LACRAIA_CACHE_DIR=/var/cache/la-craia cargo run -p lacraia-core</pre>
+          </div>
+        </section>
+
+        <div class="fita-isolante"></div>
+
+        <!-- MÓDULO 03: SIMBIÓTYKA HUD -->
+        <section id="sec-hud" class="caderno-section">
+          <h2 class="section-title">Caderno 03: La Craia Simbiótyka (Android HUD)</h2>
+          <p class="section-desc">
+            Micro-aplicativo Android em Kotlin estruturado como <code>Foreground Service</code> desacoplado. Não possui activity persistente e não interfere na tela cheia do condutor.
+          </p>
+
+          <div class="grid-cards">
+            <div class="feature-card">
+              <span class="card-tag">[ CAPTURA SIMBIÓTICA ]</span>
+              <h3>MediaSession Listener</h3>
+              <p>Intercepta metadados e posições de milissegundos de qualquer reprodutor do sistema operacional sem exigir modificação no player original.</p>
+            </div>
+            <div class="feature-card">
+              <span class="card-tag">[ SEGURANÇA VEICULAR ]</span>
+              <h3>GPS Audio Ducking</h3>
+              <p>Atenua automaticamente a música para 20% do volume quando Waze ou Google Maps emitem comandos de voz na rodovia, restaurando suavemente em seguida.</p>
+            </div>
+            <div class="feature-card">
+              <span class="card-tag">[ FLOATING PILL ]</span>
+              <h3>Overlay 56dp no WindowManager</h3>
+              <p>Pílula flutuante translúcida com botões táteis (&ge;48dp) e letra sincronizada milissegundo a milissegundo logo acima dos alertas de trânsito.</p>
+            </div>
           </div>
 
           <div class="callout callout-pulo">
             <div class="callout-title">✨ [ O PULO DA TRAVESTI ]</div>
-            <div>Para iniciar imediatamente toda a bancada de testes e o backend pré-populado com sementes de demonstração, basta disparar o script de orquestração única.</div>
+            <div>Toda letra capturada via LRCLIB é armazenada no SQLite do telefone. Ao repetir a mesma canção em estradas isoladas, a sincronização milissegunda ocorre com zero latência e sem gastar franquia de dados móveis.</div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- PAINEL DE DISPARO RÁPIDO -->
-      <section>
-        <h2>Bancada de Acionamento</h2>
-        <p style="font-size: 0.9rem; color: var(--grafite-mono); margin-bottom: 0.5rem;">Comandos para disparo da demonstração e verificação do ecossistema:</p>
+        <div class="fita-isolante"></div>
 
-        <div class="code-box">
-          <div class="code-box-header">
-            <span class="code-box-label">[ TERMINAL :: DISPARAR DEMO COMPLETA ]</span>
-            <button class="btn-clack" onclick="navigator.clipboard.writeText('./demo.sh --port 8080 --open'); this.innerText='[ CLACK! COPIADO ]'; setTimeout(()=>this.innerText='[ COPIAR ]', 2000)">[ COPIAR ]</button>
+        <!-- MÓDULO 04: PROTOCOLO DE SINCRONIA -->
+        <section id="sec-sync" class="caderno-section">
+          <h2 class="section-title">Caderno 04: Protocolo de Sincronia WebSocket</h2>
+          <p class="section-desc">
+            Quando o som principal toca na central fixa (Debian Baquara) e smartphones ou tablets atuam como controle e HUD, o endpoint <code>/ws</code> orquestra a comunicação bidirecional em JSON.
+          </p>
+
+          <div class="callout callout-cabine">
+            <div class="callout-title">📡 [ TRANSMISSÃO DE CABINE ]</div>
+            <div>O broadcast <code>STATE_UPDATE</code> pulsa a cada 1000ms transmitindo estado, posição atual em ms e flag de letra. Ao plugar um novo tablet, o servidor entrega o snapshot de imediato no primeiro frame.</div>
           </div>
-          <pre># Clonar e iniciar o backend com seeding automático e painel no navegador:
+
+          <div class="code-box">
+            <div class="code-box-header">
+              <span class="code-box-label">[ JSON :: TELEMETRIA EMITIDA PELO SERVIDOR ]</span>
+              <button class="btn-clack" data-code='{"type":"STATE_UPDATE","payload":{"track":{"id":"trk_01","title":"Rebel Rebel","artist":"David Bowie","durationMs":274000},"playback":{"state":"PLAYING","positionMs":35200},"hasLrc":true}}'>[ COPIAR ]</button>
+            </div>
+            <pre>{
+  "type": "STATE_UPDATE",
+  "payload": {
+    "track": {
+      "id": "trk_01",
+      "title": "Rebel Rebel",
+      "artist": "David Bowie",
+      "durationMs": 274000
+    },
+    "playback": {
+      "state": "PLAYING",
+      "positionMs": 35200
+    },
+    "hasLrc": true
+  }
+}</pre>
+          </div>
+        </section>
+
+        <div class="fita-isolante"></div>
+
+        <!-- MÓDULO 05: CADERNO DE CAMPO & ROADMAP -->
+        <section id="sec-roadmap" class="caderno-section">
+          <h2 class="section-title">Caderno 05: Zine de Campo, Tooling &amp; Roadmap</h2>
+          <p class="section-desc">
+            Bancada de comandos operacionais para teste local, script de automação única e o mapa de evolução da suíte automotiva.
+          </p>
+
+          <div class="callout callout-pulo">
+            <div class="callout-title">✨ [ O PULO DA TRAVESTI ]</div>
+            <div>Para orquestrar o backend com banco populado, fila antecipada engatada e o navegador aberto no painel de controle com uma única instrução, basta disparar <code>./demo.sh --open</code>.</div>
+          </div>
+
+          <div class="code-box">
+            <div class="code-box-header">
+              <span class="code-box-label">[ BASH :: DISPARO DA DEMONSTRAÇÃO COMPLETA ]</span>
+              <button class="btn-clack" data-code="./demo.sh --port 8080 --open">[ COPIAR ]</button>
+            </div>
+            <pre># Clonar e iniciar o backend com seeding automático e painel no navegador:
 git clone ssh://git@codeberg.org/lumenpink/lacraia.git
 cd lacraia
 ./demo.sh --port 8080 --open</pre>
-        </div>
-
-        <div class="code-box">
-          <div class="code-box-header">
-            <span class="code-box-label">[ TERMINAL :: COMPILAÇÃO LINUX DESKTOP NATIVO ]</span>
-            <button class="btn-clack" onclick="navigator.clipboard.writeText('cargo run -p lacraia-app --features desktop'); this.innerText='[ CLACK! COPIADO ]'; setTimeout(()=>this.innerText='[ COPIAR ]', 2000)">[ COPIAR ]</button>
           </div>
-          <pre># Executar o player Dioxus compilado como binário nativo no desktop Linux:
+
+          <div class="code-box">
+            <div class="code-box-header">
+              <span class="code-box-label">[ BASH :: COMPILAÇÃO LINUX DESKTOP NATIVO ]</span>
+              <button class="btn-clack" data-code="cargo run -p lacraia-app --features desktop">[ COPIAR ]</button>
+            </div>
+            <pre># Executar o player Dioxus compilado como binário nativo WebKitGTK no Linux:
 cargo run -p lacraia-app --features desktop</pre>
-        </div>
-      </section>
+          </div>
+
+          <div class="callout callout-fio">
+            <div class="callout-title">⚡ [ FIO DESENCAPADO ]</div>
+            <div>Todas as operações de versionamento, commits atômicos pareados e auditoria do repositório devem seguir rigorosamente o padrão <code>cccp</code>: nunca invoque git commit diretamente.</div>
+          </div>
+        </section>
+
+      </main>
     </div>
 
     <!-- RODAPÉ DO CHASSI -->
     <footer>
-      <span>SEGMENTO TERMINAL: 21 pares de patas operando • Feito com ódio &amp; glitter</span>
-      <span>Hospedado via Cloudflare Workers • <a href="https://lacraia.2lp.in">lacraia.2lp.in</a></span>
+      <span>SEGMENTO TERMINAL: 21 pares de pernas operando • Feito com ódio &amp; glitter</span>
+      <span>Repositório Livre no Codeberg • <a href="https://codeberg.org/lumenpink/lacraia" target="_blank" rel="noopener">codeberg.org/lumenpink/lacraia</a></span>
     </footer>
   </div>
+
+  <script>
+    // 1. SCROLL SPY: ILUMINAÇÃO DA COLUNA VERTEBRAL DO QUILÓPODE
+    const spineNodes = document.querySelectorAll('.spine-node');
+    const sections = document.querySelectorAll('.caderno-section');
+
+    const observerOptions = {
+      root: null,
+      rootMargin: '-20% 0px -60% 0px',
+      threshold: 0
+    };
+
+    const sectionObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const currentId = entry.target.getAttribute('id');
+          spineNodes.forEach(node => {
+            if (node.getAttribute('data-target') === currentId) {
+              node.classList.add('active');
+            } else {
+              node.classList.remove('active');
+            }
+          });
+        }
+      });
+    }, observerOptions);
+
+    sections.forEach(sec => sectionObserver.observe(sec));
+
+    // 2. ANTENAS REATIVAS AO CURSOR
+    const centipedeHead = document.getElementById('centipedeHead');
+    const antennaeSvg = document.getElementById('antennaeSvg');
+
+    if (centipedeHead && antennaeSvg) {
+      document.addEventListener('mousemove', (e) => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const rect = centipedeHead.getBoundingClientRect();
+        const headX = rect.left + rect.width / 2;
+        const headY = rect.top + rect.height / 2;
+        const deltaX = (e.clientX - headX) / window.innerWidth;
+        const deltaY = (e.clientY - headY) / window.innerHeight;
+        antennaeSvg.style.transform = `rotate(${deltaX * 18}deg) translateY(${Math.min(deltaY * 6, 2)}px)`;
+      });
+    }
+
+    // 3. BOTÕES TÁTEIS MECÂNICOS [ CLACK! COPIADO ] COM SOM SINTETIZADO (WEBAUDIO)
+    function playClackSound() {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+      } catch (e) {
+        // Fallback silencioso caso áudio esteja bloqueado
+      }
+    }
+
+    document.querySelectorAll('.btn-clack').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.getAttribute('data-code');
+        if (code) {
+          navigator.clipboard.writeText(code).then(() => {
+            playClackSound();
+            btn.classList.add('clicked');
+            const originalText = btn.innerText;
+            btn.innerText = '[ CLACK! COPIADO ]';
+            setTimeout(() => {
+              btn.innerText = originalText;
+              btn.classList.remove('clicked');
+            }, 2000);
+          }).catch(() => {
+            btn.innerText = '[ CLACK! ]';
+            setTimeout(() => btn.innerText = '[ COPIAR ]', 1500);
+          });
+        }
+      });
+    });
+  </script>
 </body>
 </html>
