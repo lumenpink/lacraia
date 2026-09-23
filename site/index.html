@@ -1,134 +1,348 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>La Craia — Decentralized Automotive Audio &amp; HUD</title>
+  <title>LA CRAIA :: Paredão, Pipa &amp; Simbiótyka</title>
   <meta name="description" content="Decentralized acoustic similarity audio streaming and synchronized heads-up display (HUD) lyrics projected over GPS navigation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0d0e12;
-      --card-bg: #14171f;
-      --card-border: #222838;
-      --text: #e6edf3;
-      --text-muted: #8b949e;
-      --accent: #22c55e;
-      --accent-glow: rgba(34, 197, 94, 0.15);
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      /* MATERIAIS BASE */
+      --madeira-compensado:     #2b1d14;
+      --madeira-veios:          #1f140e;
+      --ferro-bate-pedra:       #151618;
+      --ferro-painel:           #1f2126;
+      --metal-cantoneira:       #42464e;
+
+      /* O DEBOCHE & A PERFORMANCE (ACENTOS DISPARADORES) */
+      --fucsia-furacao:         #ff0055;
+      --cetim-magenta:          #d80064;
+      --glitter-roxo:           #8000ff;
+
+      /* A PEÇONHA & A GAMBIARRA */
+      --veneno-eletrico:        #d4ff00;
+      --alta-voltagem:          #ffb700;
+      --fio-massa-verde:        #00ff66;
+      --curto-circuito:         #ff2200;
+
+      /* TIPOGRAFIA & LEITURA */
+      --papel-mimeografo:       #e8e6df;
+      --tinta-carimbo:          #0a0a0b;
+      --grafite-mono:           #8a909a;
+
+      --font-stencil: 'Bebas Neue', 'Impact', sans-serif;
+      --font-mono: 'JetBrains Mono', 'Liberation Mono', monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: var(--font-sans);
+      background-color: var(--ferro-bate-pedra);
+      background-image: 
+        radial-gradient(ellipse at top left, rgba(43, 29, 20, 0.4), transparent 60%),
+        repeating-linear-gradient(45deg, rgba(21, 22, 24, 0.4), rgba(21, 22, 24, 0.4) 2px, transparent 2px, transparent 6px);
+      color: var(--papel-mimeografo);
+      font-family: var(--font-mono);
       line-height: 1.6;
       padding: 2rem 1.5rem;
       display: flex;
       justify-content: center;
+      min-height: 100vh;
     }
 
-    .wrapper {
-      max-width: 960px;
+    .chassis {
+      max-width: 980px;
       width: 100%;
+      background: var(--ferro-painel);
+      border: 3px solid var(--metal-cantoneira);
+      box-shadow: 0 0 0 1px #000, 0 12px 30px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+
+    /* BARRA SUPERIOR DO CHASSI */
+    .top-panel {
+      background: var(--ferro-bate-pedra);
+      border-bottom: 3px solid var(--metal-cantoneira);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .top-panel .badge-lambe {
+      background: var(--fucsia-furacao);
+      color: var(--tinta-carimbo);
+      padding: 0.2rem 0.5rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      transform: rotate(-1.5deg);
+      display: inline-block;
+      box-shadow: 2px 2px 0 var(--tinta-carimbo);
+    }
+
+    .telemetry-leds {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .led {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      border: 1px solid #000;
+    }
+
+    .led-green {
+      background: var(--fio-massa-verde);
+      box-shadow: 0 0 8px var(--fio-massa-verde);
+    }
+
+    .led-yellow {
+      background: var(--alta-voltagem);
+      box-shadow: 0 0 8px var(--alta-voltagem);
+    }
+
+    .led-red {
+      background: var(--curto-circuito);
+      box-shadow: 0 0 8px var(--curto-circuito);
+      animation: pulse-red 1.2s infinite alternate;
+    }
+
+    @keyframes pulse-red {
+      from { opacity: 0.4; }
+      to { opacity: 1; }
+    }
+
+    /* CONTEÚDO PRINCIPAL */
+    .main-content {
+      padding: 2.5rem;
     }
 
     header {
-      padding: 3rem 0 2rem;
-      border-bottom: 1px solid var(--card-border);
       margin-bottom: 2.5rem;
-    }
-
-    .badge {
-      display: inline-block;
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      padding: 0.25rem 0.6rem;
-      border-radius: 9999px;
-      background-color: var(--accent-glow);
-      color: var(--accent);
-      border: 1px solid var(--accent);
-      margin-bottom: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      position: relative;
     }
 
     h1 {
-      font-size: 2.75rem;
-      font-weight: 800;
-      letter-spacing: -0.025em;
+      font-family: var(--font-stencil);
+      font-size: 4rem;
+      letter-spacing: 0.05em;
+      line-height: 0.95;
+      color: #fff;
+      text-transform: uppercase;
       margin-bottom: 0.75rem;
+      text-shadow: 3px 3px 0 var(--cetim-magenta);
+    }
+
+    .lead-manifesto {
+      font-size: 1.1rem;
+      color: var(--veneno-eletrico);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      margin-bottom: 1.5rem;
+    }
+
+    /* DIVISÓRIA ZEBRA DE FITA ISOLANTE */
+    .fita-isolante {
+      height: 12px;
+      background: repeating-linear-gradient(45deg, var(--veneno-eletrico), var(--veneno-eletrico) 12px, #000 12px, #000 24px);
+      margin: 2rem 0;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+    }
+
+    /* METÂMEROS / MÓDULOS */
+    h2 {
+      font-family: var(--font-stencil);
+      font-size: 2.2rem;
       color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
-    .subtitle {
-      font-size: 1.25rem;
-      color: var(--text-muted);
-      max-width: 650px;
+    h2::before {
+      content: "[+]";
+      color: var(--fucsia-furacao);
+      font-family: var(--font-mono);
+      font-size: 1.2rem;
     }
 
-    .grid {
+    .grid-metameros {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 3rem;
+      gap: 1.25rem;
+      margin-bottom: 2.5rem;
     }
 
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
+    .metamero-card {
+      background: var(--ferro-bate-pedra);
+      border: 2px solid var(--metal-cantoneira);
       padding: 1.5rem;
-      transition: border-color 0.2s, transform 0.2s;
+      position: relative;
+      transition: transform 0.15s, border-color 0.15s;
     }
 
-    .card:hover {
-      border-color: var(--accent);
+    .metamero-card:hover {
+      border-color: var(--veneno-eletrico);
       transform: translateY(-2px);
     }
 
-    .card h3 {
-      font-size: 1.2rem;
+    .metamero-tag {
+      font-size: 0.75rem;
+      color: var(--veneno-eletrico);
+      font-weight: 800;
+      text-transform: uppercase;
       margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .metamero-card h3 {
+      font-family: var(--font-stencil);
+      font-size: 1.6rem;
       color: #fff;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.03em;
     }
 
-    .card p {
-      color: var(--text-muted);
-      font-size: 0.95rem;
+    .metamero-card p {
+      color: var(--papel-mimeografo);
+      font-size: 0.9rem;
+      line-height: 1.5;
     }
 
-    .code-block {
-      background: #090a0f;
-      border: 1px solid var(--card-border);
-      border-radius: 8px;
+    /* CALLOUTS DO MANUAL DE IDENTIDADE */
+    .callouts-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .callout {
       padding: 1rem 1.25rem;
+      font-size: 0.9rem;
+      background: var(--ferro-bate-pedra);
+      position: relative;
+    }
+
+    .callout-title {
+      font-weight: 800;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* [ TRANSMISSÃO DE CABINE ] */
+    .callout-cabine {
+      border: 2px solid var(--glitter-roxo);
+      background: rgba(128, 0, 255, 0.08);
+    }
+    .callout-cabine .callout-title { color: var(--glitter-roxo); }
+
+    /* [ FIO DESENCAPADO ] */
+    .callout-fio {
+      border: 2px dashed var(--alta-voltagem);
+      background: rgba(255, 183, 0, 0.06);
+    }
+    .callout-fio .callout-title { color: var(--alta-voltagem); }
+
+    /* [ VENENO NA CARNE ] */
+    .callout-veneno {
+      border: 2px solid var(--fucsia-furacao);
+      background: rgba(255, 0, 85, 0.08);
+    }
+    .callout-veneno .callout-title { color: var(--fucsia-furacao); }
+
+    /* [ O PULO DA TRAVESTI ] */
+    .callout-pulo {
+      border: 2px solid var(--veneno-eletrico);
+      background: rgba(212, 255, 0, 0.06);
+    }
+    .callout-pulo .callout-title { color: var(--veneno-eletrico); }
+
+    /* BLOCOS DE COMANDO COM SWITCH CLACK */
+    .code-box {
+      background: #090a0c;
+      border: 2px solid var(--metal-cantoneira);
+      padding: 1.25rem;
+      margin: 1.5rem 0;
+      position: relative;
+    }
+
+    .code-box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px dashed var(--metal-cantoneira);
+      padding-bottom: 0.5rem;
+    }
+
+    .code-box-label {
+      font-size: 0.75rem;
+      color: var(--grafite-mono);
+      text-transform: uppercase;
+    }
+
+    .btn-clack {
+      background: var(--fucsia-furacao);
+      color: #000;
+      border: 1px solid #000;
+      padding: 0.25rem 0.6rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 2px 2px 0 #000;
+      transform: rotate(-1deg);
+      transition: all 0.1s;
+    }
+
+    .btn-clack:hover {
+      background: var(--veneno-eletrico);
+      transform: rotate(0deg) translate(1px, 1px);
+      box-shadow: 1px 1px 0 #000;
+    }
+
+    .btn-clack:active {
+      transform: translate(2px, 2px);
+      box-shadow: none;
+    }
+
+    pre {
+      color: var(--veneno-eletrico);
       font-family: var(--font-mono);
       font-size: 0.85rem;
       overflow-x: auto;
-      margin: 1.5rem 0;
-      color: #7ee787;
+      line-height: 1.5;
     }
 
-    section {
-      margin-bottom: 3rem;
-    }
-
-    h2 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: #ffffff;
-      border-left: 4px solid var(--accent);
-      padding-left: 0.75rem;
-    }
-
+    /* RODAPÉ DO CHASSI */
     footer {
-      border-top: 1px solid var(--card-border);
-      padding-top: 2rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+      border-top: 3px solid var(--metal-cantoneira);
+      background: var(--ferro-bate-pedra);
+      padding: 1.25rem 2.5rem;
+      font-size: 0.8rem;
+      color: var(--grafite-mono);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -136,58 +350,140 @@
       gap: 1rem;
     }
 
-    a {
-      color: var(--accent);
+    footer a {
+      color: var(--veneno-eletrico);
       text-decoration: none;
     }
-    a:hover {
+
+    footer a:hover {
       text-decoration: underline;
+      color: var(--fucsia-furacao);
+    }
+
+    /* ACESSIBILIDADE: PREFERS REDUCED MOTION */
+    @media (prefers-reduced-motion: reduce) {
+      *, .led-red, .btn-clack, .metamero-card {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="wrapper">
-    <header>
-      <div class="badge">Automotive Audio Ecosystem • v0.1.0</div>
-      <h1>La Craia</h1>
-      <p class="subtitle">Decentralized acoustic similarity audio streaming and synchronized HUD lyrics projected live over GPS navigation.</p>
-    </header>
-
-    <section>
-      <h2>Architecture &amp; Core Modules</h2>
-      <div class="grid">
-        <div class="card">
-          <h3>lacraia-shared (Rust)</h3>
-          <p>Common domain models, LRC parser, audio fuzzy duration/title sanitizer, and bidirectional WebSocket telemetry protocols.</p>
-        </div>
-        <div class="card">
-          <h3>lacraia-core (Rust / Axum)</h3>
-          <p>Debian Baquara host engine. Acoustic graph traversal via Last.fm, yt-dlp media resolver, static Opus cache, and telemetry hub.</p>
-        </div>
-        <div class="card">
-          <h3>lacraia-web (Rust / Dioxus)</h3>
-          <p>High-performance WebAssembly PWA player with native MediaSession integration for background playback control.</p>
-        </div>
-        <div class="card">
-          <h3>lacraia-hud (Kotlin / Android)</h3>
-          <p>Native background service projecting a 56dp semi-transparent lyric pill directly over Waze using WindowManager overlays.</p>
-        </div>
+  <div class="chassis">
+    <!-- BARRA SUPERIOR DO CHASSI -->
+    <div class="top-panel">
+      <div>
+        <span class="badge-lambe">LA CRAIA :: CORE</span>
+        <span style="margin-left: 0.5rem; color: var(--grafite-mono);">v0.2.0-dev • GPLv3+</span>
       </div>
-    </section>
+      <div class="telemetry-leds">
+        <span><span class="led led-green"></span> SISTEMA: ATIVO</span>
+        <span><span class="led led-yellow"></span> SIMBIOSE: OK</span>
+        <span><span class="led led-red"></span> GANHO: 11</span>
+      </div>
+    </div>
 
-    <section>
-      <h2>Quickstart</h2>
-      <p>Clone the repository and inspect the Cargo workspace:</p>
-      <div class="code-block">git clone ssh://git@codeberg.org/lumenpink/lacraia.git
+    <!-- CONTEÚDO PRINCIPAL -->
+    <div class="main-content">
+      <header>
+        <h1>LA CRAIA</h1>
+        <p class="lead-manifesto">Decentralized Automotive Audio Suite • Paredão &amp; Simbiótyka HUD</p>
+        <p style="max-width: 720px; font-size: 0.95rem; color: var(--papel-mimeografo);">
+          Streaming contínuo guiado por grafos de similaridade acústica, rádio sem algoritmo corporativo e projeção tátil de letras em tempo real sincronizadas diretamente sobre a navegação GPS (Waze).
+        </p>
+      </header>
+
+      <div class="fita-isolante"></div>
+
+      <!-- METÂMEROS DA MÁQUINA -->
+      <section>
+        <h2>Metameria do Sistema</h2>
+        <div class="grid-metameros">
+          <div class="metamero-card">
+            <span class="metamero-tag">[ METÂMERO 01: COMPARTILHADO ]</span>
+            <h3>lacraia-shared</h3>
+            <p>Modelos de domínio, parser de letras LRC em centissegundos, higienizador acústico de duração/título e protocolo WebSocket de telemetria.</p>
+          </div>
+
+          <div class="metamero-card">
+            <span class="metamero-tag">[ METÂMERO 02: ORQUESTRADOR ]</span>
+            <h3>lacraia-core</h3>
+            <p>Servidor Baquara (Debian 13). Grafo de afinidade em SQLite, extrator yt-dlp/ffmpeg, cache estático em Opus com HTTP Range e daemon antecipado de 2 faixas.</p>
+          </div>
+
+          <div class="metamero-card">
+            <span class="metamero-tag">[ METÂMERO 03: COCKPIT PLAYER ]</span>
+            <h3>lacraia-app</h3>
+            <p>Player nativo Linux Desktop e PWA em Dioxus. Seletor de estações, controle de fila e integração MediaSession com hardware automotivo.</p>
+          </div>
+
+          <div class="metamero-card">
+            <span class="metamero-tag">[ METÂMERO 04: O COMPANHEIRO ]</span>
+            <h3>La Craia Simbiótyka</h3>
+            <p>Micro-app Android (Kotlin Foreground Service). Intercepta sessões de mídia, sincroniza letras via LRCLIB e projeta overlay pill flutuante com ducking de áudio para avisos do Waze.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALLOUTS DO MANUAL DE IDENTIDADE -->
+      <section>
+        <h2>Comunicações de Bordo</h2>
+        <div class="callouts-section">
+          <div class="callout callout-cabine">
+            <div class="callout-title">📡 [ TRANSMISSÃO DE CABINE ]</div>
+            <div>A telemetria do sistema opera em 1Hz transmitindo instantaneamente a posição da agulha para o HUD e o cockpit player simultaneamente via WebSocket.</div>
+          </div>
+
+          <div class="callout callout-fio">
+            <div class="callout-title">⚡ [ FIO DESENCAPADO ]</div>
+            <div>Ao passar por zonas sem cobertura celular, o sistema entra em modo 100% offline, operando pelo grafo local de faixas pré-resolvidas em cache.</div>
+          </div>
+
+          <div class="callout callout-veneno">
+            <div class="callout-title">🦂 [ VENENO NA CARNE ]</div>
+            <div>Filtro de ruído acústico ativado: faixas com variação de tempo maior que 15 segundos ou títulos identificados como covers e tributes não autorizados são sumariamente expurgados da fila.</div>
+          </div>
+
+          <div class="callout callout-pulo">
+            <div class="callout-title">✨ [ O PULO DA TRAVESTI ]</div>
+            <div>Para iniciar imediatamente toda a bancada de testes e o backend pré-populado com sementes de demonstração, basta disparar o script de orquestração única.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAINEL DE DISPARO RÁPIDO -->
+      <section>
+        <h2>Bancada de Acionamento</h2>
+        <p style="font-size: 0.9rem; color: var(--grafite-mono); margin-bottom: 0.5rem;">Comandos para disparo da demonstração e verificação do ecossistema:</p>
+
+        <div class="code-box">
+          <div class="code-box-header">
+            <span class="code-box-label">[ TERMINAL :: DISPARAR DEMO COMPLETA ]</span>
+            <button class="btn-clack" onclick="navigator.clipboard.writeText('./demo.sh --port 8080 --open'); this.innerText='[ CLACK! COPIADO ]'; setTimeout(()=>this.innerText='[ COPIAR ]', 2000)">[ COPIAR ]</button>
+          </div>
+          <pre># Clonar e iniciar o backend com seeding automático e painel no navegador:
+git clone ssh://git@codeberg.org/lumenpink/lacraia.git
 cd lacraia
-cargo test --workspace</div>
-      <p>Preview local documentation and site assets:</p>
-      <div class="code-block">./serve.sh --port 8080</div>
-    </section>
+./demo.sh --port 8080 --open</pre>
+        </div>
 
+        <div class="code-box">
+          <div class="code-box-header">
+            <span class="code-box-label">[ TERMINAL :: COMPILAÇÃO LINUX DESKTOP NATIVO ]</span>
+            <button class="btn-clack" onclick="navigator.clipboard.writeText('cargo run -p lacraia-app --features desktop'); this.innerText='[ CLACK! COPIADO ]'; setTimeout(()=>this.innerText='[ COPIAR ]', 2000)">[ COPIAR ]</button>
+          </div>
+          <pre># Executar o player Dioxus compilado como binário nativo no desktop Linux:
+cargo run -p lacraia-app --features desktop</pre>
+        </div>
+      </section>
+    </div>
+
+    <!-- RODAPÉ DO CHASSI -->
     <footer>
-      <span>La Craia • Crafted by <a href="https://codeberg.org/lumenpink" target="_blank" rel="noopener">lumenpink</a></span>
-      <span>Hosted on Cloudflare Workers • <a href="https://lacraia.2lp.in">lacraia.2lp.in</a></span>
+      <span>SEGMENTO TERMINAL: 21 pares de patas operando • Feito com ódio &amp; glitter</span>
+      <span>Hospedado via Cloudflare Workers • <a href="https://lacraia.2lp.in">lacraia.2lp.in</a></span>
     </footer>
   </div>
 </body>
