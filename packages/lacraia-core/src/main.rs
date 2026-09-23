@@ -20,8 +20,13 @@ use tower_http::{
 };
 use tracing::info;
 
+pub mod db;
+
+use db::Database;
+
 #[derive(Clone)]
 pub struct AppState {
+    pub db: Database,
     pub cache_dir: PathBuf,
     pub tx: broadcast::Sender<WsMessage>,
     pub current_track: Arc<Mutex<Option<Track>>>,
@@ -55,9 +60,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cache_dir = PathBuf::from(std::env::var("LACRAIA_CACHE_DIR").unwrap_or_else(|_| "./cache".into()));
     tokio::fs::create_dir_all(&cache_dir).await?;
 
+    let db_path = std::env::var("LACRAIA_DB_PATH").unwrap_or_else(|_| "./lacraia.sqlite".into());
+    let db = Database::open(&db_path)?;
+
     let (tx, _rx) = broadcast::channel::<WsMessage>(100);
 
     let state = AppState {
+        db,
         cache_dir: cache_dir.clone(),
         tx,
         current_track: Arc::new(Mutex::new(None)),
