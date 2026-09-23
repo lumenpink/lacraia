@@ -231,6 +231,16 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Contextualização Histórica:** Destaque de sua trajetória revolucionária nos anos 2000 ao lado de MC Serginho, presença arrebatadora na TV e palcos nacionais, e atuação posterior como DJ de música eletrônica.
   - **Manifesto de Princípios do Software:** Paralelo entre a autonomia, coragem cênica, velocidade e alegria radical de Lacraia com a arquitetura descentralizada, independente e livre da La Craia.
 
+---
+
+### Ticket #3: Arte Halftone em Estilo Lambe-Lambe da Lacraia
+* **Package:** `docs/assets/`, `site/assets/`, `README.md`, `docs/design-system.md`, `site/index.html`
+* **Goal:** Adicionar ilustração oficial da artista Lacraia aplicando retícula halftone de alto contraste com estética de arte urbana e lambe-lambe.
+* **Acceptance Criteria:**
+  - **Asset Gráfico Oficial:** Geração e armazenamento de `docs/assets/lacraia-halftone.jpg` e `site/assets/lacraia-halftone.jpg` em alta resolução (896x1200) com textura de retícula meio-tom, detalhes em fita adesiva nos cantos, destaques na cor `--fucsia-furacao` e tipografia stencil "LACRAIA · PATRONA DO PAREDÃO".
+  - **Integração na Documentação:** Arte incorporada com destaque no `README.md`, no Caderno 02 do `docs/design-system.md` e no Caderno 06 da página oficial (`site/index.html`).
+
+
 
 
 

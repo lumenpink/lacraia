@@ -12,6 +12,10 @@ La Craia is a focused suite integrating acoustic similarity radio streaming, loc
 
 ## The Patron: Lacraia (1977–2011)
 
+<p align="center">
+  <img src="docs/assets/lacraia-halftone.jpg" alt="Lacraia · Patrona do Paredão" width="360" />
+</p>
+
 **La Craia** is named in homage to **Lacraia** (1977–2011), an iconic Brazilian dancer, performer, electronic music DJ, and proud black travesti who emerged from Rio de Janeiro's periphery (favela do Arará) to become a transformative cultural phenomenon in Brazilian funk carioca.
 
 Alongside MC Serginho in the early 2000s, Lacraia electrified national stages and mainstream television with explosive anthems such as *"Vai Lacraia"* and *"Éguinha Pocotó"*. Her radical stage presence—marked by high-speed acrobatic choreography, aerial splits, vibrant neon satin, and uncontainable joy—shattered social and cultural barriers in an era of deep prejudice, claiming visibility and dignity for travestis and LGBTQIA+ communities across Brazil.

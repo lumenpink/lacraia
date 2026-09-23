@@ -29,7 +29,9 @@ A interface não simula uma folha de papel digital nem um vidro translúcido (*g
 * **Chapa de Aço com Batida de Pedra (Superfícies de Controle):**  
   Painéis pretos foscos com granulometria pesada (textura de emborrachamento automotivo). Cantoneiras de ferro zincado ou chapa perfurada nas bordas com cabeças de rebite aparentes nos cantos (`clip-path` chanfrado e detalhes de fixação).
 * **Lambe-Lambe em Halftone (Homenagem à Lacraia):**  
-  Retratos icônicos da Lacraia processados em retícula de meio-tom (*halftone* / *dither*) de ponto grosso e alto contraste, com estética de fotocopiadora quebrada ou serigrafia artesanal. Colagens com bordas rasgadas e cantos colados com fita crepe amarelada digital ou grampos de tapeceiro.
+  Retratos icônicos da Lacraia processados em retícula de meio-tom (*halftone* / *dither*) de ponto grosso e alto contraste, com estética de fotocopiadora quebrada ou serigrafia artesanal. Colagens com bordas rasgadas e cantos colados com fita isolante ou fita crepe digital nos cantos.
+
+  ![Arte Oficial: Lacraia · Patrona do Paredão](assets/lacraia-halftone.jpg)
 
 ---
 
