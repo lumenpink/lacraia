@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (site) add OG/Twitter Card meta tags, og preview banner, and reorder cadernos with why manifesto first (#1)
   - (site) implement quylopode spine navigation and field assembly zine (#1)
   - (app) implement brutalist cockpit ui with metamorphic chassis and knobs (closes #1)
   - (site) apply wall of sound visual identity and custom callouts (#1)

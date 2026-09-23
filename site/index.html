@@ -4,7 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LA CRAIA :: Caderno de Montagem do Paredão &amp; Zine de Campo</title>
-  <meta name="description" content="Manual de Identidade, Arquitetura de Áudio Descentralizado e Companion HUD La Craia Simbiótyka.">
+  <meta name="description" content="Suíte automotiva dissidente: streaming por grafo de afinidade acústica, paredão offline e HUD simbiótico de letras sincronizadas sobre o Waze. GPLv3+, Rust + WASM.">
+
+  <!-- Open Graph -->
+  <meta property="og:type"              content="website">
+  <meta property="og:url"               content="https://lacraia.2lp.in/">
+  <meta property="og:site_name"         content="La Craia">
+  <meta property="og:title"             content="LA CRAIA — Suíte Automotiva Dissidente: Paredão, Pipa &amp; Simbiótyka HUD">
+  <meta property="og:description"       content="Streaming por grafo de afinidade acústica, pré-cache preditivo e HUD de letras sincronizadas milissegundo-a-milissegundo sobre o Waze. Software Livre, GPLv3+.">
+  <meta property="og:image"             content="https://lacraia.2lp.in/assets/og_preview.png">
+  <meta property="og:image:secure_url"  content="https://lacraia.2lp.in/assets/og_preview.png">
+  <meta property="og:image:type"        content="image/png">
+  <meta property="og:image:width"       content="1200">
+  <meta property="og:image:height"      content="630">
+  <meta property="og:image:alt"         content="LA CRAIA — Streaming por Grafo de Afinidade Acústica · HUD Simbiótico de Letras sobre Waze · Paredão Autônomo">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card"             content="summary_large_image">
+  <meta name="twitter:url"              content="https://lacraia.2lp.in/">
+  <meta name="twitter:title"            content="LA CRAIA — Suíte Automotiva Dissidente: Paredão, Pipa &amp; Simbiótyka HUD">
+  <meta name="twitter:description"      content="Streaming por grafo de afinidade acústica, pré-cache preditivo e HUD de letras sincronizadas milissegundo-a-milissegundo sobre o Waze. Software Livre, GPLv3+.">
+  <meta name="twitter:image"            content="https://lacraia.2lp.in/assets/og_preview.png">
+  <meta name="twitter:image:alt"        content="LA CRAIA — Streaming por Grafo de Afinidade Acústica · HUD Simbiótico de Letras sobre Waze · Paredão Autônomo">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -840,18 +862,18 @@
         <nav class="spine-track">
           <div class="spine-cord" aria-hidden="true"></div>
 
-          <!-- NÓ 01: DESIGN SYSTEM -->
-          <a href="#sec-identidade" class="spine-node active" data-target="sec-identidade">
+          <!-- NÓ 01: POR QUE EXISTE -->
+          <a href="#sec-por-que" class="spine-node active" data-target="sec-por-que">
             <div class="metamere-unit">
               <svg class="leg-svg" viewBox="0 0 48 32">
-                <path d="M 13 16 L 3 10 L 1 18" />
-                <path d="M 35 16 L 45 10 L 47 18" />
+                <path d="M 13 16 L 2 8 L 0 17" />
+                <path d="M 35 16 L 46 8 L 48 17" />
               </svg>
               <div class="vertebra"></div>
             </div>
             <div class="node-text">
               <span class="node-tag">[SEG.01]</span>
-              <span class="node-label">Identidade &amp; Estética</span>
+              <span class="node-label">Por Que Existe</span>
             </div>
           </a>
 
@@ -914,6 +936,21 @@
               <span class="node-label">Zine de Campo &amp; Demo</span>
             </div>
           </a>
+
+          <!-- NÓ 06: IDENTIDADE VISUAL -->
+          <a href="#sec-identidade" class="spine-node" data-target="sec-identidade">
+            <div class="metamere-unit">
+              <svg class="leg-svg" viewBox="0 0 48 32">
+                <path d="M 13 16 L 3 10 L 1 18" />
+                <path d="M 35 16 L 45 10 L 47 18" />
+              </svg>
+              <div class="vertebra"></div>
+            </div>
+            <div class="node-text">
+              <span class="node-tag">[SEG.06]</span>
+              <span class="node-label">Identidade &amp; Estética</span>
+            </div>
+          </a>
         </nav>
 
         <div class="terminal-legs">
@@ -937,75 +974,57 @@
 
         <div class="fita-isolante"></div>
 
-        <!-- MÓDULO 01: DESIGN SYSTEM -->
-        <section id="sec-identidade" class="caderno-section">
-          <h2 class="section-title">Caderno 01: Manual de Identidade Visual</h2>
+        <!-- MÓDULO 01: POR QUE LA CRAIA EXISTE -->
+        <section id="sec-por-que" class="caderno-section">
+          <h2 class="section-title">Caderno 01: Por Que La Craia Existe</h2>
           <p class="section-desc">
-            A estética de La Craia recusa terminantemente a cartilha asséptica do minimalismo corporativo. Ela nasce da colisão entre o exoesqueleto segmentado do quilópode, a performance histórica e debochada de Lacraia nos palcos do funk dos anos 2000, e a gambiarra engenhosa dos paredões de som em compensado naval.
+            Streaming de música não é um problema resolvido. É um problema sequestrado. As plataformas dominantes monetizam o tempo de atenção do ouvinte como produto, enquanto enterram a autonomia sonora sob camadas de algoritmo treinado para maximizar permanência na plataforma — não a qualidade da experiência do condutor. La Craia é a resposta de bancada a esse sequestro.
           </p>
+
+          <div class="grid-cards">
+            <div class="feature-card">
+              <span class="card-tag">[ PROBLEMA 01: ALGORITMO CORPORATIVO ]</span>
+              <h3>Curadoria como Prisão</h3>
+              <p>Spotify, YouTube Music e similares recomendam músicas que maximizam cliques patrocinados e permanência na plataforma. O gosto do motorista é calibrado pelo interesse comercial de gravadoras e anunciantes, não pela afinidade acústica real entre faixas.</p>
+            </div>
+            <div class="feature-card">
+              <span class="card-tag">[ PROBLEMA 02: DEPENDÊNCIA DE CONECTIVIDADE ]</span>
+              <h3>Silêncio nos Túneis</h3>
+              <p>Serviços de streaming comerciais exigem conexão constante. Em rodovias serranas, zonas rurais e perímetros sem cobertura 4G/5G, a reprodução simplesmente para. La Craia pré-cache duas faixas por antecipação e opera 100% offline quando necessário.</p>
+            </div>
+            <div class="feature-card">
+              <span class="card-tag">[ PROBLEMA 03: DISTRAÇÃO NO COCKPIT ]</span>
+              <h3>Interface de Risco</h3>
+              <p>Nenhum serviço existente foi desenhado para o contexto de condução automotiva noturna: telas pequenas, glare do painel, volume competindo com o Waze, mãos ocupadas. La Craia Simbiótyka projeta a letra sincronizada diretamente sobre a navegação GPS sem exigir toque.</p>
+            </div>
+          </div>
 
           <div class="callout callout-cabine">
             <div class="callout-title">📡 [ TRANSMISSÃO DE CABINE ]</div>
-            <div>A interface gráfica não simula vidro translúcido nem papel polido. Ela reproduz a textura áspera da chapa de aço com pintura bate-pedra, compensado naval cortado no serrote e fita isolante amarela remendando a fiação exposta.</div>
+            <div>La Craia não é um produto. É uma ferramenta de uso pessoal, construída com ódio de algoritmo corporativo e paixão pelo som que toca nas madrugadas de estrada. Software Livre GPLv3+ — o código é seu para estudar, modificar e redistribuir.</div>
           </div>
 
-          <h3 style="font-family: var(--font-stencil); font-size: 1.5rem; color: #fff; margin: 1.5rem 0 0.5rem 0;">Tokens Cromáticos Oficiais</h3>
-          <div class="palette-grid">
-            <div class="palette-item">
-              <div class="color-swatch" style="background: var(--madeira-compensado);"></div>
-              <div class="color-info">
-                <span class="color-var">--madeira-compensado</span>
-                <span class="color-hex">#2b1d14 • Carcaça Base</span>
-              </div>
+          <div class="grid-cards">
+            <div class="feature-card">
+              <span class="card-tag">[ PRINCÍPIO 01: SOBERANIA ACÚSTICA ]</span>
+              <h3>Grafo Próprio, Sem Telemetria</h3>
+              <p>O motor de similaridade acústica roda em SQLite local no servidor Baquara. Nenhum dado de escuta é enviado para servidores de terceiros. O grafo é seu, cresce com sua escuta e funciona sem internet.</p>
             </div>
-            <div class="palette-item">
-              <div class="color-swatch" style="background: var(--ferro-bate-pedra);"></div>
-              <div class="color-info">
-                <span class="color-var">--ferro-bate-pedra</span>
-                <span class="color-hex">#151618 • Módulo Chassi</span>
-              </div>
+            <div class="feature-card">
+              <span class="card-tag">[ PRINCÍPIO 02: ZERO DISTRAÇÃO ]</span>
+              <h3>HUD Simbiótico, Não Invasivo</h3>
+              <p>O companion Android intercepta a mídia silenciosamente e projeta apenas o necessário: a letra exata, no milissegundo exato, com duck automático de volume quando o GPS fala. Sem notificações, sem banners, sem friction.</p>
             </div>
-            <div class="palette-item">
-              <div class="color-swatch" style="background: var(--fucsia-furacao);"></div>
-              <div class="color-info">
-                <span class="color-var">--fucsia-furacao</span>
-                <span class="color-hex">#ff0055 • Choque de Palco</span>
-              </div>
-            </div>
-            <div class="palette-item">
-              <div class="color-swatch" style="background: var(--veneno-eletrico);"></div>
-              <div class="color-info">
-                <span class="color-var">--veneno-eletrico</span>
-                <span class="color-hex">#d4ff00 • Pata de Lacraia</span>
-              </div>
-            </div>
-            <div class="palette-item">
-              <div class="color-swatch" style="background: var(--alta-voltagem);"></div>
-              <div class="color-info">
-                <span class="color-var">--alta-voltagem</span>
-                <span class="color-hex">#ffb700 • Atenção Bordo</span>
-              </div>
-            </div>
-            <div class="palette-item">
-              <div class="color-swatch" style="background: var(--glitter-roxo);"></div>
-              <div class="color-info">
-                <span class="color-var">--glitter-roxo</span>
-                <span class="color-hex">#8000ff • Deboche Noturno</span>
-              </div>
+            <div class="feature-card">
+              <span class="card-tag">[ PRINCÍPIO 03: AUTONOMIA TOTAL ]</span>
+              <h3>Self-hosted, Self-sufficient</h3>
+              <p>Backend roda em qualquer Debian/Ubuntu com <code>cargo run</code>. Sem subscriptions, sem APIs pagas obrigatórias, sem rastreamento. Se o servidor Baquara tiver disco e CPU, La Craia funciona para sempre.</p>
             </div>
           </div>
 
-          <div class="cockpit-strip">
-            <div class="gain-knob-wrapper">
-              <div class="gain-knob" title="Potenciômetro com ganho até 11"></div>
-              <div>
-                <div style="font-size: 0.75rem; color: var(--grafite-mono); text-transform: uppercase;">Potenciômetro de Ganho</div>
-                <div class="gain-label">11.0 / 11 (MÁXIMO)</div>
-              </div>
-            </div>
-            <div style="font-size: 0.85rem; max-width: 480px; color: var(--papel-mimeografo);">
-              "Não paramos no 10. Quando a máquina exige potência bruta na rodovia, a escala é empurrada para além do limite de fábrica."
-            </div>
+          <div class="callout callout-pulo">
+            <div class="callout-title">✨ [ O PULO DA TRAVESTI ]</div>
+            <div>La Craia é software de guerrilha com acabamento de produção. Brutal na estética, preciso na engenharia. O mesmo cuidado que foi para o algoritmo de similaridade foi para a textura de compensado naval no CSS. Uma máquina visivelmente remendada que funciona melhor do que a alternativa polida.</div>
           </div>
         </section>
 
@@ -1017,6 +1036,7 @@
           <p class="section-desc">
             O servidor central opera no host Debian 13 (Baquara). Ele combina banco SQLite local com grafo de adjacência de similaridade acústica, motor de resolução e streaming nativo em Opus com suporte a HTTP Range Requests (206 Partial Content).
           </p>
+
 
           <div class="grid-cards">
             <div class="feature-card">
@@ -1164,6 +1184,99 @@ cargo run -p lacraia-app --features desktop</pre>
           <div class="callout callout-fio">
             <div class="callout-title">⚡ [ FIO DESENCAPADO ]</div>
             <div>Todas as operações de versionamento, commits atômicos pareados e auditoria do repositório devem seguir rigorosamente o padrão <code>cccp</code>: nunca invoque git commit diretamente.</div>
+          </div>
+        </section>
+
+        <div class="fita-isolante"></div>
+
+        <!-- MÓDULO 06: IDENTIDADE VISUAL -->
+        <section id="sec-identidade" class="caderno-section">
+          <h2 class="section-title">Caderno 06: Manual de Identidade Visual</h2>
+          <p class="section-desc">
+            A estética de La Craia nasce da colisão entre o exoesqueleto segmentado do quilópode, a performance histórica e debochada de Lacraia nos palcos do funk dos anos 2000, e a gambiarra engenhosa dos paredões de som em compensado naval. O visual não é um "tema bonitinho" — é uma máquina de som furiosa, viva e visivelmente remendada.
+          </p>
+
+          <div class="callout callout-cabine">
+            <div class="callout-title">📡 [ TRANSMISSÃO DE CABINE ]</div>
+            <div>A interface gráfica não simula vidro translúcido nem papel polido. Ela reproduz a textura áspera da chapa de aço com pintura bate-pedra, compensado naval cortado no serrote e fita isolante amarela remendando a fiação exposta.</div>
+          </div>
+
+          <h3 style="font-family: var(--font-stencil); font-size: 1.5rem; color: #fff; margin: 1.5rem 0 0.75rem 0;">Tokens Cromáticos Oficiais</h3>
+          <div class="palette-grid">
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--madeira-compensado);"></div>
+              <div class="color-info">
+                <span class="color-var">--madeira-compensado</span>
+                <span class="color-hex">#2b1d14 • Carcaça Base</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--ferro-bate-pedra);"></div>
+              <div class="color-info">
+                <span class="color-var">--ferro-bate-pedra</span>
+                <span class="color-hex">#151618 • Módulo Chassi</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--fucsia-furacao);"></div>
+              <div class="color-info">
+                <span class="color-var">--fucsia-furacao</span>
+                <span class="color-hex">#ff0055 • Choque de Palco</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--veneno-eletrico);"></div>
+              <div class="color-info">
+                <span class="color-var">--veneno-eletrico</span>
+                <span class="color-hex">#d4ff00 • Pata de Lacraia</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--alta-voltagem);"></div>
+              <div class="color-info">
+                <span class="color-var">--alta-voltagem</span>
+                <span class="color-hex">#ffb700 • Atenção de Bordo</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--glitter-roxo);"></div>
+              <div class="color-info">
+                <span class="color-var">--glitter-roxo</span>
+                <span class="color-hex">#8000ff • Deboche Noturno</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--fio-massa-verde);"></div>
+              <div class="color-info">
+                <span class="color-var">--fio-massa-verde</span>
+                <span class="color-hex">#00ff66 • LED OK</span>
+              </div>
+            </div>
+            <div class="palette-item">
+              <div class="color-swatch" style="background: var(--curto-circuito);"></div>
+              <div class="color-info">
+                <span class="color-var">--curto-circuito</span>
+                <span class="color-hex">#ff2200 • Pico / Clipping</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cockpit-strip">
+            <div class="gain-knob-wrapper">
+              <div class="gain-knob" title="Potenciômetro com ganho até 11"></div>
+              <div>
+                <div style="font-size: 0.75rem; color: var(--grafite-mono); text-transform: uppercase;">Potenciômetro de Ganho</div>
+                <div class="gain-label">11.0 / 11 (MÁXIMO)</div>
+              </div>
+            </div>
+            <div style="font-size: 0.85rem; max-width: 480px; color: var(--papel-mimeografo);">
+              "Não paramos no 10. Quando a máquina exige potência bruta na rodovia, a escala é empurrada para além do limite de fábrica."
+            </div>
+          </div>
+
+          <div class="callout callout-veneno">
+            <div class="callout-title">🦂 [ VENENO NA CARNE ]</div>
+            <div>O Manual de Identidade Visual completo, incluindo as regras de micro-assimetria dos switches, as texturas de compensado, os callouts e as diretrizes de tipografia, está disponível em <code>docs/design-system.md</code> no repositório.</div>
           </div>
         </section>
 
