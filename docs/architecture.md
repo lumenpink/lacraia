@@ -2,7 +2,7 @@
 
 **Project:** La Craia (Decentralized Automotive Audio & Heads-Up Display)  
 **Version:** 0.1.0  
-**Target Environment:** Baquara Server (Debian 13) & Android Mobile  
+**Target Environment:** Linux Host Server (Debian 13 / Ubuntu) & Android Mobile  
 **Repository:** `ssh://git@codeberg.org/lumenpink/lacraia.git`  
 **Documentation Site:** `lacraia.2lp.in` (Cloudflare Workers Static Assets)
 
@@ -28,7 +28,7 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
             │
             ▼
 ┌────────────────────────────────────────────────────────┐
-│  packages/lacraia-core (Baquara Server / Debian 13)   │
+│  packages/lacraia-core (Linux Host Server / Debian 13) │
 │  Runtime: Rust (Tokio + Axum)                          │
 │                                                        │
 │  ├── /api/radio: Traverses similarity graphs           │
@@ -58,7 +58,7 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
 ### Module Roles
 
 * **`packages/lacraia-shared` (Rust Crate):** Shared domain models, `serde` serialization, WebSocket protocol packets (`StateUpdate`, `Command`), in-memory `.lrc` lyrics parser, and duration/title fuzzy sanitizer.
-* **`packages/lacraia-core` (Rust Crate):** Backend orchestrator running on the Baquara server. Handles track resolution, disk caching in Opus, SQLite state storage, and WebSocket broadcasts.
+* **`packages/lacraia-core` (Rust Crate):** Backend orchestrator running on the Linux host server. Handles track resolution, disk caching in Opus, SQLite state storage, and WebSocket broadcasts.
 * **`packages/lacraia-app` (Rust / Dioxus Crate):** Automotive cockpit player supporting both native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets (WASM/PWA). Acts as the track library, playlist controller, and audio engine.
 * **`packages/lacraia-hud` ("La Craia Simbiótyka" - Android Kotlin App):** Native Android background service (`Foreground Service`). Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD directly over Waze via `WindowManager`.
 

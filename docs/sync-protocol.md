@@ -1,6 +1,6 @@
 # lacraia-sync: WebSocket Synchronization Protocol
 
-When audio is playing on a fixed server (e.g. Baquara Debian host via MPV or headless audio) and a mobile phone or dashboard acts as remote control and HUD, `lacraia-core` broadcasts and accepts JSON messages over `/ws`.
+When audio is playing on a fixed server (e.g. Linux Debian host via MPV or headless audio) and a mobile phone or dashboard acts as remote control and HUD, `lacraia-core` broadcasts and accepts JSON messages over `/ws`.
 
 ---
 
@@ -15,7 +15,7 @@ When audio is playing on a fixed server (e.g. Baquara Debian host via MPV or hea
       "title": "Rebel Rebel",
       "artist": "David Bowie",
       "durationMs": 274000,
-      "coverUrl": "https://baquara.lan/media/covers/trk_98765.jpg"
+      "coverUrl": "https://lacraia.local/media/covers/trk_98765.jpg"
     },
     "playback": {
       "state": "PLAYING",

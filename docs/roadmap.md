@@ -88,4 +88,34 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - Rename `packages/lacraia-web` to `packages/lacraia-app`.
   - Add native Linux `desktop` feature and `web` feature in `Cargo.toml`.
   - Update Android notification and channel strings to "La Craia Simbiótyka".
-  - Compile and test cleanly on both Linux desktop and wasm32 targets. 
+  - Compile and test cleanly on both Linux desktop and wasm32 targets.
+
+---
+
+### Ticket #22: Generalização de Infraestrutura e Desacoplamento de 'Baquara'
+* **Package:** `site` & `docs`
+* **Goal:** Remover todas as referências residuais ao host específico "Baquara" / "baquara.lan", garantindo que a documentação e o portal reflitam um servidor Linux/Debian auto-hospedável de uso universal (`lacraia-server`, `localhost` / `lacraia.local`).
+* **Acceptance Criteria:**
+  - Substituir referências em [`docs/architecture.md`](file:///home/lumen/src/lacraia/docs/architecture.md), [`docs/sync-protocol.md`](file:///home/lumen/src/lacraia/docs/sync-protocol.md) e [`site/index.html`](file:///home/lumen/src/lacraia/site/index.html).
+  - Exemplos de URLs de covers e WebSockets padronizados para hosts locais ou genéricos.
+  - Rótulos dos nós metaméricos renomeados para terminologia arquitetural universal.
+
+---
+
+### Ticket #23: Favicon e Identidade Vetorial do Exoesqueleto (`site/favicon.svg`)
+* **Package:** `site`
+* **Goal:** Adotar o ícone da cabeça sensorial da lacraia (placa cefálica, ocelos fluorescentes e antenas) como o favicon vetorial oficial do portal, com suporte a navegadores modernos e integração visual no chassi.
+* **Acceptance Criteria:**
+  - Criar `site/assets/icon.svg` e `site/favicon.svg` com dimensões escaláveis e traçado puro em `--fucsia-furacao` e `--veneno-eletrico`.
+  - Inserir tags `<link rel="icon" type="image/svg+xml" href="assets/icon.svg">` no `<head>` de [`site/index.html`](file:///home/lumen/src/lacraia/site/index.html).
+  - Integrar o ícone em miniatura no painel superior (`top-panel`) do chassi ao lado de `LA CRAIA :: BANCADA`.
+
+---
+
+### Ticket #24: Mobilidade Biomecânica das Antenas Sensoriais
+* **Package:** `site`
+* **Goal:** Implementar mobilidade fluida e orgânica nas antenas da cabeça do quilópode no site principal, simulando o farejar contínuo e a exploração sensorial do animal.
+* **Acceptance Criteria:**
+  - Implementar animações CSS cíclicas de micro-contrações e ondulação orgânica nas antenas (`@keyframes twitch-antenna-left` e `@keyframes twitch-antenna-right`).
+  - Modular a resposta dinâmica ao cursor do mouse: as antenas flexionam e apontam suavemente na direção do ponteiro ou da leitura do scroll.
+  - Desativação imediata via `prefers-reduced-motion: reduce` mantendo a geometria estática segura.
