@@ -1,3 +1,5 @@
+pub mod audio;
+
 use dioxus::prelude::*;
 use lacraia_shared::{PlaybackState, Track};
 
