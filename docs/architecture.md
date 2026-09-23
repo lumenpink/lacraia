@@ -100,3 +100,20 @@ LIMIT ?2;
    * Seamlessly falls back to MetaBrainz/ListenBrainz when Last.fm is unavailable or rate-limited.
    * **Auto-indexing:** Every candidate returned from online sources is immediately upserted into SQLite (`tracks`) and wired into `similarity_edges` with its weight.
    * **100% Offline Mode:** When the host server has no external internet connectivity, the engine queries the local SQLite similarity graph directly.
+
+---
+
+## 5. Media Resolution & Local Opus Cache (`resolver.rs`)
+
+`lacraia-core` resolves raw audio streams and extracts clean Opus tracks for offline delivery:
+
+1. **Instant SQLite Cache Verification:**
+   Before firing external search queries, the resolver inspects `tracks.cached_path` in SQLite. If the `.opus` file exists on disk, it returns immediately with zero network latency.
+2. **Search & Fuzzy Sanitization:**
+   Executes `yt-dlp` / YouTube search with JSON output parsing:
+   * **Duration Discrepancy Filter:** Rejects results where $\Delta t = |t_{\text{obtained}} - t_{\text{expected}}| > 15\text{s}$.
+   * **Title Noise Filter:** Drops items containing `live`, `ao vivo`, `cover`, `tribute`, `10 hours`, or unrequested `remix`.
+3. **Extraction & Conversion:**
+   Downloads and converts audio directly into `/var/cache/la-craia/{track_id}.opus` via `yt-dlp` and `ffmpeg`.
+4. **Static Range Delivery:**
+   Exposed over `/cache/{track_id}.opus` with native HTTP Range Request support (`206 Partial Content`) for immediate seeking in the frontend player.
