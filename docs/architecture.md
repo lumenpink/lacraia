@@ -60,3 +60,29 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
 * **`packages/lacraia-core` (Rust Crate):** Backend orchestrator running on the Baquara server. Handles track resolution, disk caching in Opus, SQLite state storage, and WebSocket broadcasts.
 * **`packages/lacraia-web` (Rust / Dioxus Crate):** Lightweight WebAssembly PWA frontend. Acts as the track library, playlist controller, and audio engine registered with the browser `MediaSession API`.
 * **`packages/lacraia-hud` (Android Kotlin App):** Native Android background service (`Foreground Service`). Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD directly over Waze via `WindowManager`.
+
+---
+
+## 3. SQLite Storage & Local Similarity Graph
+
+`lacraia-core` maintains an internal SQLite database (`lacraia.sqlite`) powering the continuous playback engine and offline resilience:
+
+* **`tracks`:** Known track metadata (`id`, `artist`, `title`, `duration_sec`, `cached_path`, `genres`, `last_played_at`).
+* **`similarity_edges`:** Directed weighted adjacency graph storing transition affinities:
+  * `source_track_id`, `target_track_id` (foreign keys referencing `tracks`).
+  * `weight`: Float from `0.0` to `1.0` representing similarity score from Last.fm (`match`) or MetaBrainz/ListenBrainz.
+  * `provider`: Provenance tag (`lastfm`, `listenbrainz`, `composite`).
+* **`queue`:** Ordered playback buffer (`id`, `track_id`, `position`, `state`: `pending` | `cached` | `playing` | `played`).
+
+### Offline Weighted Random Walk
+
+When network connectivity is unavailable on the road, `lacraia-core` falls back to querying cached targets from the local graph:
+
+```sql
+SELECT t.id, t.artist, t.title, t.cached_path, e.weight
+FROM similarity_edges e
+JOIN tracks t ON t.id = e.target_track_id
+WHERE e.source_track_id = ?1 AND t.cached_path IS NOT NULL
+ORDER BY e.weight DESC
+LIMIT ?2;
+```
