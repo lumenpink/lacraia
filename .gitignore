@@ -28,3 +28,6 @@ tickets.tmp
 .env
 .env.local
 /var/cache/la-craia/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
