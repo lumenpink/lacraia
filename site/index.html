@@ -909,6 +909,18 @@
       color: #000;
     }
 
+    .btn-download.btn-hud {
+      border-color: var(--veneno-eletrico);
+    }
+    .btn-download.btn-hud:hover {
+      background: rgba(212, 255, 0, 0.08);
+      border-color: var(--veneno-eletrico);
+    }
+    .btn-download.btn-hud .btn-pill {
+      background: var(--veneno-eletrico);
+      color: #000;
+    }
+
     .btn-download.btn-desktop {
       border-color: var(--fucsia-furacao);
     }
@@ -1180,11 +1192,19 @@
             <span>⚡ [ BANCADA DE EMBARQUE :: PACOTES DE PRODUÇÃO &amp; INSTALAÇÃO ]</span>
           </div>
           <div class="download-grid">
-            <a href="https://codeberg.org/lumenpink/lacraia/releases/download/nightly/lacraia-hud-debug.apk" class="btn-download btn-apk" title="Baixar APK Android para HUD Simbiótico">
+            <a href="https://codeberg.org/lumenpink/lacraia/releases/download/nightly/lacraia-app.apk" class="btn-download btn-apk" title="Baixar La Craia App para Android (Cockpit & Jukebox)">
               <span class="btn-icon">📱</span>
               <div class="btn-text">
-                <span class="btn-main">BAIXAR APK ANDROID</span>
-                <span class="btn-sub">HUD Simbiótico • Android 8.0+</span>
+                <span class="btn-main">BAIXAR LA CRAIA APP</span>
+                <span class="btn-sub">Cockpit &amp; Jukebox • Android 8.0+</span>
+              </div>
+              <span class="btn-pill">.APK</span>
+            </a>
+            <a href="https://codeberg.org/lumenpink/lacraia/releases/download/nightly/simbiotyka.apk" class="btn-download btn-hud" title="Baixar Simbiótyka para Android (HUD de Letras Sincronizadas)">
+              <span class="btn-icon">👁️</span>
+              <div class="btn-text">
+                <span class="btn-main">BAIXAR SIMBIÓTYKA</span>
+                <span class="btn-sub">HUD de Letras • Overlay Flutuante</span>
               </div>
               <span class="btn-pill">.APK</span>
             </a>

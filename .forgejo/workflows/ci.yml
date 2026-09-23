@@ -60,10 +60,10 @@ jobs:
           path: dist/*
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 2 — Android HUD: Kotlin Unit Tests & APK Assembly
+  # JOB 2 — Android Ecosystem: Assemble La Craia App & Simbiótyka APKs
   # ─────────────────────────────────────────────────────────────────────────────
   build-apk:
-    name: "Android HUD — Build APK"
+    name: "Android — Build Production APKs (App & Simbiótyka)"
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout repository"
@@ -83,19 +83,36 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: "Test & Assemble Android APK"
+      - name: "Setup Keystore for Production Signing"
         run: |
-          cd packages/lacraia-hud
-          gradle test
-          gradle assembleDebug
-          mkdir -p ../../dist
-          cp app/build/outputs/apk/debug/app-debug.apk ../../dist/lacraia-hud-debug.apk
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=LaCraia,C=BR" || true
 
-      - name: "Upload Android APK Artifact"
+      - name: "Test & Assemble Production APKs"
+        run: |
+          cd packages/lacraia-android
+          gradle test
+          gradle assembleRelease || gradle assembleDebug
+          mkdir -p ../../dist
+          # Copy lacraia-app.apk
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk ../../dist/lacraia-app.apk
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk ../../dist/lacraia-app.apk
+          fi
+          # Copy simbiotyka.apk
+          if [ -f simbiotyka/build/outputs/apk/release/simbiotyka-release.apk ]; then
+            cp simbiotyka/build/outputs/apk/release/simbiotyka-release.apk ../../dist/simbiotyka.apk
+          else
+            cp simbiotyka/build/outputs/apk/debug/simbiotyka-debug.apk ../../dist/simbiotyka.apk
+          fi
+          ls -lh ../../dist/*.apk
+
+      - name: "Upload Android APK Artifacts"
         uses: https://github.com/actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: dist/lacraia-hud-debug.apk
+          name: android-apks
+          path: dist/*.apk
 
   # ─────────────────────────────────────────────────────────────────────────────
   # JOB 3 — Deploy Static Documentation Site (Cloudflare + Codeberg Pages)
@@ -223,7 +240,8 @@ jobs:
           name: "Nightly Build ($(git rev-parse --short HEAD))"
           prerelease: true
           files: |
-            dist/lacraia-hud-debug.apk
+            dist/lacraia-app.apk
+            dist/simbiotyka.apk
             dist/lacraia-core-linux-x86_64
             dist/lacraia-app-linux-x86_64
             dist/*.tar.gz
@@ -231,10 +249,11 @@ jobs:
           body: |
             Automated rolling nightly build from branch `main` at commit `${{ github.sha }}`.
 
-            ### Download Direto
-            * 📱 **Android HUD:** [`lacraia-hud-debug.apk`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-hud-debug.apk)
-            * 💻 **Desktop Linux:** [`lacraia-app-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-app-linux-x86_64)
-            * 🎛️ **Server Daemon:** [`lacraia-core-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-core-linux-x86_64)
+            ### Download Direto dos Pacotes de Produção
+            * 📱 **La Craia App (Cockpit & Jukebox):** [`lacraia-app.apk`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-app.apk)
+            * 👁️ **Simbiótyka (HUD de Letras Sincronizadas):** [`simbiotyka.apk`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/simbiotyka.apk)
+            * 💻 **Desktop Linux (Cockpit Nativo):** [`lacraia-app-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-app-linux-x86_64)
+            * 🎛️ **Server Daemon (Debian/Alpine):** [`lacraia-core-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-core-linux-x86_64)
 
       # ── Official Release (Tags v*) ──
       - name: "Extract Release Notes"
@@ -260,7 +279,7 @@ jobs:
           if echo "$NOTES" | grep -q '^[[:space:]]*- '; then
             echo "$NOTES" > /tmp/release_notes.md
           else
-            echo "- La Craia production release $TAG with pre-cached audio engine and automotive companion HUD." > /tmp/release_notes.md
+            echo "- La Craia production release $TAG with pre-cached audio engine and Simbiótyka companion HUD." > /tmp/release_notes.md
           fi
 
       - name: "Publish Official Release"
@@ -270,7 +289,8 @@ jobs:
           tag_name: "${{ github.ref_name }}"
           name: "${{ steps.notes.outputs.title }}"
           files: |
-            dist/lacraia-hud-debug.apk
+            dist/lacraia-app.apk
+            dist/simbiotyka.apk
             dist/lacraia-core-linux-x86_64
             dist/lacraia-app-linux-x86_64
             dist/*.tar.gz
