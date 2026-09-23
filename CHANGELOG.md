@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (app) add responsive mobile layout, deck reordering, and sticky miniplayer (closes #10)
   - (core,app) implement catalog search and interactive jukebox autocomplete (fixes #9)
   - (app) implement lookahead queue deck and sanitize websocket protocol (fixes #8)
   - (app) add standalone web cockpit at /app and unified start script (fixes #7)

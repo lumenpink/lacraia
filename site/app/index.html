@@ -744,6 +744,228 @@
       display: block;
     }
 
+    /* Cabin Panel Grid Positioning */
+    .cabin-panel {
+      grid-column: 1 / -1;
+    }
+
+    /* Mobile Navigation Tabs */
+    .mobile-tabs {
+      display: none;
+      background: var(--asfalto-frio);
+      border-bottom: 2px solid var(--borda-chassi);
+      padding: 6px 12px;
+      gap: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    @media (max-width: 859px) {
+      .mobile-tabs {
+        display: flex;
+      }
+      .cockpit-panel.mobile-hidden {
+        display: none !important;
+      }
+      .btn {
+        min-height: 44px;
+      }
+      .enqueue-input {
+        min-height: 44px;
+        font-size: 14px;
+      }
+      .station-btn {
+        min-height: 44px;
+        font-size: 12px;
+      }
+    }
+
+    .mobile-tab-btn {
+      flex: 1;
+      min-height: 44px;
+      background: var(--concreto-rachado);
+      border: 1px solid var(--borda-chassi);
+      color: var(--papel-jornal-molhado);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.15s ease;
+    }
+
+    .mobile-tab-btn.active {
+      background: rgba(255, 0, 85, 0.2);
+      border-color: var(--fucsia-furacao);
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.3);
+    }
+
+    .tab-badge {
+      background: var(--veneno-eletrico);
+      color: var(--asfalto-frio);
+      font-size: 9px;
+      padding: 1px 5px;
+      font-weight: 900;
+      border-radius: 2px;
+    }
+
+    /* Deck Integrated Miniplayer (Decks 02 e 03) */
+    .deck-miniplayer {
+      background: var(--asfalto-frio);
+      border: 1px solid var(--borda-chassi);
+      border-left: 3px solid var(--fucsia-furacao);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .mini-progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--concreto-rachado);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .mini-progress-fill {
+      height: 100%;
+      background: var(--fucsia-furacao);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .mini-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mini-play-btn {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0;
+      font-size: 16px;
+    }
+
+    .mini-next-btn {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 10px;
+    }
+
+    .mini-track-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+    }
+
+    .mini-track-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+    }
+
+    .mini-track-artist {
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--veneno-eletrico);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mini-time-display {
+      font-size: 10px;
+      color: var(--papel-jornal-molhado);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+
+    /* Sticky Bottom Miniplayer for Mobile */
+    .sticky-miniplayer {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--ferro-bate-pedra);
+      border-top: 2px solid var(--fucsia-furacao);
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.7);
+      z-index: 60;
+      flex-direction: column;
+    }
+
+    @media (max-width: 859px) {
+      .sticky-miniplayer.active {
+        display: flex;
+      }
+      body {
+        padding-bottom: 66px;
+      }
+    }
+
+    .sticky-miniplayer-body {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 14px;
+      min-height: 52px;
+    }
+
+    .sticky-play-btn {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0;
+      font-size: 16px;
+    }
+
+    .sticky-next-btn {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 10px;
+    }
+
+    .sticky-track-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+    }
+
+    .sticky-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+    }
+
+    .sticky-artist {
+      font-size: 11px;
+      color: var(--veneno-eletrico);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* Fullscreen Ejection Screen */
     #ejection-screen {
       position: fixed;
@@ -824,10 +1046,23 @@
     </div>
   </header>
 
+  <!-- Mobile Deck Navigation Tabs (Visible on < 860px) -->
+  <nav class="mobile-tabs" id="mobile-tabs" aria-label="Navegação dos Decks do Cockpit">
+    <button class="mobile-tab-btn active" data-deck="deck-01" id="tab-btn-deck-01">
+      <span>📻</span> PLAYER
+    </button>
+    <button class="mobile-tab-btn" data-deck="deck-02" id="tab-btn-deck-02">
+      <span>📋</span> FILA <span class="tab-badge" id="tab-queue-badge">0</span>
+    </button>
+    <button class="mobile-tab-btn" data-deck="deck-03" id="tab-btn-deck-03">
+      <span>👥</span> CABINE <span class="tab-badge" id="tab-crew-badge">1</span>
+    </button>
+  </nav>
+
   <!-- Main Cockpit Console -->
   <main>
-    <!-- Left Column: Master Playback Deck -->
-    <div class="cockpit-panel">
+    <!-- DECK 01: Master Playback & Paredão -->
+    <div class="cockpit-panel" id="deck-01">
       <div class="panel-header">
         <span>DECK METAMÉRICO <span class="tag">#01</span></span>
         <span id="station-indicator">ESTAÇÃO :: MPB &amp; SAMBA</span>
@@ -898,14 +1133,92 @@
       </div>
     </div>
 
-    <!-- Right Column: Cabin, Crew & Jukebox -->
-    <div class="cockpit-panel">
+    <!-- DECK 02: Fila do Paredão & Jukebox (Novo Deck Central) -->
+    <div class="cockpit-panel" id="deck-02">
       <div class="panel-header">
-        <span>CABINE &amp; TRIPULAÇÃO <span class="tag">#02</span></span>
+        <span>FILA DO PAREDÃO &amp; JUKEBOX <span class="tag">#02</span></span>
+        <span id="queue-count-badge">0 FAIXAS NA FILA</span>
+      </div>
+
+      <div class="panel-body">
+        <!-- Miniplayer Integrado no Deck 02 -->
+        <div class="deck-miniplayer" id="deck-02-miniplayer">
+          <div class="mini-progress-bar mini-seek-target">
+            <div class="mini-progress-fill" id="mini-progress-fill-02"></div>
+          </div>
+          <div class="mini-content">
+            <button class="btn btn-main mini-play-btn mini-btn-toggle" title="Tocar / Pausar">
+              <span class="mini-play-icon" id="mini-play-icon-02">▶</span>
+            </button>
+            <div class="mini-track-info mini-info-jump" title="Clique para ver no player principal">
+              <span class="mini-track-title" id="mini-title-02">CONSTRUÇÃO</span>
+              <span class="mini-track-artist" id="mini-artist-02">CHICO BUARQUE</span>
+            </div>
+            <div class="mini-time-display" id="mini-time-02">00:00 / 04:18</div>
+            <button class="btn mini-next-btn mini-btn-skip" title="Próxima Faixa">
+              <span>⏩</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Passenger Jukebox Request & Interactive Autocomplete -->
+        <div class="jukebox-search-wrapper" style="position: relative;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+            <span style="font-size: 11px; font-weight: 900; color: var(--chumbo);">ENFILEIRAR CANTIGA (JUKEBOX)</span>
+            <span id="search-spinner" style="font-size: 10px; color: var(--veneno-eletrico); font-weight: bold; display: none;">BUSCANDO...</span>
+          </div>
+          <form id="enqueue-form" class="enqueue-box" autocomplete="off">
+            <div style="position: relative; flex: 1;">
+              <input type="text" id="enqueue-input" class="enqueue-input" placeholder="Buscar artista ou título (ex: Chico, Daft Punk)..." autocomplete="off" required>
+              <div id="search-dropdown" class="search-dropdown" style="display: none;"></div>
+            </div>
+            <button type="submit" class="btn btn-main" id="enqueue-submit-btn" style="padding:8px 12px;">FILA</button>
+          </form>
+          <div id="search-toast" class="search-toast" style="display: none;"></div>
+        </div>
+
+        <!-- Lookahead Queue List -->
+        <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+          <div style="font-size: 11px; font-weight: 900; color: var(--chumbo);">
+            PRÓXIMAS CANTIGAS
+          </div>
+          <div class="queue-container" id="queue-list-container">
+            <div style="font-size: 11px; color: var(--chumbo); padding: 12px; text-align: center;">
+              [ CARREGANDO FILA DE REPRODUÇÃO... ]
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DECK 03: Cabine & Tripulação (No Final!) -->
+    <div class="cockpit-panel cabin-panel" id="deck-03">
+      <div class="panel-header">
+        <span>CABINE &amp; TRIPULAÇÃO <span class="tag">#03</span></span>
         <span id="crew-count">1 TRIPULANTE</span>
       </div>
 
       <div class="panel-body">
+        <!-- Miniplayer Integrado no Deck 03 -->
+        <div class="deck-miniplayer" id="deck-03-miniplayer">
+          <div class="mini-progress-bar mini-seek-target">
+            <div class="mini-progress-fill" id="mini-progress-fill-03"></div>
+          </div>
+          <div class="mini-content">
+            <button class="btn btn-main mini-play-btn mini-btn-toggle" title="Tocar / Pausar">
+              <span class="mini-play-icon" id="mini-play-icon-03">▶</span>
+            </button>
+            <div class="mini-track-info mini-info-jump" title="Clique para ver no player principal">
+              <span class="mini-track-title" id="mini-title-03">CONSTRUÇÃO</span>
+              <span class="mini-track-artist" id="mini-artist-03">CHICO BUARQUE</span>
+            </div>
+            <div class="mini-time-display" id="mini-time-03">00:00 / 04:18</div>
+            <button class="btn mini-next-btn mini-btn-skip" title="Próxima Faixa">
+              <span>⏩</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Door & QR Code Actions -->
         <div class="crew-panel-actions">
           <button class="btn btn-alert" id="btn-toggle-door" style="flex:1;">
@@ -937,23 +1250,6 @@
           💥 EJETAR TODOS OS PASSAGEIROS
         </button>
 
-        <!-- Passenger Jukebox Request & Interactive Autocomplete -->
-        <div class="jukebox-search-wrapper" style="position: relative;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-            <span style="font-size: 11px; font-weight: 900; color: var(--chumbo);">ENFILEIRAR CANTIGA (JUKEBOX)</span>
-            <span id="search-spinner" style="font-size: 10px; color: var(--veneno-eletrico); font-weight: bold; display: none;">BUSCANDO...</span>
-          </div>
-          <form id="enqueue-form" class="enqueue-box" autocomplete="off">
-            <div style="position: relative; flex: 1;">
-              <input type="text" id="enqueue-input" class="enqueue-input" placeholder="Buscar artista ou título (ex: Chico, Daft Punk)..." autocomplete="off" required>
-              <div id="search-dropdown" class="search-dropdown" style="display: none;"></div>
-            </div>
-            <button type="submit" class="btn btn-main" id="enqueue-submit-btn" style="padding:8px 12px;">FILA</button>
-          </form>
-          <div id="search-toast" class="search-toast" style="display: none;"></div>
-        </div>
-
-
         <!-- Connection Settings Box -->
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid var(--borda-chassi); font-size: 11px; color: var(--chumbo);">
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -968,22 +1264,26 @@
         </div>
       </div>
     </div>
-
-    <!-- Panel 03: Lookahead Queue Deck (Full Width) -->
-    <div class="cockpit-panel queue-panel">
-      <div class="panel-header">
-        <span>FILA DO PAREDÃO :: LOOKAHEAD QUEUE <span class="tag">#03</span></span>
-        <span id="queue-count-badge">0 FAIXAS NA FILA</span>
-      </div>
-      <div class="panel-body">
-        <div class="queue-container" id="queue-list-container">
-          <div style="font-size: 11px; color: var(--chumbo); padding: 12px; text-align: center;">
-            [ CARREGANDO FILA DE REPRODUÇÃO... ]
-          </div>
-        </div>
-      </div>
-    </div>
   </main>
+
+  <!-- Sticky Bottom Miniplayer (Mobile Viewport) -->
+  <div class="sticky-miniplayer" id="sticky-miniplayer">
+    <div class="mini-progress-bar mini-seek-target" id="sticky-progress-bar">
+      <div class="mini-progress-fill" id="sticky-progress-fill"></div>
+    </div>
+    <div class="sticky-miniplayer-body">
+      <button class="btn btn-main sticky-play-btn" id="sticky-btn-play" title="Tocar / Pausar">
+        <span id="sticky-play-icon">▶</span>
+      </button>
+      <div class="sticky-track-info" id="sticky-track-jump">
+        <span class="sticky-title" id="sticky-title">CONSTRUÇÃO</span>
+        <span class="sticky-artist" id="sticky-artist">CHICO BUARQUE</span>
+      </div>
+      <button class="btn sticky-next-btn" id="sticky-btn-next" title="Próxima Faixa">
+        <span>⏩</span>
+      </button>
+    </div>
+  </div>
 
   <!-- Modal: QR Code Embarque -->
   <div class="modal-overlay" id="qr-modal">
@@ -1052,12 +1352,33 @@
       let targetHttpUrl = `${location.protocol}//${location.host}`;
 
       if (location.protocol === 'file:') {
-        targetWsUrl = 'ws://localhost:8080/ws';
-        targetHttpUrl = 'http://localhost:8080';
-      } else if (location.host.includes('lacraia.2lp.in')) {
-        targetWsUrl = 'ws://localhost:8080/ws';
-        targetHttpUrl = 'http://localhost:8080';
+        targetWsUrl = 'ws://localhost:2011/ws';
+        targetHttpUrl = 'http://localhost:2011';
+      } else if (location.host === 'lacraia.2lp.in') {
+        targetWsUrl = 'ws://localhost:2011/ws';
+        targetHttpUrl = 'http://localhost:2011';
       }
+
+      // Dev Live-Reload Watcher: Polls /version
+      (function initLiveReload() {
+        let currentVer = null;
+        async function checkVersion() {
+          try {
+            const res = await fetch(`/version?t=${Date.now()}`);
+            if (res.ok) {
+              const ver = await res.text();
+              if (currentVer !== null && ver.trim() !== currentVer.trim()) {
+                console.log("⚡ [LIVE-RELOAD] Alteração detectada! Recarregando cockpit...");
+                location.reload();
+                return;
+              }
+              currentVer = ver;
+            }
+          } catch (_) {}
+          setTimeout(checkVersion, 800);
+        }
+        checkVersion();
+      })();
 
       function sendWsCommand(actionPayload) {
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1145,6 +1466,42 @@
           playIcon.textContent = "▶";
           playText.textContent = "TOCAR";
         }
+
+        // Miniplayers Update (Deck 02, Deck 03 e Sticky Dock Mobile)
+        const currentTitle = trk.title.toUpperCase();
+        const currentArtist = trk.artist.toUpperCase();
+        const miniTimeStr = `${formatTime(state.positionMs)} / ${formatTime(state.durationMs)}`;
+        const playIconChar = state.isPlaying ? "⏸" : "▶";
+
+        ['02', '03'].forEach(deckId => {
+          const tEl = document.getElementById(`mini-title-${deckId}`);
+          const aEl = document.getElementById(`mini-artist-${deckId}`);
+          const iconEl = document.getElementById(`mini-play-icon-${deckId}`);
+          const fillEl = document.getElementById(`mini-progress-fill-${deckId}`);
+          const timeEl = document.getElementById(`mini-time-${deckId}`);
+
+          if (tEl) tEl.textContent = currentTitle;
+          if (aEl) aEl.textContent = currentArtist;
+          if (iconEl) iconEl.textContent = playIconChar;
+          if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+          if (timeEl) timeEl.textContent = miniTimeStr;
+        });
+
+        const stickyTitle = document.getElementById("sticky-title");
+        const stickyArtist = document.getElementById("sticky-artist");
+        const stickyPlayIcon = document.getElementById("sticky-play-icon");
+        const stickyFill = document.getElementById("sticky-progress-fill");
+
+        if (stickyTitle) stickyTitle.textContent = currentTitle;
+        if (stickyArtist) stickyArtist.textContent = currentArtist;
+        if (stickyPlayIcon) stickyPlayIcon.textContent = playIconChar;
+        if (stickyFill) stickyFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+
+        // Update Mobile Tab Badges
+        const tabQueueBadge = document.getElementById("tab-queue-badge");
+        const tabCrewBadge = document.getElementById("tab-crew-badge");
+        if (tabQueueBadge) tabQueueBadge.textContent = state.queue.length;
+        if (tabCrewBadge) tabCrewBadge.textContent = state.crew.length;
 
         // Doors
         if (state.isLocked) {
@@ -1382,6 +1739,80 @@
         stationIndicator.textContent = `ESTAÇÃO :: ${state.station.toUpperCase()}`;
         state.positionMs = 0;
         renderState();
+      });
+
+      // Mobile Tab Navigation Logic
+      const mobileTabs = document.querySelectorAll(".mobile-tab-btn");
+      const stickyMiniplayer = document.getElementById("sticky-miniplayer");
+
+      function activateDeck(deckId) {
+        mobileTabs.forEach(btn => {
+          if (btn.dataset.deck === deckId) {
+            btn.classList.add("active");
+          } else {
+            btn.classList.remove("active");
+          }
+        });
+
+        document.querySelectorAll(".cockpit-panel").forEach(panel => {
+          if (panel.id === deckId) {
+            panel.classList.remove("mobile-hidden");
+          } else {
+            panel.classList.add("mobile-hidden");
+          }
+        });
+
+        if (stickyMiniplayer) {
+          if (deckId !== "deck-01") {
+            stickyMiniplayer.classList.add("active");
+          } else {
+            stickyMiniplayer.classList.remove("active");
+          }
+        }
+      }
+
+      mobileTabs.forEach(btn => {
+        btn.addEventListener("click", () => {
+          activateDeck(btn.dataset.deck);
+        });
+      });
+
+      // Miniplayer Actions (Play/Pause, Next, Jump to Player)
+      document.querySelectorAll(".mini-btn-toggle").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          togglePlayPause();
+        });
+      });
+
+      document.querySelectorAll(".mini-btn-skip").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          nextTrack();
+        });
+      });
+
+      document.querySelectorAll(".mini-info-jump, #sticky-track-jump").forEach(el => {
+        el.addEventListener("click", () => {
+          activateDeck("deck-01");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+
+      const stickyBtnPlay = document.getElementById("sticky-btn-play");
+      if (stickyBtnPlay) stickyBtnPlay.addEventListener("click", togglePlayPause);
+
+      const stickyBtnNext = document.getElementById("sticky-btn-next");
+      if (stickyBtnNext) stickyBtnNext.addEventListener("click", nextTrack);
+
+      // Mini Seek targets
+      document.querySelectorAll(".mini-seek-target").forEach(target => {
+        target.addEventListener("click", (e) => {
+          const rect = target.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const pct = Math.max(0, Math.min(1, clickX / rect.width));
+          seekTo(pct);
+        });
       });
 
       // Jukebox Search & Autocomplete
@@ -1742,6 +2173,9 @@
               } else if (type === "CABIN_LOCKED") {
                 state.isLocked = true;
                 renderState();
+              } else if (type === "RELOAD" || type === "DEV_RELOAD") {
+                console.log("⚡ [LIVE-RELOAD] Sinal WebSocket de recarregamento recebido!");
+                location.reload();
               }
             } catch (err) {
               console.warn("WS message parse error:", err);
