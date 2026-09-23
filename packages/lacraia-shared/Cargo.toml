@@ -1,0 +1,18 @@
+[package]
+name = "lacraia-shared"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared domain models, LRC parser, fuzzy validator, and WebSocket protocols for La Craia"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

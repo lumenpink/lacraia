@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 
-- Routine maintenance, documentation updates, and operational improvements.
+### Features
+  - (shared) implement domain models, lrc parser, fuzzy filter and ws protocol
 
 ## Previous Releases
 
