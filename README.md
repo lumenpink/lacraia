@@ -10,6 +10,23 @@ La Craia is a focused suite integrating acoustic similarity radio streaming, loc
 
 ---
 
+## The Patron: Lacraia (1977–2011)
+
+**La Craia** is named in homage to **Lacraia** (1977–2011), an iconic Brazilian dancer, performer, electronic music DJ, and proud black travesti who emerged from Rio de Janeiro's periphery (favela do Arará) to become a transformative cultural phenomenon in Brazilian funk carioca.
+
+Alongside MC Serginho in the early 2000s, Lacraia electrified national stages and mainstream television with explosive anthems such as *"Vai Lacraia"* and *"Éguinha Pocotó"*. Her radical stage presence—marked by high-speed acrobatic choreography, aerial splits, vibrant neon satin, and uncontainable joy—shattered social and cultural barriers in an era of deep prejudice, claiming visibility and dignity for travestis and LGBTQIA+ communities across Brazil.
+
+Far from accepting sanitization or conforming to commercial expectations, she weaponized performance and humor as pure freedom. In her later years, she sustained this underground energy as a resident electronic music DJ in Rio and São Paulo nightclubs.
+
+### Why La Craia?
+
+Our software ecosystem inherits her spirit:
+- **Autonomous & Peripheral:** Operating outside centralized streaming silos and corporate telemetry, built from the street up like a sound wall (*paredão*).
+- **Radical Joy & Speed:** Fast, responsive, low-latency audio delivery engineered with Rust and WebAssembly.
+- **Unapologetic Sovereignty:** Independent, decentralized, and community-driven.
+
+---
+
 ## Workspace Structure
 
 The project is structured as a monorepo across Rust crates and a native Android micro-application:

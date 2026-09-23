@@ -221,6 +221,17 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Saneamento Textual:** Substituição de referências masculinas residuais ("o La Craia", "do La Craia", "no La Craia", "do Lacraia") por formas femininas em `docs/design-system.md`, `docs/architecture.md`, `docs/roadmap.md` e `site/app/index.html`.
   - **Conformidade com Diretrizes Operacionais:** Alinhamento integral com a política de concordância de gênero estabelecida no Ticket #5.
 
+---
+
+### Ticket #2: Seção Biográfica e Homenagem Cultural à Lacraia
+* **Package:** `README.md`, `docs`
+* **Goal:** Adicionar informações biográficas e contexto cultural sobre a artista Lacraia na documentação oficial do repositório.
+* **Acceptance Criteria:**
+  - **Diretrizes de Identidade:** Tratamento estritamente no feminino (*ela*, *a artista*, *a patrona*), reconhecimento e respeito explícito à sua identidade como travesti negra e periférica, e total ausência do nome morto.
+  - **Contextualização Histórica:** Destaque de sua trajetória revolucionária nos anos 2000 ao lado de MC Serginho, presença arrebatadora na TV e palcos nacionais, e atuação posterior como DJ de música eletrônica.
+  - **Manifesto de Princípios do Software:** Paralelo entre a autonomia, coragem cênica, velocidade e alegria radical de Lacraia com a arquitetura descentralizada, independente e livre da La Craia.
+
+
 
 
 
