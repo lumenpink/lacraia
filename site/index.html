@@ -888,7 +888,7 @@
             </div>
             <div class="node-text">
               <span class="node-tag">[SEG.02]</span>
-              <span class="node-label">Arquitetura Baquara</span>
+              <span class="node-label">Arquitetura do Paredão</span>
             </div>
           </a>
 
@@ -1008,7 +1008,7 @@
             <div class="feature-card">
               <span class="card-tag">[ PRINCÍPIO 01: SOBERANIA ACÚSTICA ]</span>
               <h3>Grafo Próprio, Sem Telemetria</h3>
-              <p>O motor de similaridade acústica roda em SQLite local no servidor Baquara. Nenhum dado de escuta é enviado para servidores de terceiros. O grafo é seu, cresce com sua escuta e funciona sem internet.</p>
+              <p>O motor de similaridade acústica roda em SQLite local no servidor central. Nenhum dado de escuta é enviado para servidores de terceiros. O grafo é seu, cresce com sua escuta e funciona sem internet.</p>
             </div>
             <div class="feature-card">
               <span class="card-tag">[ PRINCÍPIO 02: ZERO DISTRAÇÃO ]</span>
@@ -1018,7 +1018,7 @@
             <div class="feature-card">
               <span class="card-tag">[ PRINCÍPIO 03: AUTONOMIA TOTAL ]</span>
               <h3>Self-hosted, Self-sufficient</h3>
-              <p>Backend roda em qualquer Debian/Ubuntu com <code>cargo run</code>. Sem subscriptions, sem APIs pagas obrigatórias, sem rastreamento. Se o servidor Baquara tiver disco e CPU, La Craia funciona para sempre.</p>
+              <p>Backend roda em qualquer Debian/Ubuntu com <code>cargo run</code>. Sem subscriptions, sem APIs pagas obrigatórias, sem rastreamento. Se o servidor Linux tiver disco e CPU, La Craia funciona para sempre.</p>
             </div>
           </div>
 
@@ -1034,7 +1034,7 @@
         <section id="sec-arquitetura" class="caderno-section">
           <h2 class="section-title">Caderno 02: Arquitetura do Paredão (lacraia-core)</h2>
           <p class="section-desc">
-            O servidor central opera no host Debian 13 (Baquara). Ele combina banco SQLite local com grafo de adjacência de similaridade acústica, motor de resolução e streaming nativo em Opus com suporte a HTTP Range Requests (206 Partial Content).
+            O servidor central opera em host Linux (Debian/Ubuntu). Ele combina banco SQLite local com grafo de adjacência de similaridade acústica, motor de resolução e streaming nativo em Opus com suporte a HTTP Range Requests (206 Partial Content).
           </p>
 
 
@@ -1115,7 +1115,7 @@ PORT=8080 LACRAIA_CACHE_DIR=/var/cache/la-craia cargo run -p lacraia-core</pre>
         <section id="sec-sync" class="caderno-section">
           <h2 class="section-title">Caderno 04: Protocolo de Sincronia WebSocket</h2>
           <p class="section-desc">
-            Quando o som principal toca na central fixa (Debian Baquara) e smartphones ou tablets atuam como controle e HUD, o endpoint <code>/ws</code> orquestra a comunicação bidirecional em JSON.
+            Quando o som principal toca na central fixa (servidor Linux / Debian) e smartphones ou tablets atuam como controle e HUD, o endpoint <code>/ws</code> orquestra a comunicação bidirecional em JSON.
           </p>
 
           <div class="callout callout-cabine">
