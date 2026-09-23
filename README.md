@@ -64,6 +64,16 @@ cargo run -p lacraia-core
 PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite cargo run -p lacraia-core
 ```
 
+### Automated Cockpit Demo
+
+```bash
+# Launch backend daemon, seed SQLite database, and probe health endpoints
+./demo.sh
+
+# Specify custom starting port and automatically open browser
+./demo.sh --port 8090 --open
+```
+
 ---
 
 ## Continuous Integration & Deployment
