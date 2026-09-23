@@ -6,26 +6,15 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
-import android.view.Gravity
-import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
-import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.core.app.NotificationCompat
 
 class LacraiaHudService : Service() {
 
     private var windowManager: WindowManager? = null
-    private var floatingView: View? = null
-    private var layoutParams: WindowManager.LayoutParams? = null
-
-    private var lyricTextView: TextView? = null
+    private var hudViewController: HudViewController? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -57,7 +46,8 @@ class LacraiaHudService : Service() {
     }
 
     private fun initOverlay() {
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        windowManager = wm
 
         val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -66,72 +56,29 @@ class LacraiaHudService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            dpToPx(56),
-            overlayType,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = dpToPx(120)
-        }
-
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Color.parseColor("#CC121212"))
-            setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
-        }
-
-        lyricTextView = TextView(this).apply {
-            text = "La Craia HUD • Aguardando áudio..."
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT
-            )
-        }
-
-        container.addView(lyricTextView)
-        setupDragTouch(container)
-
-        floatingView = container
-        windowManager?.addView(floatingView, layoutParams)
-    }
-
-    private fun setupDragTouch(view: View) {
-        var initialY = 0
-        var initialTouchY = 0f
-
-        view.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialY = layoutParams?.y ?: 0
-                    initialTouchY = event.rawY
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    layoutParams?.let { params ->
-                        params.y = initialY - (event.rawY - initialTouchY).toInt()
-                        windowManager?.updateViewLayout(floatingView, params)
-                    }
-                    true
-                }
-                else -> false
+        hudViewController = HudViewController(
+            context = this,
+            windowManager = wm,
+            onPlayPauseClick = {
+                // Dispatches playback toggle to MediaCaptureListener
+                sendBroadcast(Intent("pink.lumen.lacraia.hud.ACTION_TOGGLE_PLAYBACK"))
+            },
+            onNextClick = {
+                // Dispatches skip next to MediaCaptureListener
+                sendBroadcast(Intent("pink.lumen.lacraia.hud.ACTION_NEXT_TRACK"))
             }
+        ).apply {
+            val view = createFloatingPill(overlayType)
+            wm.addView(view, layoutParams)
         }
     }
 
-    private fun dpToPx(dp: Int): Int {
-        val density = resources.displayMetrics.density
-        return (dp * density).toInt()
+    fun updateState(state: HudViewState) {
+        hudViewController?.renderState(state)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        floatingView?.let { windowManager?.removeView(it) }
+        hudViewController?.floatingView?.let { windowManager?.removeView(it) }
     }
 }
