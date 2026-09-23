@@ -9,7 +9,7 @@ use axum::{
     Json, Router,
 };
 use futures::{SinkExt, StreamExt};
-use lacraia_shared::{is_title_clean, Command, PlaybackState, Track, WsMessage};
+use lacraia_shared::{Command, PlaybackState, Track, WsMessage};
 use serde::Deserialize;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::{broadcast, Mutex};
@@ -21,15 +21,18 @@ use tower_http::{
 use tracing::info;
 
 pub mod db;
+pub mod resolver;
 pub mod similarity;
 
 use db::Database;
+use resolver::MediaResolver;
 use similarity::{CompositeSimilarityEngine, SimilarityEngine};
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: Database,
     pub similarity: Arc<CompositeSimilarityEngine>,
+    pub resolver: Arc<MediaResolver>,
     pub cache_dir: PathBuf,
     pub tx: broadcast::Sender<WsMessage>,
     pub current_track: Arc<Mutex<Option<Track>>>,
@@ -68,12 +71,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let lastfm_key = std::env::var("LASTFM_API_KEY").ok();
     let similarity = Arc::new(CompositeSimilarityEngine::new(lastfm_key, db.clone()));
+    let resolver = Arc::new(MediaResolver::new(cache_dir.clone(), db.clone()));
 
     let (tx, _rx) = broadcast::channel::<WsMessage>(100);
 
     let state = AppState {
         db,
         similarity,
+        resolver,
         cache_dir: cache_dir.clone(),
         tx,
         current_track: Arc::new(Mutex::new(None)),
@@ -143,6 +148,7 @@ async fn handle_radio(
 }
 
 async fn handle_resolve(
+    State(state): State<AppState>,
     Query(query): Query<ResolveQuery>,
 ) -> Result<Json<Track>, (StatusCode, String)> {
     info!(
@@ -150,20 +156,25 @@ async fn handle_resolve(
         query.title, query.artist, query.expected_duration_sec
     );
 
-    // Filter verification
-    if !is_title_clean(&query.title, &query.title) {
-        return Err((StatusCode::BAD_REQUEST, "Title rejected by fuzzy filter".into()));
+    match state
+        .resolver
+        .resolve_and_cache(&query.artist, &query.title, query.expected_duration_sec)
+        .await
+    {
+        Ok(resolution) => Ok(Json(Track {
+            id: resolution.track_id,
+            title: resolution.title,
+            artist: resolution.artist,
+            album: None,
+            duration_ms: resolution.duration_sec * 1000,
+            cover_url: None,
+            stream_url: Some(resolution.stream_url),
+        })),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Stream resolution failed: {}", e),
+        )),
     }
-
-    Ok(Json(Track {
-        id: "trk_resolved".into(),
-        title: query.title,
-        artist: query.artist,
-        album: None,
-        duration_ms: query.expected_duration_sec * 1000,
-        cover_url: None,
-        stream_url: Some("/cache/trk_resolved.opus".into()),
-    }))
 }
 
 async fn ws_handler(
