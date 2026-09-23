@@ -17,14 +17,27 @@
 
 ---
 
-## 2. Universal Media Capture
+## 2. Universal Media Capture & Audio Ducking (`MediaCaptureListener.kt`)
 
 `lacraia-hud` does not need to know which media player is currently producing sound:
-1. Registers a `NotificationListenerService`.
-2. Extracts the active playback `MediaSession.Token`.
-3. Instantiates an active `MediaController`:
-   * `onPlaybackStateChanged(state)`: Monitors `STATE_PLAYING`, millisecond position, and seek updates.
-   * `onMetadataChanged(metadata)`: Extracts artist, title, album, and track duration.
+1. **Notification & MediaSession Capture:**
+   * Registers a `NotificationListenerService`.
+   * Queries `MediaSessionManager.getActiveSessions()` to extract active media controllers.
+   * Attaches `MediaController.Callback`:
+     * `onPlaybackStateChanged(state)`: Monitors `STATE_PLAYING`, millisecond position, and initiates the 200ms lyric sync ticker.
+     * `onMetadataChanged(metadata)`: Extracts artist, title, album, and duration, firing `fetchLyrics` via `LrcApiClient`.
+2. **Lyric Synchronization Ticker (`LyricSyncCoordinator.kt`):**
+   * Uses `estimatePosition()` with system elapsed real-time delta between ticks to maintain smooth, continuous timeline progression without jitter.
+   * Queries `findActiveLyric()` to locate the active lyric line for the exact current millisecond.
+   * Broadcasts `ACTION_UPDATE_HUD` to dynamically update the floating pill overlay.
+3. **Automotive GPS Audio Ducking:**
+   * Registers an `AudioManager.OnAudioFocusChangeListener`.
+   * Intercepts `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` when Waze, Google Maps, or native vehicle navigation emits turn-by-turn spoken guidance.
+   * Scales active media stream volume down to **20%** (`LyricSyncCoordinator.DUCK_RATIO`).
+   * Automatically restores full pre-ducking volume level on `AUDIOFOCUS_GAIN`.
+4. **Transport Controls Delegation:**
+   * Receives `ACTION_TOGGLE_PLAYBACK` and `ACTION_NEXT_TRACK` broadcast from the floating pill touch targets and dispatches `transportControls.play()`, `pause()`, or `skipToNext()` directly to the active media session.
+
 
 ---
 
