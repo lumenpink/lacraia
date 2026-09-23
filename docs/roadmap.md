@@ -191,5 +191,17 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Deck da Fila no Cockpit Web (`site/app/index.html`):** Painel `#03` exibindo posições ordenadas, metadados, solicitantes (`requested_by`), badges de status (`CACHED`, `PLAYING`, `PENDING`) e botão de remoção para o piloto.
   - **Robustez de Conexão:** Detecção de ambiente HTTPS com fallback informativo e reconexão automática.
 
+---
+
+### Ticket #9: Endpoint de Busca no Catálogo e Jukebox com Autocomplete Interativo
+* **Package:** `packages/lacraia-core`, `site/app/index.html`, `docs`
+* **Goal:** Implementar endpoint `/api/search` com ranqueamento diacrítico e interface de autocomplete em tempo real para busca e enfileiramento de faixas no cockpit automotivo.
+* **Acceptance Criteria:**
+  - **Endpoint de Busca (`GET /api/search`):** Consulta ranqueada insensível a maiúsculas e diacríticos (`strip_accents`) no SQLite local cobrindo título, artista e gêneros, com sementes padrão automotivas (MPB, bossa nova, samba, synthwave, rock).
+  - **Suporte a Faixas Ad-hoc:** Geração transparente de candidatos para termos formatados como `"Artista - Faixa"` permitindo enfileirar cantigas que ainda não constam no banco local.
+  - **Autocomplete no Cockpit Web (`site/app/index.html`):** Componente debounced (250ms) com dropdown estilizado no tema cyberpunk automotivo, badges de status (`CACHED` vs `NUVEM`) e botão de ação direta `[ ➕ FILA ]`.
+  - **Despacho WebSocket com Identificação:** Transmissão de `QUEUE_APPEND` com identificação do solicitante (`PILOTO` ou `@Passageiro`), notificação toast temporária e atualização otimista da fila.
+
+
 
 
