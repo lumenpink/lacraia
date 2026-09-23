@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (hud) implement lrclib client and sqlite lyrics cache (closes #8)
   - (web) implement player ui, queue controller and remote sync (closes #7)
   - (web) implement audio engine and mediasession api integration (closes #6)
   - (core) implement full websocket telemetry hub and command dispatcher (closes #5)
