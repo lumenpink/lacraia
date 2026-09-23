@@ -60,16 +60,32 @@ class LacraiaHudService : Service() {
             context = this,
             windowManager = wm,
             onPlayPauseClick = {
-                // Dispatches playback toggle to MediaCaptureListener
-                sendBroadcast(Intent("pink.lumen.lacraia.hud.ACTION_TOGGLE_PLAYBACK"))
+                sendBroadcast(Intent(MediaCaptureListener.ACTION_TOGGLE_PLAYBACK))
             },
             onNextClick = {
-                // Dispatches skip next to MediaCaptureListener
-                sendBroadcast(Intent("pink.lumen.lacraia.hud.ACTION_NEXT_TRACK"))
+                sendBroadcast(Intent(MediaCaptureListener.ACTION_NEXT_TRACK))
             }
         ).apply {
             val view = createFloatingPill(overlayType)
             wm.addView(view, layoutParams)
+        }
+
+        val filter = android.content.IntentFilter(MediaCaptureListener.ACTION_UPDATE_HUD)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(hudUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(hudUpdateReceiver, filter)
+        }
+    }
+
+    private val hudUpdateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == MediaCaptureListener.ACTION_UPDATE_HUD) {
+                val text = intent.getStringExtra(MediaCaptureListener.EXTRA_DISPLAY_TEXT) ?: return
+                val isMarquee = intent.getBooleanExtra(MediaCaptureListener.EXTRA_IS_MARQUEE, false)
+                val isPlaying = intent.getBooleanExtra(MediaCaptureListener.EXTRA_IS_PLAYING, false)
+                updateState(HudViewState(displayText = text, isMarquee = isMarquee, isPlaying = isPlaying))
+            }
         }
     }
 
@@ -79,6 +95,10 @@ class LacraiaHudService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            unregisterReceiver(hudUpdateReceiver)
+        } catch (_: Exception) {}
         hudViewController?.floatingView?.let { windowManager?.removeView(it) }
     }
 }
+

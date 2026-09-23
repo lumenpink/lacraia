@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (hud) implement mediasession capture, sync ticker and waze audio ducking (closes #10)
   - (hud) implement floating pill hud overlay with textswitcher and drag (closes #9)
   - (hud) implement lrclib client and sqlite lyrics cache (closes #8)
   - (web) implement player ui, queue controller and remote sync (closes #7)
