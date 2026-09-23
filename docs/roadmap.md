@@ -180,5 +180,16 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Script Orquestrador (`start.sh`):** Inicialização combinada de `lacraia-core` e servidor web local com auto-seed, migração de colunas da fila, verificação de portas e opção `--open` para navegador.
   - **Hub de Downloads e Painel Superior (`site/index.html`):** Adicionado botão de acesso instantâneo `[ ABRIR COCKPIT WEB ]` na bancada de embarque e atalho no painel superior.
 
+---
+
+### Ticket #8: Painel Visual da Fila de Reprodução e Sincronia WebSocket
+* **Package:** `site`, `packages/lacraia-shared`, `packages/lacraia-core`, `packages/lacraia-app`
+* **Goal:** Implementar o deck visual da fila de reprodução (lookahead queue) no cockpit automotivo e sanear a comunicação do protocolo WebSocket.
+* **Acceptance Criteria:**
+  - **Lookahead Queue no Protocolo:** Adicionado `queue: Vec<QueueItem>` na estrutura `StatePayload` e endpoint `GET /api/queue` para consulta direta.
+  - **Saneamento do Barramento WebSocket:** Padronização das tags de mensagem em caixa alta (`STATE_UPDATE`, `CREW_UPDATE`, `EJECTED`, `CABIN_LOCKED`) e comandos (`PLAY`, `PAUSE`, `NEXT`, `PREVIOUS`, `SEEK`, `LOCK_CABIN`, `QUEUE_APPEND`, `QUEUE_REMOVE`).
+  - **Deck da Fila no Cockpit Web (`site/app/index.html`):** Painel `#03` exibindo posições ordenadas, metadados, solicitantes (`requested_by`), badges de status (`CACHED`, `PLAYING`, `PENDING`) e botão de remoção para o piloto.
+  - **Robustez de Conexão:** Detecção de ambiente HTTPS com fallback informativo e reconexão automática.
+
 
 
