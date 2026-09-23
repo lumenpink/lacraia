@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (web) implement player ui, queue controller and remote sync (closes #7)
   - (web) implement audio engine and mediasession api integration (closes #6)
   - (core) implement full websocket telemetry hub and command dispatcher (closes #5)
   - (core) implement lookahead queue daemon and precaching buffer (closes #4)
