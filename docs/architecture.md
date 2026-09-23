@@ -175,7 +175,33 @@ The automotive frontend is optimized for driver touch targets and cockpit displa
 
 ---
 
-## 9. Daemon Execution & Deployment Configuration (`lacraia-core`)
+## 10. Cabin Security, Multi-Cabin Tenants & Crew Management
+
+Lacraia features an automotive multi-cabin security layer designed for vehicles carrying both the pilot (driver) and passengers:
+
+1. **Role-Based Command Permissions:**
+   * **Pilot (`PILOT`):** Master cockpit access. Commands `PLAY`, `PAUSE`, `NEXT`, `PREVIOUS`, `SEEK`, `LOCK_CABIN`, `EJECT_PASSENGER`, and `EJECT_ALL`.
+   * **Passenger (`PASSENGER`):** Shared jukebox access. Permitted exclusively to enqueue songs via `QUEUE_APPEND`. Requests to control playback, skip tracks, or manipulate cabin state are rejected with authorization errors.
+2. **Door Lock Mechanism (`is_locked`):**
+   * The cockpit dashboard features a rocker switch (`[ 🔓 PORTAS ABERTAS / 🔒 TRANCADAS ]`).
+   * When locked, the HTTP onboarding endpoint (`POST /api/cabin/join`) and WebSocket handshake reject new passengers, preserving cabin privacy and preventing boarding by unknown devices even if a static QR code is visible.
+3. **Multi-Cabin Isolation with Shared Opus Cache:**
+   * Each cabin operates an independent queue and crew roster in SQLite (`cabins`, `passengers`, `queue`).
+   * Audio streams resolve into a unified, shared disk cache (`LACRAIA_CACHE_DIR`). If Cabin A and Cabin B request the same song, the second cabin benefits immediately from zero-network local cache retrieval.
+4. **Passenger Jukebox & Requester Attribution:**
+   * When passengers enqueue tracks, their name/device handle is tagged via `requested_by`.
+   * The cockpit queue displays requester badges (e.g. `[ por: @Mari ]` or `[ PILOTO ]`), giving the driver complete provenance of who queued each track.
+5. **Crew Manifesto & Ejection Lever:**
+   * Real-time roster broadcast (`CREW_UPDATE`) keeps the cockpit aware of all connected passengers.
+   * The pilot can kick disruptive passengers individually (`[ 👢 CHUTAR ]`) or clear the entire vehicle (`[ 💥 EJETAR GERAL ]`).
+   * Ejected clients receive an immediate `EJECTED` frame, terminate their WebSocket session, and display a brutalist ejection lockout screen.
+
+> 🦂 **[ VENENO NA CARNE ]**  
+> Passageiro engraçadinho tentando pular faixa ou pausar a cantiga alheia toma bloqueio instantâneo no WebSocket. No paredão Lacraia, a agulha obedece unicamente ao piloto.
+
+---
+
+## 11. Daemon Execution & Deployment Configuration (`lacraia-core`)
 
 `lacraia-core` is managed as an asynchronous daemon service on the host:
 
@@ -200,6 +226,7 @@ PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite
 
 > ✨ **[ O PULO DA TRAVESTI ]**  
 > Para orquestrar o backend com banco populado, fila antecipada engatada e o navegador aberto no painel de controle com uma única instrução, basta disparar `./demo.sh --open`.
+
 
 
 

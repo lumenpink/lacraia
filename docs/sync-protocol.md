@@ -32,7 +32,77 @@ When audio is playing on a fixed server (e.g. Linux Debian host via MPV or headl
 
 ---
 
-## 2. Client Remote Commands (`COMMAND`)
+## 2. Cabin Connection & Onboarding Handshake
+
+Clients connect to the WebSocket endpoint supplying cabin identifier and authentication token:
+
+```
+ws://<server>:8080/ws?cabin=default&token=<optional_token>
+```
+
+* **No Token / Master Key:** Authenticates as `Pilot` (`role: "PILOT"`), granting full cockpit authority.
+* **Passenger Token:** Obtained via `POST /api/cabin/join` with `{ cabinId: string, name: string, device?: string }`. Authenticates as `Passenger` (`role: "PASSENGER"`).
+* **Locked Cabin:** If `is_locked` is true, connections without pilot authorization are immediately rejected.
+
+---
+
+## 3. Cabin & Crew Telemetry Broadcasts
+
+### `CREW_UPDATE` (Crew Manifesto)
+
+Broadcast to cabin participants whenever a passenger connects, disconnects, or is ejected:
+
+```json
+{
+  "type": "CREW_UPDATE",
+  "payload": {
+    "cabinId": "default",
+    "passengers": [
+      {
+        "id": "p_101",
+        "name": "Mari",
+        "device": "Pixel 8"
+      },
+      {
+        "id": "p_102",
+        "name": "Giba",
+        "device": "iPhone 15"
+      }
+    ]
+  }
+}
+```
+
+### `CABIN_LOCKED` (Door State Change)
+
+Broadcast when the pilot engages or disengages the cabin door lock:
+
+```json
+{
+  "type": "CABIN_LOCKED",
+  "payload": {
+    "cabinId": "default",
+    "locked": true
+  }
+}
+```
+
+### `EJECTED` (Passenger Ejection Frame)
+
+Sent directly to a passenger when kicked by the pilot (or to all passengers during emergency clear):
+
+```json
+{
+  "type": "EJECTED",
+  "payload": {
+    "reason": "Aqui no paredão quem manda na agulha é o piloto. Comporte-se melhor na próxima curva."
+  }
+}
+```
+
+---
+
+## 4. Client Remote Commands (`COMMAND`)
 
 ```json
 {
@@ -43,20 +113,26 @@ When audio is playing on a fixed server (e.g. Linux Debian host via MPV or headl
 }
 ```
 
-### Supported Actions:
-* `PLAY`: Resume playback
-* `PAUSE`: Pause playback
-* `NEXT`: Skip to next track in queue
-* `PREVIOUS`: Restart current track or move to previous track
-* `SEEK`: Move playhead to `{ positionMs: number }`
-* `QUEUE_APPEND`: Append track ID or search query to radio queue
+### Supported Actions & Role Authorization:
+
+| Action | Allowed Roles | Payload Attributes | Description |
+|---|---|---|---|
+| `PLAY` | `Pilot` | — | Resume playback |
+| `PAUSE` | `Pilot` | — | Pause playback |
+| `NEXT` | `Pilot` | — | Skip to next track in queue |
+| `PREVIOUS` | `Pilot` | — | Restart current track or previous track |
+| `SEEK` | `Pilot` | `{ positionMs: number }` | Move playhead to millisecond position |
+| `QUEUE_APPEND` | `Pilot`, `Passenger` | `{ query: string, requestedBy?: string }` | Enqueue track with requester credit badge |
+| `LOCK_CABIN` | `Pilot` | `{ locked: bool }` | Lock or unlock cabin door for new passengers |
+| `EJECT_PASSENGER` | `Pilot` | `{ passengerId: string, reason?: string }` | Kick specific passenger and revoke token |
+| `EJECT_ALL` | `Pilot` | `{ reason?: string }` | Clear all passengers from cabin immediately |
 
 > ⚡ **[ FIO DESENCAPADO ]**  
 > Comandos remotos desferidos por conexões instáveis sofrem reconciliação imediata: se um `SEEK` chegar defasado, o servidor estipula o carimbo de tempo autoritativo e alinha todos os nós da cabine.
 
 ---
 
-## 3. Server PlaybackHub & Ticker Lifecycle (`ws.rs`)
+## 5. Server PlaybackHub & Ticker Lifecycle (`ws.rs`)
 
 The WebSocket endpoint `/ws` is backed by `PlaybackHub`:
 
@@ -71,10 +147,12 @@ The WebSocket endpoint `/ws` is backed by `PlaybackHub`:
    * `PLAY` / `PAUSE` updates playback state.
    * `SEEK` jumps playhead position.
    * `NEXT` calls `db.advance_queue()`, updates the active track, resets position to 0, and notifies all connected clients via broadcast.
-   * `QUEUE_APPEND` inserts a new item into the SQLite `queue`.
+   * `QUEUE_APPEND` inserts a new item into the SQLite `queue` preserving `requested_by`.
+   * `LOCK_CABIN`, `EJECT_PASSENGER`, `EJECT_ALL` invoke cabin control routines and dispatch targeted `CREW_UPDATE` and `EJECTED` notifications.
 
 > 🦂 **[ VENENO NA CARNE ]**  
 > Comandos maliciosos ou payloads truncados enviados ao endpoint `/ws` são abortados antes de tocarem na fila do SQLite, blindando a continuidade sonora contra interferências ou panes de barramento.
 
 > ✨ **[ O PULO DA TRAVESTI ]**  
 > Ao plugar um novo tablet ou celular na rede interna da van, o `PlaybackHub` cospe de imediato o snapshot instantâneo do estado atual no primeiro frame, sem esperar o próximo ciclo do ticker.
+

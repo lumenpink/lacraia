@@ -119,3 +119,18 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - Implementar animações CSS cíclicas de micro-contrações e ondulação orgânica nas antenas (`@keyframes twitch-antenna-left` e `@keyframes twitch-antenna-right`).
   - Modular a resposta dinâmica ao cursor do mouse: as antenas flexionam e apontam suavemente na direção do ponteiro ou da leitura do scroll.
   - Desativação imediata via `prefers-reduced-motion: reduce` mantendo a geometria estática segura.
+
+---
+
+### Ticket #25: Sistema de Cabines, Controle de Portas, Jukebox de Passageiros e Ejeção
+* **Package:** Workspace-wide (`lacraia-shared`, `lacraia-core`, `lacraia-app`)
+* **Goal:** Implementar o sistema de cabines com permissões Piloto/Passageiro, tranca de portas da cabine, exibição dinâmica/toggleável de QR Code, identificação do vivente que enfileirou cada cantiga e alavanca de ejeção de tripulantes.
+* **Acceptance Criteria:**
+  - **Tranca de Cabine (`is_locked: bool`):** Switch gangorra no cockpit do motorista (`[ 🔓 PORTAS ABERTAS / 🔒 TRANCADAS ]`). Quando trancada, o endpoint de embarque recusa novas conexões mesmo com o QR Code visível.
+  - **QR Code na Interface com Alternância:** Botão `[ 📲 EMBARQUE ]` no cockpit para exibir ou ocultar o QR Code na tela (útil quando não se tem o adesivo físico ou para passageiros no banco traseiro).
+  - **Identificação do Vivente na Fila (`requested_by`):** Campo `requested_by: Option<String>` nos itens de fila. A interface renderiza o badge com o nome do solicitante (ex: `[ por: @Mari ]` ou `[ PILOTO ]`).
+  - **Painel de Tripulação Conectada:** Lista em tempo real no cockpit com os passageiros embarcados, seus aparelhos e as músicas solicitadas.
+  - **Alavanca de Ejeção (`EJECT_PASSENGER` e `EJECT_ALL`):**
+    - Chute individual (`[ 👢 ]`) revogando o token daquele vivente.
+    - Ejeção total (`[ 💥 EJETAR GERAL ]`) limpando todos os passageiros da cabine.
+    - Tela de bloqueio imediato no celular do passageiro com mensagem temática: `[ 🦂 VOCÊ FOI EJETADO DA CABINE PELO MOTORISTA! ]`.
