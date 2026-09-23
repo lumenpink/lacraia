@@ -99,8 +99,11 @@ LIMIT ?2;
 3. **`CompositeSimilarityEngine`:**
    * Tries Last.fm first when credentials are provided.
    * Seamlessly falls back to MetaBrainz/ListenBrainz when Last.fm is unavailable or rate-limited.
-   * **Auto-indexing:** Every candidate returned from online sources is immediately upserted into SQLite (`tracks`) and wired into `similarity_edges` with its weight.
-   * **100% Offline Mode:** When the host server has no external internet connectivity, the engine queries the local SQLite similarity graph directly.
+    * **Auto-indexing:** Every candidate returned from online sources is immediately upserted into SQLite (`tracks`) and wired into `similarity_edges` with its weight.
+    * **100% Offline Mode:** When the host server has no external internet connectivity, the engine queries the local SQLite similarity graph directly.
+
+> 📡 **[ TRANSMISSÃO DE CABINE ]**  
+> A auto-indexação contínua transforma cada consulta online em um novo nó permanente no banco local. Com o tempo, a máquina aprende a discografia do motorista e opera em total autonomia fora do alcance de antenas 4G/5G.
 
 ---
 
@@ -119,6 +122,9 @@ LIMIT ?2;
 4. **Static Range Delivery:**
    Exposed over `/cache/{track_id}.opus` with native HTTP Range Request support (`206 Partial Content`) for immediate seeking in the frontend player.
 
+> 🦂 **[ VENENO NA CARNE ]**  
+> Áudios com discrepância temporal ou títulos adulterados por gravações piratas de celular em shows são descartados sem piedade. O filtro de pureza garante a versão de estúdio original.
+
 ---
 
 ## 6. Lookahead Queue Daemon & Gapless Playback (`queue_daemon.rs`)
@@ -133,6 +139,9 @@ LIMIT ?2;
    Triggers `MediaResolver::resolve_and_cache` before the current track finishes. Once the `.opus` file is saved to disk, the database updates the queue state from `pending` to `cached`.
 4. **Resilience to Network Drops:**
    By maintaining two fully resolved tracks cached in advance, the driver experiences zero playback interruptions even when passing through cellular dead zones.
+
+> ⚡ **[ FIO DESENCAPADO ]**  
+> Caso a conexão celular caia abruptamente no meio de um túnel ou serra, o QueueDaemon recua para o acervo local em cache, garantindo zero segundos de silêncio na cabine.
 
 ---
 
@@ -188,5 +197,9 @@ cargo run -p lacraia-core
 # Custom port and production cache paths
 PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite cargo run -p lacraia-core
 ```
+
+> ✨ **[ O PULO DA TRAVESTI ]**  
+> Para orquestrar o backend com banco populado, fila antecipada engatada e o navegador aberto no painel de controle com uma única instrução, basta disparar `./demo.sh --open`.
+
 
 

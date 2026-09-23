@@ -39,6 +39,12 @@
 4. **Transport Controls Delegation:**
    * Receives `ACTION_TOGGLE_PLAYBACK` and `ACTION_NEXT_TRACK` broadcast from the floating pill touch targets and dispatches `transportControls.play()`, `pause()`, or `skipToNext()` directly to the active media session.
 
+> 📡 **[ TRANSMISSÃO DE CABINE ]**  
+> O HUD opera como um parasita acústico simbiótico: intercepta o canal de áudio automotivo sem que o aplicativo reprodutor primário saiba da sua existência, extraindo letras e metadados ao vivo diretamente do fluxo do sistema.
+
+> ⚡ **[ FIO DESENCAPADO ]**  
+> O evento `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` ativado pelo Waze ou Google Maps atenua o volume da música para 20%. Se o sistema de som do carro tentar forçar o ganho manualmente nesse intervalo, o limitador digital segura o estouro para evitar distorção destrutiva.
+
 
 ---
 
@@ -58,6 +64,9 @@ When a track change event triggers, `LrcApiClient` first checks local SQLite sto
    * Parses standard 2-digit centiseconds (`[mm:ss.xx]`) and 3-digit milliseconds (`[mm:ss.xxx]`).
    * Automatically sorts lines out-of-order by timestamp `timestampMs`.
    * Filters out header metadata tags (`[ti:...]`, `[ar:...]`).
+
+> ✨ **[ O PULO DA TRAVESTI ]**  
+> Para evitar quedas na serra e zonas mortas sem sinal de celular, cada estrofe sincronizada capturada pelo LRCLIB é imediatamente injetada no SQLite local. Se você já tocou aquela música uma vez na rodovia, a letra nunca mais precisará de internet.
 
 ---
 
@@ -79,6 +88,9 @@ val params = WindowManager.LayoutParams(
 }
 windowManager.addView(floatingView, params)
 ```
+
+> 🦂 **[ VENENO NA CARNE ]**  
+> Linhas de metadados corrompidas, tags de sincronização quebradas ou arquivos de karaokê pirateados com atrasos grosseiros são purgados antes de subir para o display. O piloto só enxerga a rima exata na fração do segundo em que ela bate.
 
 ### Automotive UI Guidelines & Architecture
 

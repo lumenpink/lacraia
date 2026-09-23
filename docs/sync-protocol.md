@@ -27,6 +27,9 @@ When audio is playing on a fixed server (e.g. Baquara Debian host via MPV or hea
 }
 ```
 
+> 📡 **[ TRANSMISSÃO DE CABINE ]**  
+> O payload `STATE_UPDATE` transmite os batimentos cardíacos do paredão a cada 1000ms. Cada tela conectada na van, moto ou cockpit recebe a mesma fração de segundo da reprodução sem atraso perceptível.
+
 ---
 
 ## 2. Client Remote Commands (`COMMAND`)
@@ -48,6 +51,9 @@ When audio is playing on a fixed server (e.g. Baquara Debian host via MPV or hea
 * `SEEK`: Move playhead to `{ positionMs: number }`
 * `QUEUE_APPEND`: Append track ID or search query to radio queue
 
+> ⚡ **[ FIO DESENCAPADO ]**  
+> Comandos remotos desferidos por conexões instáveis sofrem reconciliação imediata: se um `SEEK` chegar defasado, o servidor estipula o carimbo de tempo autoritativo e alinha todos os nós da cabine.
+
 ---
 
 ## 3. Server PlaybackHub & Ticker Lifecycle (`ws.rs`)
@@ -66,3 +72,9 @@ The WebSocket endpoint `/ws` is backed by `PlaybackHub`:
    * `SEEK` jumps playhead position.
    * `NEXT` calls `db.advance_queue()`, updates the active track, resets position to 0, and notifies all connected clients via broadcast.
    * `QUEUE_APPEND` inserts a new item into the SQLite `queue`.
+
+> 🦂 **[ VENENO NA CARNE ]**  
+> Comandos maliciosos ou payloads truncados enviados ao endpoint `/ws` são abortados antes de tocarem na fila do SQLite, blindando a continuidade sonora contra interferências ou panes de barramento.
+
+> ✨ **[ O PULO DA TRAVESTI ]**  
+> Ao plugar um novo tablet ou celular na rede interna da van, o `PlaybackHub` cospe de imediato o snapshot instantâneo do estado atual no primeiro frame, sem esperar o próximo ciclo do ticker.

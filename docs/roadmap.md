@@ -31,8 +31,12 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 * **Goal:** Real-time WebAudio frequency analyzer displaying a high-contrast soundwave canvas optimized for night-time driving.
 * **Acceptance Criteria:**
   - Connect `AudioContext.createAnalyser()` to the HTML5 audio element.
-  - Render an animated 32-bar visualizer using the `#ff007f` neon accent on `#121212` background.
+  - Render an animated 32-bar visualizer using the `--fucsia-furacao` (`#ff0055`) neon accent on `--ferro-bate-pedra` (`#151618`) background.
   - Touch-toggle to enable/disable visualizer to conserve rendering cycles on low-spec car tablets.
+
+> 📡 **[ TRANSMISSÃO DE CABINE ]**  
+> Os 32 segmentos do analisador de espectro pulsam simulando as patas laterais do quilópode em plena correria durante os picos de grave.
+
 
 ---
 
