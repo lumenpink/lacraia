@@ -47,29 +47,30 @@ When a track change event triggers, `LrcApiClient` first checks local SQLite sto
 
 ---
 
-## 4. Floating Pill Overlay over Waze
+## 4. Floating Pill Overlay over Waze (`HudViewController.kt`)
 
-Injected directly into Android's `WindowManager`:
+Injected directly into Android's `WindowManager` via `LacraiaHudService`:
 
 ```kotlin
 val params = WindowManager.LayoutParams(
     WindowManager.LayoutParams.MATCH_PARENT,
-    WindowManager.LayoutParams.WRAP_CONTENT,
-    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+    dp(56),
+    overlayType,
     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
     PixelFormat.TRANSLUCENT
 ).apply {
     gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-    y = 120 // Vertical margin away from navigation bar buttons
+    y = dp(120)
 }
 windowManager.addView(floatingView, params)
 ```
 
-### Automotive UI Guidelines
+### Automotive UI Guidelines & Architecture
 
-* **Dimensions:** Fixed height of 56dp, horizontal margins of 12dp, corner radius of 28dp.
-* **Palette & Contrast:** Translucent black backdrop (`#CC121212`) with pure white bold text (`#FFFFFF`, sans-serif bold, 15sp).
-* **Physical Touch Targets:** Two large touch targets (minimum 48x48dp): Play/Pause and Next Track.
-* **Minimalist Karaoke:** Displays strictly the current active lyric line. Fast vertical transition (150ms) via `TextSwitcher`. Falls back to marquee `{Artist} - {Title}` if instrumental or missing `.lrc`.
-* **Vertical Drag:** Supports vertical touch dragging to prevent obscuring critical GPS speed or turn warnings.
+* **Dimensions & Geometry:** Fixed height of 56dp, horizontal padding of 8dp, rounded corners with a 28dp radius (`GradientDrawable`).
+* **Palette & Contrast:** Translucent black backdrop (`#CC121212`) paired with high-contrast white text (`#FFFFFF`, sans-serif bold, 15sp) avoiding driver distraction at night.
+* **Touch Targets ($\ge 48\text{dp}$):** Prominent Play/Pause and Next Track buttons exceeding the Android accessibility guidelines (48x48dp minimum hit box) with transparent backgrounds.
+* **Minimalist Karaoke (`TextSwitcher`):** Displays strictly the current active lyric line with a 150ms vertical slide transition. Automatically falls back to marquee-scrolling `{Artist} - {Title}` for instrumental or unindexed songs.
+* **Vertical Drag Gesture:** Supports smooth vertical touch dragging (`ACTION_DOWN` / `ACTION_MOVE` updating `LayoutParams.y`) to avoid obscuring navigation alerts, speed limits, or turn arrows.
+
