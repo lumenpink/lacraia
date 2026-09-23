@@ -159,4 +159,24 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Hub de Downloads do Site:** Botões dedicados para `[ BAIXAR LA CRAIA APP ]` e `[ BAIXAR SIMBIÓTYKA ]`.
   - **Documentação de Casos de Uso:** Especificação expandida em `docs/hud.md` detalhando navegação em trânsito, viagens em van/caronas, karaokê offline de serra e captura agnóstica de reprodutores de áudio.
 
+---
+
+### Ticket #6: Homologação e Correção dos Cards Open Graph & Twitter
+* **Package:** `site`, `scripts`
+* **Goal:** Sanear os metadados Open Graph e Twitter Cards do portal `lacraia.2lp.in` para exibição consistente em mensageiros e redes sociais (WhatsApp, Telegram, Twitter/X, Discord, LinkedIn).
+* **Acceptance Criteria:**
+  - **Gerador de Banner (`scripts/generate_og_image.py`):** Atualizado para a terminologia oficial Simbiótyka, gerando banner 1200x630px com branding oficial.
+  - **Meta Tags de Cabeçalho (`site/index.html`):** Adicionado prefixo `og: https://ogp.me/ns#`, fallbacks Schema.org/WhatsApp (`itemprop="image"`, `link rel="image_src"`), `twitter:domain` e remoção de menções restritivas a apps específicos.
+  - **Headers de Distribuição (`site/_headers`):** Charset UTF-8 explícito em HTML e liberação de CORS (`Access-Control-Allow-Origin: *`) para assets estáticos.
+
+---
+
+### Ticket #7: Cockpit Web em `/app` e Script Orquestrador de Execução
+* **Package:** `site`, Workspace scripts
+* **Goal:** Publicar a versão Web/PWA do La Craia no endereço `/app` do site e fornecer script unificado de inicialização para o daemon core e a interface web.
+* **Acceptance Criteria:**
+  - **Cockpit Web em `/app` (`site/app/index.html`):** Interface completa de reprodução, cockpit, cabines, alavanca de ejeção e jukebox acessível diretamente via navegador em `https://lacraia.2lp.in/app` com suporte PWA.
+  - **Script Orquestrador (`start.sh`):** Inicialização combinada de `lacraia-core` e servidor web local com auto-seed, verificação de portas e opção `--open` para navegador.
+
+
 
