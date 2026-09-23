@@ -1,18 +1,14 @@
 use axum::{
-    extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        Query, State,
-    },
+    extract::{ws::WebSocketUpgrade, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
     Json, Router,
 };
-use futures::{SinkExt, StreamExt};
-use lacraia_shared::{Command, PlaybackState, Track, WsMessage};
+use lacraia_shared::{Track, WsMessage};
 use serde::Deserialize;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::broadcast;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir,
@@ -24,21 +20,21 @@ pub mod db;
 pub mod queue_daemon;
 pub mod resolver;
 pub mod similarity;
+pub mod ws;
 
 use db::Database;
 use queue_daemon::QueueDaemon;
 use resolver::MediaResolver;
 use similarity::{CompositeSimilarityEngine, SimilarityEngine};
+use ws::PlaybackHub;
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: Database,
     pub similarity: Arc<CompositeSimilarityEngine>,
     pub resolver: Arc<MediaResolver>,
+    pub hub: Arc<PlaybackHub>,
     pub cache_dir: PathBuf,
-    pub tx: broadcast::Sender<WsMessage>,
-    pub current_track: Arc<Mutex<Option<Track>>>,
-    pub playback_state: Arc<Mutex<PlaybackState>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,15 +80,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     daemon.start();
 
     let (tx, _rx) = broadcast::channel::<WsMessage>(100);
+    let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+    hub.clone().start_telemetry_ticker();
 
     let state = AppState {
         db,
         similarity,
         resolver,
+        hub,
         cache_dir: cache_dir.clone(),
-        tx,
-        current_track: Arc::new(Mutex::new(None)),
-        playback_state: Arc::new(Mutex::new(PlaybackState::Stopped)),
     };
 
     let cors = CorsLayer::new()
@@ -191,35 +187,5 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
-}
-
-async fn handle_socket(socket: WebSocket, state: AppState) {
-    let (mut sender, mut receiver) = socket.split();
-    let mut rx = state.tx.subscribe();
-
-    let mut send_task = tokio::spawn(async move {
-        while let Ok(msg) = rx.recv().await {
-            if let Ok(text) = serde_json::to_string(&msg) {
-                if sender.send(Message::Text(text)).await.is_err() {
-                    break;
-                }
-            }
-        }
-    });
-
-    let _tx = state.tx.clone();
-    let mut recv_task = tokio::spawn(async move {
-        while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            if let Ok(cmd) = serde_json::from_str::<Command>(&text) {
-                info!("Received command via WS: {:?}", cmd);
-                // Dispatch command and notify clients
-            }
-        }
-    });
-
-    tokio::select! {
-        _ = (&mut send_task) => recv_task.abort(),
-        _ = (&mut recv_task) => send_task.abort(),
-    };
+    ws.on_upgrade(move |socket| ws::handle_socket(socket, state.hub))
 }

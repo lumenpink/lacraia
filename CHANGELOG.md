@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (core) implement full websocket telemetry hub and command dispatcher (closes #5)
   - (core) implement lookahead queue daemon and precaching buffer (closes #4)
   - (core) implement stream resolver via youtube music and ytdlp (closes #3)
   - (core) implement multi-provider similarity engine with lastfm and metabrainz (closes #2)
