@@ -1,0 +1,12 @@
+[application]
+name = "lacraia-web"
+default_platform = "web"
+out_dir = "dist"
+asset_dir = "assets"
+
+[web.app]
+title = "La Craia Player"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src"]

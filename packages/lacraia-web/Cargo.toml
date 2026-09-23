@@ -1,0 +1,30 @@
+[package]
+name = "lacraia-web"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Minimalist automotive web player and PWA for La Craia built with Dioxus"
+
+[[bin]]
+name = "lacraia-web"
+path = "src/main.rs"
+
+[dependencies]
+lacraia-shared = { path = "../lacraia-shared" }
+dioxus = { version = "0.6", features = ["web"] }
+dioxus-logger = "0.5"
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+web-sys = { version = "0.3", features = [
+    "HtmlAudioElement",
+    "MediaMetadata",
+    "MediaSession",
+    "MediaSessionAction",
+    "Navigator",
+    "Window",
+] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
