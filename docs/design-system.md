@@ -155,4 +155,7 @@ A tela principal do software organiza-se como um chassi modular aparafusado:
 
 * **Portal de Documentação (`site/index.html`):**  
   Implementação viva de referência dos tokens CSS, chassi de ferro com pintura bate-pedra, leds de telemetria, divisórias de fita isolante zebrada, os 4 callouts temáticos e o botão com efeito tátil mecânico `[ CLACK! ]`.
+* **Cockpit Player (`packages/lacraia-app`):**  
+  Interface automotiva modular com metâmeros, potenciômetro de ganho até 11 (`format_gain_11`), chaves mecânicas com micro-rotação assimétrica (`transform: rotate(-1.5deg)`), seletores de estação e fila de reprodução com tokens visuais do manifesto.
+
 
