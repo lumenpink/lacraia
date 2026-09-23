@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (tooling) implement automated demo launcher script (closes #20)
   - (server) auto‑increment port if occupied (#12)
 
 ## Previous Releases
