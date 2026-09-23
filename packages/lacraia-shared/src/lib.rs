@@ -8,5 +8,5 @@ pub use lrc::{parse_lrc, LyricLine};
 pub use models::{CabinInfo, PassengerInfo, PlaybackState, Role, Track};
 pub use protocol::{
     CabinLockedNotification, Command, CommandAction, CrewUpdate, EjectedNotification,
-    PlaybackDetails, StatePayload, StateUpdate, WsMessage,
+    PlaybackDetails, QueueItem, StatePayload, StateUpdate, WsMessage,
 };

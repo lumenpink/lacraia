@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (app) implement lookahead queue deck and sanitize websocket protocol (fixes #8)
   - (app) add standalone web cockpit at /app and unified start script (fixes #7)
   - (android) implement multi-module workspace with lacraia-app and simbiotyka production apks (#27)
   - (site) add download hub for android apk, desktop linux, and core daemon (#26)

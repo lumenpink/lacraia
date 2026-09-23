@@ -45,6 +45,21 @@ pub struct StateUpdate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct QueueItem {
+    pub id: i64,
+    #[serde(rename = "trackId")]
+    pub track_id: String,
+    pub title: String,
+    pub artist: String,
+    #[serde(rename = "durationMs")]
+    pub duration_ms: u64,
+    pub position: i64,
+    pub state: String,
+    #[serde(rename = "requestedBy", default)]
+    pub requested_by: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StatePayload {
     pub track: Option<Track>,
     pub playback: PlaybackDetails,
@@ -54,6 +69,8 @@ pub struct StatePayload {
     pub cabin_id: Option<String>,
     #[serde(rename = "isLocked", default)]
     pub is_locked: Option<bool>,
+    #[serde(default)]
+    pub queue: Vec<QueueItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -86,6 +103,10 @@ pub enum CommandAction {
         track_id: String,
         #[serde(rename = "requestedBy", default)]
         requested_by: Option<String>,
+    },
+    QueueRemove {
+        #[serde(rename = "queueId")]
+        queue_id: i64,
     },
     LockCabin {
         locked: bool,
@@ -123,6 +144,7 @@ mod tests {
                 has_lrc: true,
                 cabin_id: Some("van-furacao".into()),
                 is_locked: Some(false),
+                queue: vec![],
             },
         });
 
@@ -175,6 +197,16 @@ mod tests {
                 }
             ),
             _ => panic!("Expected QueueAppend"),
+        }
+
+        let json_remove = r#"{"type":"COMMAND","payload":{"action":"QUEUE_REMOVE","queueId":42}}"#;
+        let msg_remove: WsMessage = serde_json::from_str(json_remove).unwrap();
+        match msg_remove {
+            WsMessage::Command(cmd) => assert_eq!(
+                cmd.payload,
+                CommandAction::QueueRemove { queue_id: 42 }
+            ),
+            _ => panic!("Expected QueueRemove"),
         }
     }
 

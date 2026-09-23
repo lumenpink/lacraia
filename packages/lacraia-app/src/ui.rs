@@ -126,6 +126,7 @@ pub struct PlayerState {
     pub is_ejected: bool,
     pub ejection_reason: Option<String>,
     pub show_qr_modal: bool,
+    pub queue: Vec<lacraia_shared::QueueItem>,
 }
 
 impl Default for PlayerState {
@@ -150,6 +151,7 @@ impl Default for PlayerState {
             is_ejected: false,
             ejection_reason: None,
             show_qr_modal: false,
+            queue: vec![],
         }
     }
 }
@@ -170,6 +172,7 @@ impl PlayerState {
                 if let Some(locked) = payload.is_locked {
                     self.is_locked = locked;
                 }
+                self.queue = payload.queue;
             }
             WsMessage::CrewUpdate(crew_update) => {
                 self.cabin_id = crew_update.cabin_id;
@@ -311,6 +314,7 @@ mod tests {
                 has_lrc: true,
                 cabin_id: Some("van-furacao".into()),
                 is_locked: Some(false),
+                queue: vec![],
             },
         });
 

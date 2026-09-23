@@ -332,6 +332,21 @@ impl Database {
 
         let next_pos = max_pos.map(|p| p + 1).unwrap_or(0);
 
+        // Ensure track exists in tracks table to satisfy foreign key constraint
+        let (def_artist, def_title) = if let Some((a, t)) = track_id.split_once(':') {
+            (a.trim().to_string(), t.trim().to_string())
+        } else {
+            ("Desconhecido".to_string(), track_id.to_string())
+        };
+
+        conn.execute(
+            r#"
+            INSERT OR IGNORE INTO tracks (id, artist, title, duration_sec, cached_path, genres, last_played_at)
+            VALUES (?1, ?2, ?3, 210, NULL, NULL, NULL)
+            "#,
+            params![track_id, def_artist, def_title],
+        )?;
+
         conn.execute(
             r#"
             INSERT INTO queue (track_id, position, state, created_at, cabin_id, requested_by)
@@ -341,6 +356,15 @@ impl Database {
         )?;
 
         Ok(conn.last_insert_rowid())
+    }
+
+    pub fn remove_queue_entry(&self, id: i64, cabin_id: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute(
+            "DELETE FROM queue WHERE id = ?1 AND cabin_id = ?2",
+            params![id, cabin_id],
+        )?;
+        Ok(affected > 0)
     }
 
     pub fn get_queue(&self) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
@@ -354,7 +378,7 @@ impl Database {
             SELECT q.id, q.track_id, q.position, q.state, q.created_at, q.cabin_id, q.requested_by,
                    t.artist, t.title, t.duration_sec, t.cached_path, t.genres, t.last_played_at
             FROM queue q
-            JOIN tracks t ON t.id = q.track_id
+            LEFT JOIN tracks t ON t.id = q.track_id
             WHERE q.state != 'played' AND q.cabin_id = ?1
             ORDER BY q.position ASC
             "#,
@@ -362,10 +386,24 @@ impl Database {
 
         let rows = stmt.query_map(params![cabin_id], |row| {
             let state_str: String = row.get(3)?;
+            let track_id: String = row.get(1)?;
+            let opt_artist: Option<String> = row.get(7)?;
+            let opt_title: Option<String> = row.get(8)?;
+            let duration_sec: u64 = row.get::<_, Option<u64>>(9)?.unwrap_or(210);
+
+            let (def_artist, def_title) = if let Some((a, t)) = track_id.split_once(':') {
+                (a.to_string(), t.to_string())
+            } else {
+                ("Artista".to_string(), track_id.clone())
+            };
+
+            let artist = opt_artist.unwrap_or(def_artist);
+            let title = opt_title.unwrap_or(def_title);
+
             Ok((
                 QueueEntry {
                     id: row.get(0)?,
-                    track_id: row.get(1)?,
+                    track_id: track_id.clone(),
                     position: row.get(2)?,
                     state: QueueState::from_str(&state_str),
                     created_at: row.get(4)?,
@@ -373,10 +411,10 @@ impl Database {
                     requested_by: row.get(6)?,
                 },
                 TrackRecord {
-                    id: row.get(1)?,
-                    artist: row.get(7)?,
-                    title: row.get(8)?,
-                    duration_sec: row.get(9)?,
+                    id: track_id,
+                    artist,
+                    title,
+                    duration_sec,
                     cached_path: row.get(10)?,
                     genres: row.get(11)?,
                     last_played_at: row.get(12)?,

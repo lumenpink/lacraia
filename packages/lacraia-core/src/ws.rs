@@ -55,6 +55,21 @@ impl PlaybackHub {
         let cabin_id = self.cabin_id.lock().await.clone();
         let is_locked = self.db.is_cabin_locked(&cabin_id).unwrap_or(false);
 
+        let queue_entries = self.db.get_queue_for_cabin(&cabin_id).unwrap_or_default();
+        let queue: Vec<lacraia_shared::QueueItem> = queue_entries
+            .into_iter()
+            .map(|(q, t)| lacraia_shared::QueueItem {
+                id: q.id,
+                track_id: q.track_id,
+                title: t.title,
+                artist: t.artist,
+                duration_ms: t.duration_sec * 1000,
+                position: q.position,
+                state: q.state.as_str().to_string(),
+                requested_by: q.requested_by,
+            })
+            .collect();
+
         WsMessage::StateUpdate(StateUpdate {
             payload: StatePayload {
                 track,
@@ -66,6 +81,7 @@ impl PlaybackHub {
                 has_lrc: true,
                 cabin_id: Some(cabin_id),
                 is_locked: Some(is_locked),
+                queue,
             },
         })
     }
@@ -133,6 +149,11 @@ impl PlaybackHub {
             CommandAction::QueueAppend { track_id, requested_by } => {
                 if let Err(e) = self.db.enqueue_track_with_meta(&track_id, requested_by.as_deref(), &cabin_id) {
                     return Err(format!("Failed to enqueue track: {}", e));
+                }
+            }
+            CommandAction::QueueRemove { queue_id } => {
+                if let Err(e) = self.db.remove_queue_entry(queue_id, &cabin_id) {
+                    return Err(format!("Failed to remove track from queue: {}", e));
                 }
             }
             CommandAction::LockCabin { locked } => {

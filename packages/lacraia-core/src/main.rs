@@ -101,6 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
+        .route("/api/queue", get(handle_queue))
         .route("/api/cabin/join", post(handle_cabin_join))
         .route("/api/cabin/:id", get(handle_cabin_info))
         .route("/ws", get(ws_handler))
@@ -271,6 +272,35 @@ async fn handle_resolve(
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Stream resolution failed: {}", e),
+        )),
+    }
+}
+
+async fn handle_queue(
+    State(state): State<AppState>,
+    Query(params): Query<ws::WsParams>,
+) -> Result<Json<Vec<lacraia_shared::QueueItem>>, (StatusCode, String)> {
+    let cabin_id = params.cabin.unwrap_or_else(|| "default".to_string());
+    match state.db.get_queue_for_cabin(&cabin_id) {
+        Ok(entries) => {
+            let items: Vec<lacraia_shared::QueueItem> = entries
+                .into_iter()
+                .map(|(q, t)| lacraia_shared::QueueItem {
+                    id: q.id,
+                    track_id: q.track_id,
+                    title: t.title,
+                    artist: t.artist,
+                    duration_ms: t.duration_sec * 1000,
+                    position: q.position,
+                    state: q.state.as_str().to_string(),
+                    requested_by: q.requested_by,
+                })
+                .collect();
+            Ok(Json(items))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to retrieve queue: {}", e),
         )),
     }
 }

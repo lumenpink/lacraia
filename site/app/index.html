@@ -496,6 +496,90 @@
       line-height: 1;
     }
 
+    /* Queue Deck Styling */
+    .queue-panel {
+      grid-column: 1 / -1;
+    }
+
+    .queue-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid var(--borda-chassi);
+      background: var(--asfalto-frio);
+      padding: 8px;
+    }
+
+    .queue-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: var(--ferro-bate-pedra);
+      border-left: 3px solid var(--fucsia-furacao);
+      gap: 12px;
+    }
+
+    .queue-item-pos {
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--fucsia-furacao);
+      min-width: 28px;
+    }
+
+    .queue-item-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .queue-item-title {
+      font-weight: bold;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .queue-item-meta {
+      font-size: 11px;
+      color: var(--chumbo);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .pill-cache {
+      font-size: 9px;
+      font-weight: 900;
+      padding: 1px 5px;
+      border-radius: 2px;
+      text-transform: uppercase;
+    }
+
+    .pill-cached {
+      background: rgba(57, 255, 20, 0.15);
+      border: 1px solid var(--veneno-eletrico);
+      color: var(--veneno-eletrico);
+    }
+
+    .pill-pending {
+      background: rgba(255, 183, 0, 0.15);
+      border: 1px solid var(--alerta-solavanco);
+      color: var(--alerta-solavanco);
+    }
+
+    .pill-playing {
+      background: rgba(255, 0, 85, 0.15);
+      border: 1px solid var(--fucsia-furacao);
+      color: var(--fucsia-furacao);
+    }
+
     /* Jukebox Enqueue */
     .enqueue-box {
       display: flex;
@@ -787,6 +871,21 @@
         </div>
       </div>
     </div>
+
+    <!-- Panel 03: Lookahead Queue Deck (Full Width) -->
+    <div class="cockpit-panel queue-panel">
+      <div class="panel-header">
+        <span>FILA DO PAREDÃO :: LOOKAHEAD QUEUE <span class="tag">#03</span></span>
+        <span id="queue-count-badge">0 FAIXAS NA FILA</span>
+      </div>
+      <div class="panel-body">
+        <div class="queue-container" id="queue-list-container">
+          <div style="font-size: 11px; color: var(--chumbo); padding: 12px; text-align: center;">
+            [ CARREGANDO FILA DE REPRODUÇÃO... ]
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Modal: QR Code Embarque -->
@@ -844,6 +943,7 @@
           { id: "p1", name: "@Mari", device: "Pixel 8", role: "PASSAGEIRO", track: "Águas de Março" },
           { id: "p2", name: "@Davi", device: "iPhone 14", role: "PASSAGEIRO", track: "Chega de Saudade" }
         ],
+        queue: [],
         station: "MPB & Samba",
         wsConnected: false
       };
@@ -874,6 +974,8 @@
       const doorBtnText = document.getElementById("door-btn-text");
       const crewList = document.getElementById("crew-list");
       const crewCount = document.getElementById("crew-count");
+      const queueListContainer = document.getElementById("queue-list-container");
+      const queueCountBadge = document.getElementById("queue-count-badge");
       const btnEjectAll = document.getElementById("btn-eject-all");
       const btnOpenQr = document.getElementById("btn-open-qr");
       const btnCloseQr = document.getElementById("btn-close-qr");
@@ -971,6 +1073,73 @@
           crewList.appendChild(item);
         });
 
+        // Queue Deck Rendering
+        if (queueListContainer && queueCountBadge) {
+          const qLen = state.queue.length;
+          queueCountBadge.textContent = `${qLen} ${qLen === 1 ? 'FAIXA NA FILA' : 'FAIXAS NA FILA'}`;
+          queueListContainer.innerHTML = "";
+          if (qLen === 0) {
+            const emptyDiv = document.createElement("div");
+            emptyDiv.style.cssText = "font-size: 11px; color: var(--chumbo); padding: 14px; text-align: center;";
+            emptyDiv.textContent = "[ FILA LIVRE :: O GRAFO DE AFINIDADE ALIMENTARÁ A PRÓXIMA FAIXA ]";
+            queueListContainer.appendChild(emptyDiv);
+          } else {
+            state.queue.forEach((item, idx) => {
+              const row = document.createElement("div");
+              row.className = "queue-item-row";
+
+              const posSpan = document.createElement("span");
+              posSpan.className = "queue-item-pos";
+              posSpan.textContent = `#${String(idx + 1).padStart(2, '0')}`;
+              row.appendChild(posSpan);
+
+              const infoDiv = document.createElement("div");
+              infoDiv.className = "queue-item-info";
+
+              const titleSpan = document.createElement("span");
+              titleSpan.className = "queue-item-title";
+              titleSpan.textContent = item.title;
+
+              const metaSpan = document.createElement("span");
+              metaSpan.className = "queue-item-meta";
+              metaSpan.innerHTML = `<span>${item.artist}</span> &bull; <span>${formatTime(item.durationMs || item.duration_ms || 0)}</span>`;
+
+              const req = item.requestedBy || item.requested_by;
+              if (req) {
+                const reqSpan = document.createElement("span");
+                reqSpan.style.color = "var(--alerta-solavanco)";
+                reqSpan.style.fontWeight = "bold";
+                reqSpan.textContent = `[ ${req} ]`;
+                metaSpan.appendChild(reqSpan);
+              }
+
+              infoDiv.appendChild(titleSpan);
+              infoDiv.appendChild(metaSpan);
+              row.appendChild(infoDiv);
+
+              // Cache status pill
+              const cachePill = document.createElement("span");
+              const st = (item.state || "pending").toLowerCase();
+              cachePill.className = `pill-cache ${st === 'cached' ? 'pill-cached' : (st === 'playing' ? 'pill-playing' : 'pill-pending')}`;
+              cachePill.textContent = st === 'cached' ? '⚡ CACHED' : (st === 'playing' ? '▶ PLAYING' : '⏳ PENDING');
+              row.appendChild(cachePill);
+
+              // Remove button for Pilot
+              if (state.role === "PILOTO") {
+                const removeBtn = document.createElement("button");
+                removeBtn.className = "btn btn-danger";
+                removeBtn.style.cssText = "padding: 2px 7px; font-size: 11px; line-height: 1;";
+                removeBtn.textContent = "✕";
+                removeBtn.title = `Remover ${item.title} da fila`;
+                removeBtn.onclick = () => removeQueueItem(item.id);
+                row.appendChild(removeBtn);
+              }
+
+              queueListContainer.appendChild(row);
+            });
+          }
+        }
+
         // MediaSession support for steering wheel controls & Android HUD
         if ("mediaSession" in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
@@ -1002,14 +1171,14 @@
       function togglePlayPause() {
         state.isPlaying = !state.isPlaying;
         renderState();
-        sendWsCommand({ type: state.isPlaying ? "Play" : "Pause" });
+        sendWsCommand({ action: state.isPlaying ? "PLAY" : "PAUSE" });
       }
 
       function nextTrack() {
         state.currentIndex = (state.currentIndex + 1) % DEMO_PLAYLIST.length;
         state.positionMs = 0;
         renderState();
-        sendWsCommand({ type: "Next" });
+        sendWsCommand({ action: "NEXT" });
       }
 
       function prevTrack() {
@@ -1020,13 +1189,13 @@
           state.positionMs = 0;
         }
         renderState();
-        sendWsCommand({ type: "Previous" });
+        sendWsCommand({ action: "PREVIOUS" });
       }
 
       function seekTo(pct) {
         state.positionMs = Math.floor(state.durationMs * pct);
         renderState();
-        sendWsCommand({ type: "Seek", position_ms: state.positionMs });
+        sendWsCommand({ action: "SEEK", positionMs: state.positionMs });
       }
 
       function setGain(val) {
@@ -1034,25 +1203,30 @@
         gainSlider.value = val;
         gainValDisplay.textContent = `${val}/11`;
         audio.volume = state.volume;
-        sendWsCommand({ type: "SetVolume", volume: state.volume });
       }
 
       function toggleDoors() {
         state.isLocked = !state.isLocked;
         renderState();
-        sendWsCommand({ type: state.isLocked ? "LockCabin" : "UnlockCabin" });
+        sendWsCommand({ action: "LOCK_CABIN", locked: state.isLocked });
       }
 
       function ejectPassenger(id) {
         state.crew = state.crew.filter(p => p.id !== id);
         renderState();
-        sendWsCommand({ type: "EjectPassenger", passenger_id: id });
+        sendWsCommand({ action: "EJECT_PASSENGER", passengerId: id });
       }
 
       function ejectAll() {
         state.crew = state.crew.filter(p => p.role === "PILOTO");
         renderState();
-        sendWsCommand({ type: "EjectAll" });
+        sendWsCommand({ action: "EJECT_ALL" });
+      }
+
+      function removeQueueItem(queueId) {
+        state.queue = state.queue.filter(item => item.id !== queueId);
+        renderState();
+        sendWsCommand({ action: "QUEUE_REMOVE", queueId: queueId });
       }
 
       // Event Listeners
@@ -1197,9 +1371,16 @@
 
       // WebSocket Hub Connection
       let ws = null;
-      let targetWsUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`;
-      if (location.protocol === 'file:' || location.host.includes('lacraia.2lp.in')) {
-        targetWsUrl = `ws://localhost:8080/ws`;
+      let isHttps = location.protocol === 'https:';
+      let targetWsUrl = `${isHttps ? 'wss:' : 'ws:'}//${location.host}/ws`;
+      let targetHttpUrl = `${location.protocol}//${location.host}`;
+
+      if (location.protocol === 'file:') {
+        targetWsUrl = 'ws://localhost:8080/ws';
+        targetHttpUrl = 'http://localhost:8080';
+      } else if (location.host.includes('lacraia.2lp.in')) {
+        targetWsUrl = 'ws://localhost:8080/ws';
+        targetHttpUrl = 'http://localhost:8080';
       }
 
       function updateWsStatus(connected) {
@@ -1212,8 +1393,13 @@
         } else {
           wsBadge.className = "badge";
           wsDot.style.background = "var(--chumbo)";
-          wsText.textContent = "WS :: DEMO LOCAL";
-          coreUrlDisplay.textContent = `${targetWsUrl} (offline - fallback autônomo)`;
+          if (isHttps && targetWsUrl.startsWith('ws://')) {
+            wsText.textContent = "WS :: MODO LOCAL (HTTPS BLOQUEIA WS)";
+            coreUrlDisplay.innerHTML = `<span style="color:var(--alerta-solavanco);">Para conectar ao daemon local, acesse: <a href="http://localhost:8080/app/" style="color:var(--veneno-eletrico); text-decoration:underline;">http://localhost:8080/app/</a></span>`;
+          } else {
+            wsText.textContent = "WS :: RECONECTANDO...";
+            coreUrlDisplay.textContent = `${targetWsUrl} (offline - fallback autônomo)`;
+          }
         }
       }
 
@@ -1222,10 +1408,20 @@
           ws = new WebSocket(targetWsUrl);
           ws.onopen = () => {
             updateWsStatus(true);
+            // Fetch initial queue via REST fallback if needed
+            fetch(`${targetHttpUrl}/api/queue`)
+              .then(r => r.json())
+              .then(q => {
+                if (Array.isArray(q) && q.length > 0) {
+                  state.queue = q;
+                  renderState();
+                }
+              })
+              .catch(() => {});
           };
           ws.onclose = () => {
             updateWsStatus(false);
-            setTimeout(connectWs, 5000);
+            setTimeout(connectWs, 4000);
           };
           ws.onerror = () => {
             updateWsStatus(false);
@@ -1233,31 +1429,47 @@
           ws.onmessage = (event) => {
             try {
               const msg = JSON.parse(event.data);
-              if (msg.type === "StateUpdate" && msg.payload) {
+              const type = (msg.type || "").toUpperCase();
+              if (type === "STATE_UPDATE" && msg.payload) {
                 if (msg.payload.track) {
                   DEMO_PLAYLIST[state.currentIndex] = msg.payload.track;
                 }
-                if (msg.payload.is_locked !== undefined) {
-                  state.isLocked = msg.payload.is_locked;
+                if (msg.payload.playback) {
+                  state.positionMs = msg.payload.playback.positionMs || 0;
+                  state.isPlaying = (msg.payload.playback.state || "").toUpperCase() === "PLAYING";
+                }
+                if (msg.payload.isLocked !== undefined) {
+                  state.isLocked = msg.payload.isLocked;
+                }
+                if (msg.payload.queue && Array.isArray(msg.payload.queue)) {
+                  state.queue = msg.payload.queue;
                 }
                 renderState();
-              } else if (msg.type === "CrewUpdate") {
+              } else if (type === "CREW_UPDATE") {
                 state.crew = msg.passengers || state.crew;
-                state.isLocked = msg.is_locked !== undefined ? msg.is_locked : state.isLocked;
+                if (msg.isLocked !== undefined) state.isLocked = msg.isLocked;
                 renderState();
-              } else if (msg.type === "Ejected") {
+              } else if (type === "EJECTED") {
                 ejectionScreen.classList.add("active");
+              } else if (type === "CABIN_LOCKED") {
+                state.isLocked = true;
+                renderState();
               }
-            } catch (err) {}
+            } catch (err) {
+              console.warn("WS message parse error:", err);
+            }
           };
         } catch (e) {
           updateWsStatus(false);
         }
       }
 
-      function sendWsCommand(cmd) {
+      function sendWsCommand(actionPayload) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ Command: cmd }));
+          ws.send(JSON.stringify({
+            type: "COMMAND",
+            payload: actionPayload
+          }));
         }
       }
 
