@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (app) implement brutalist cockpit ui with metamorphic chassis and knobs (closes #1)
   - (site) apply wall of sound visual identity and custom callouts (#1)
   - (app) rebrand hud to simbiotyka and migrate to multiplatform lacraia-app (closes #21)
   - (tooling) implement automated demo launcher script (closes #20)

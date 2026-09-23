@@ -3,12 +3,252 @@ pub mod ui;
 
 use dioxus::prelude::*;
 use lacraia_shared::{PlaybackState, Track};
-use ui::{format_time, PlayerState, QueueController};
+use ui::{format_gain_11, format_time, PlayerState, QueueController};
 
 fn main() {
     dioxus_logger::init(tracing::Level::INFO).expect("failed to init logger");
     dioxus::launch(App);
 }
+
+const BRUTALIST_CSS: &str = r#"
+:root {
+  --madeira-compensado:     #2b1d14;
+  --madeira-veios:          #1f140e;
+  --ferro-bate-pedra:       #151618;
+  --ferro-painel:           #1f2126;
+  --metal-cantoneira:       #42464e;
+  --fucsia-furacao:         #ff0055;
+  --cetim-magenta:          #d80064;
+  --glitter-roxo:           #8000ff;
+  --veneno-eletrico:        #d4ff00;
+  --alta-voltagem:          #ffb700;
+  --fio-massa-verde:        #00ff66;
+  --curto-circuito:         #ff2200;
+  --papel-mimeografo:       #e8e6df;
+  --tinta-carimbo:          #0a0a0b;
+  --grafite-mono:           #8a909a;
+}
+
+body {
+  margin: 0;
+  background-color: var(--ferro-bate-pedra);
+  color: var(--papel-mimeografo);
+  font-family: 'JetBrains Mono', monospace, sans-serif;
+}
+
+.chassis-app {
+  max-width: 900px;
+  margin: 1.5rem auto;
+  background: var(--ferro-painel);
+  border: 3px solid var(--metal-cantoneira);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+}
+
+.chassis-header {
+  background: var(--ferro-bate-pedra);
+  border-bottom: 3px solid var(--metal-cantoneira);
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.badge-lambe {
+  background: var(--fucsia-furacao);
+  color: #000;
+  padding: 0.2rem 0.5rem;
+  font-weight: 800;
+  display: inline-block;
+  transform: rotate(-1.5deg);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.fita-isolante {
+  height: 10px;
+  background: repeating-linear-gradient(45deg, var(--veneno-eletrico), var(--veneno-eletrico) 10px, #000 10px, #000 20px);
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+}
+
+.cockpit-body {
+  padding: 1.5rem;
+}
+
+.station-panel {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  align-items: center;
+}
+
+.station-btn {
+  background: var(--ferro-bate-pedra);
+  color: var(--papel-mimeografo);
+  border: 1px solid var(--metal-cantoneira);
+  padding: 0.4rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transform: rotate(-0.5deg);
+  transition: all 0.1s;
+}
+
+.station-btn.active {
+  background: var(--veneno-eletrico);
+  color: #000;
+  font-weight: 800;
+  border-color: #000;
+  transform: rotate(1deg);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.metamero-main {
+  background: var(--ferro-bate-pedra);
+  border: 2px solid var(--metal-cantoneira);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.track-display {
+  margin-bottom: 1.5rem;
+}
+
+.track-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-shadow: 2px 2px 0 var(--cetim-magenta);
+}
+
+.track-artist {
+  font-size: 1.1rem;
+  color: var(--veneno-eletrico);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.progress-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+}
+
+.progress-track {
+  flex: 1;
+  height: 12px;
+  background: #000;
+  border: 1px solid var(--metal-cantoneira);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--fucsia-furacao);
+}
+
+.transport-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.switch-btn {
+  background: var(--ferro-painel);
+  color: var(--papel-mimeografo);
+  border: 2px solid var(--metal-cantoneira);
+  padding: 0.75rem 1.5rem;
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #000;
+  transition: all 0.1s;
+}
+
+.switch-btn:hover {
+  border-color: var(--veneno-eletrico);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #000;
+}
+
+.switch-btn.play-toggle {
+  background: var(--fucsia-furacao);
+  color: #000;
+  transform: rotate(-1.5deg);
+  border-color: #000;
+}
+
+.switch-btn.play-toggle:hover {
+  background: var(--veneno-eletrico);
+}
+
+.potentiometer-box {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #0d0e11;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid var(--metal-cantoneira);
+}
+
+.potentiometer-box input[type="range"] {
+  flex: 1;
+  accent-color: var(--fucsia-furacao);
+}
+
+.gain-badge {
+  background: var(--alta-voltagem);
+  color: #000;
+  padding: 0.2rem 0.5rem;
+  font-weight: 800;
+  font-size: 0.85rem;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.queue-section {
+  background: var(--ferro-bate-pedra);
+  border: 2px solid var(--metal-cantoneira);
+  padding: 1.25rem;
+}
+
+.queue-header {
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--veneno-eletrico);
+  margin-bottom: 0.75rem;
+}
+
+.queue-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px dashed var(--metal-cantoneira);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.queue-item:hover {
+  background: rgba(212, 255, 0, 0.08);
+}
+
+.queue-item.active {
+  background: rgba(255, 0, 85, 0.15);
+  border-left: 4px solid var(--fucsia-furacao);
+  font-weight: 700;
+}
+"#;
 
 #[component]
 fn App() -> Element {
@@ -74,11 +314,10 @@ fn App() -> Element {
     let dur_ms = player_state.read().duration_ms;
     let progress_pct = player_state.read().progress_pct();
     let current_vol = player_state.read().volume;
-    let vol_pct = (current_vol * 100.0) as u32;
+    let gain_11 = format_gain_11(current_vol);
     let formatted_pos = format_time(pos_ms);
     let formatted_dur = format_time(dur_ms);
-    let play_icon = if is_playing { "⏸" } else { "▶" };
-    let play_label = if is_playing { "Pausar" } else { "Reproduzir" };
+    let play_icon = if is_playing { "⏸ PAUSAR" } else { "▶ TOCAR" };
     let active_station = player_state.read().active_station.clone();
     let available_stations = player_state.read().available_stations.clone();
 
@@ -118,16 +357,27 @@ fn App() -> Element {
     let current_index = queue_controller.read().current_index();
 
     rsx! {
-        div { class: "app-container automotive-theme",
-            header { class: "player-header",
-                h1 { "La Craia" }
-                p { class: "tagline", "Áudio & HUD Veicular Descentralizado" }
+        style { "{BRUTALIST_CSS}" }
+
+        div { class: "chassis-app",
+            // Barra superior do chassi
+            div { class: "chassis-header",
+                div {
+                    span { class: "badge-lambe", "LA CRAIA :: COCKPIT" }
+                    span { style: "margin-left: 0.5rem; color: var(--grafite-mono);", "PAREDÃO & SIMBIÓTYKA" }
+                }
+                div { style: "display: flex; gap: 0.75rem; align-items: center;",
+                    span { style: "color: var(--fio-massa-verde);", "● STATUS: OK" }
+                    span { class: "gain-badge", "GANHO: {gain_11}/11" }
+                }
             }
 
-            // Station Selector
-            div { class: "station-picker",
-                span { class: "station-label", "Estação:" }
-                div { class: "station-buttons",
+            div { class: "fita-isolante" }
+
+            div { class: "cockpit-body",
+                // Seletor de estações em fita crepe
+                div { class: "station-panel",
+                    span { style: "font-weight: 800; color: var(--veneno-eletrico); font-size: 0.85rem;", "[ ESTAÇÃO ]:" }
                     for station in available_stations {
                         button {
                             key: "{station}",
@@ -142,87 +392,89 @@ fn App() -> Element {
                         }
                     }
                 }
-            }
 
-            main { class: "player-card",
-                div { class: "track-info",
-                    h2 { class: "track-title", "{current_title}" }
-                    p { class: "track-artist", "{current_artist}" }
-                }
+                // Metâmero Principal (Cabine de Reprodução)
+                div { class: "metamero-main",
+                    div { class: "track-display",
+                        div { class: "track-title", "{current_title}" }
+                        div { class: "track-artist", "{current_artist}" }
+                    }
 
-                // Progress Bar
-                div { class: "progress-container",
-                    span { class: "time-label", "{formatted_pos}" }
-                    div { class: "progress-bar-bg",
-                        div {
-                            class: "progress-bar-fill",
-                            style: "width: {progress_pct}%",
+                    // Fita de progresso
+                    div { class: "progress-strip",
+                        span { "{formatted_pos}" }
+                        div { class: "progress-track",
+                            div {
+                                class: "progress-fill",
+                                style: "width: {progress_pct}%",
+                            }
+                        }
+                        span { "{formatted_dur}" }
+                    }
+
+                    // Chaves mecânicas de controle
+                    div { class: "transport-controls",
+                        button {
+                            class: "switch-btn",
+                            style: "transform: rotate(-1.5deg);",
+                            onclick: previous_track,
+                            "⏮ ANTERIOR"
+                        }
+                        button {
+                            class: "switch-btn play-toggle",
+                            onclick: toggle_playback,
+                            "{play_icon}"
+                        }
+                        button {
+                            class: "switch-btn",
+                            style: "transform: rotate(1deg);",
+                            onclick: next_track,
+                            "PRÓXIMA ⏭"
                         }
                     }
-                    span { class: "time-label", "{formatted_dur}" }
-                }
 
-                // Playback Controls
-                div { class: "controls",
-                    button {
-                        class: "control-btn",
-                        aria_label: "Faixa anterior",
-                        onclick: previous_track,
-                        "⏮"
-                    }
-                    button {
-                        class: "control-btn play-btn",
-                        aria_label: "{play_label}",
-                        onclick: toggle_playback,
-                        "{play_icon}"
-                    }
-                    button {
-                        class: "control-btn",
-                        aria_label: "Próxima faixa",
-                        onclick: next_track,
-                        "⏭"
-                    }
-                }
-
-                // Volume slider
-                div { class: "volume-container",
-                    span { class: "volume-icon", "🔊" }
-                    input {
-                        r#type: "range",
-                        min: "0",
-                        max: "100",
-                        value: "{vol_pct}",
-                        oninput: move |evt| {
-                            if let Ok(val) = evt.value().parse::<f64>() {
-                                player_state.write().set_volume(val / 100.0);
-                            }
-                        },
-                    }
-                    span { class: "volume-value", "{vol_pct}%" }
-                }
-            }
-
-            // Up Next Queue Section
-            section { class: "queue-card",
-                h3 { class: "queue-title", "Fila de Reprodução" }
-                ul { class: "queue-list",
-                    for (idx, track) in queue_tracks.into_iter().enumerate() {
-                        li {
-                            key: "{track.id}",
-                            class: if current_index == Some(idx) { "queue-item active" } else { "queue-item" },
-                            onclick: move |_| {
-                                let mut qc = queue_controller.write();
-                                if let Some(selected) = qc.select_track(idx).cloned() {
-                                    let mut ps = player_state.write();
-                                    ps.current_track = Some(selected.clone());
-                                    ps.duration_ms = selected.duration_ms;
-                                    ps.position_ms = 0;
-                                    ps.playback_state = PlaybackState::Playing;
+                    // Potenciômetro de ganho até 11
+                    div { class: "potentiometer-box",
+                        span { style: "font-weight: 800; color: var(--alta-voltagem); font-size: 0.8rem;", "POTENCIÔMETRO (0-11):" }
+                        input {
+                            r#type: "range",
+                            min: "0",
+                            max: "100",
+                            value: "{(current_vol * 100.0) as u32}",
+                            oninput: move |evt| {
+                                if let Ok(val) = evt.value().parse::<f64>() {
+                                    player_state.write().set_volume(val / 100.0);
                                 }
                             },
-                            span { class: "queue-item-title", "{track.title}" }
-                            span { class: "queue-item-artist", "{track.artist}" }
-                            span { class: "queue-item-duration", "{format_time(track.duration_ms)}" }
+                        }
+                        span { class: "gain-badge",
+                            if gain_11 >= 11 { "11 (PICO MÁXIMO!)" } else { "{gain_11}" }
+                        }
+                    }
+                }
+
+                // Metâmero de Fila
+                div { class: "queue-section",
+                    div { class: "queue-header", "[ METÂMEROS DA FILA ]" }
+                    div {
+                        for (idx, track) in queue_tracks.into_iter().enumerate() {
+                            div {
+                                key: "{track.id}",
+                                class: if current_index == Some(idx) { "queue-item active" } else { "queue-item" },
+                                onclick: move |_| {
+                                    let mut qc = queue_controller.write();
+                                    if let Some(selected) = qc.select_track(idx).cloned() {
+                                        let mut ps = player_state.write();
+                                        ps.current_track = Some(selected.clone());
+                                        ps.duration_ms = selected.duration_ms;
+                                        ps.position_ms = 0;
+                                        ps.playback_state = PlaybackState::Playing;
+                                    }
+                                },
+                                span { "[SEG.0{idx + 1}] {track.title}" }
+                                span { style: "color: var(--veneno-eletrico);", "{track.artist}" }
+                                span { style: "color: var(--grafite-mono);", "{format_time(track.duration_ms)}" }
+                            }
                         }
                     }
                 }

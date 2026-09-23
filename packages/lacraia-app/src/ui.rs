@@ -20,6 +20,12 @@ pub fn clamp_volume(volume: f64) -> f64 {
     }
 }
 
+/// Formats volume float (0.0 to 1.0) into the legendary 0 to 11 gain scale
+pub fn format_gain_11(volume: f64) -> u32 {
+    let clamped = clamp_volume(volume);
+    (clamped * 11.0).round() as u32
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct QueueController {
     queue: Vec<Track>,
@@ -285,5 +291,14 @@ mod tests {
 
         state.select_station("Synthwave Drive".to_string());
         assert_eq!(state.active_station, "Synthwave Drive");
+    }
+
+    #[test]
+    fn test_format_gain_11() {
+        assert_eq!(format_gain_11(0.0), 0);
+        assert_eq!(format_gain_11(1.0), 11);
+        assert_eq!(format_gain_11(0.5), 6);
+        assert_eq!(format_gain_11(1.5), 11);
+        assert_eq!(format_gain_11(-0.5), 0);
     }
 }
