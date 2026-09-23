@@ -227,7 +227,7 @@ PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite
 ```
 
 > ✨ **[ O PULO DA TRAVESTI ]**  
-> Para orquestrar o backend com banco populado, fila antecipada engatada e o navegador aberto no painel de controle com uma única instrução, basta disparar `./demo.sh --open`.
+> Para orquestrar o backend com banco populado, fila antecipada engatada e o reprodutor web do cockpit automotivo aberto no navegador em `/app` com uma única instrução, basta disparar `./start.sh --open`.
 
 
 

@@ -172,11 +172,13 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 ---
 
 ### Ticket #7: Cockpit Web em `/app` e Script Orquestrador de Execução
-* **Package:** `site`, Workspace scripts
+* **Package:** `site`, `packages/lacraia-core`, Workspace scripts
 * **Goal:** Publicar a versão Web/PWA do La Craia no endereço `/app` do site e fornecer script unificado de inicialização para o daemon core e a interface web.
 * **Acceptance Criteria:**
-  - **Cockpit Web em `/app` (`site/app/index.html`):** Interface completa de reprodução, cockpit, cabines, alavanca de ejeção e jukebox acessível diretamente via navegador em `https://lacraia.2lp.in/app` com suporte PWA.
-  - **Script Orquestrador (`start.sh`):** Inicialização combinada de `lacraia-core` e servidor web local com auto-seed, verificação de portas e opção `--open` para navegador.
+  - **Cockpit Web em `/app` (`site/app/index.html`):** Interface completa de reprodução, cockpit, cabines, alavanca de ejeção e jukebox acessível diretamente via navegador em `https://lacraia.2lp.in/app` com suporte PWA (`manifest.json`), visualizador neon de 32 barras e integração com MediaSession API.
+  - **Fallback Estático no Core (`packages/lacraia-core`):** Roteador Axum configurado com `fallback_service` para servir arquivos do diretório `site/` (incluindo `/app/`), permitindo operação integrada em uma única porta.
+  - **Script Orquestrador (`start.sh`):** Inicialização combinada de `lacraia-core` e servidor web local com auto-seed, migração de colunas da fila, verificação de portas e opção `--open` para navegador.
+  - **Hub de Downloads e Painel Superior (`site/index.html`):** Adicionado botão de acesso instantâneo `[ ABRIR COCKPIT WEB ]` na bancada de embarque e atalho no painel superior.
 
 
 
