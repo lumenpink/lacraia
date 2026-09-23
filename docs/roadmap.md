@@ -52,4 +52,25 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
 * **Acceptance Criteria:**
   - Battery broadcast receiver monitoring charging state and level (< 20%).
   - Drops lyric ticker interval from 200ms to 1000ms.
-  - Disables TextSwitcher slide animations in favor of static text updates. 
+  - Disables TextSwitcher slide animations in favor of static text updates.
+
+---
+
+### Ticket #19: Upgrade Workspace to Rust Edition 2024 and Dioxus 0.7
+* **Package:** Workspace-wide (`lacraia-shared`, `lacraia-core`, `lacraia-web`)
+* **Goal:** Migrate monorepo crates to Rust Edition 2024 and upgrade Dioxus framework to version 0.7 once published / stabilized.
+* **Acceptance Criteria:**
+  - Update `[workspace.package] edition = "2024"` in `Cargo.toml`.
+  - Bump Dioxus dependency to `0.7` in `packages/lacraia-web/Cargo.toml` and adapt UI signals/lifecycle hooks.
+  - Ensure `cargo test --workspace` and `cargo check --workspace` pass cleanly without deprecations.
+
+---
+
+### Ticket #20: Automated Cockpit Demo Launcher Script (`demo.sh`)
+* **Package:** Root repository tooling (`demo.sh`)
+* **Goal:** Provide an automated one-command orchestration script to spin up the `lacraia-core` daemon, initialize the SQLite database, serve the web player preview, and perform health probes.
+* **Acceptance Criteria:**
+  - Create executable `demo.sh` supporting `-p / --port`, `-o / --open`, and `--seed`.
+  - Auto-probe port availability and start `lacraia-core` with lookahead queue daemon.
+  - Handle cleanup trap (`SIGINT` / `SIGTERM`) to kill spawned background processes cleanly.
+  - Print cockpit dashboard URLs and live WebSocket status. 
