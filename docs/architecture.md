@@ -163,3 +163,29 @@ The automotive frontend is optimized for driver touch targets and cockpit displa
    * Configured as standalone web application (`display: "standalone"`) with automotive categories.
    * Service worker caches core application shell (`/`, `/manifest.json`, `/index.html`) while streaming requests (`/stream/*`) and WebSocket traffic pass through dynamically.
 
+---
+
+## 9. Daemon Execution & Deployment Configuration (`lacraia-core`)
+
+`lacraia-core` is managed as an asynchronous daemon service on the host:
+
+### Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | HTTP & WebSocket server port | `8080` |
+| `LACRAIA_CACHE_DIR` | Directory for resolved Opus audio files | `./cache` |
+| `LACRAIA_DB_PATH` | Path to the SQLite storage file | `./lacraia.sqlite` |
+| `LASTFM_API_KEY` | Optional Last.fm API credential for similarity graph lookups | *None (falls back to MetaBrainz)* |
+
+### Service Startup
+
+```bash
+# Standard launch
+cargo run -p lacraia-core
+
+# Custom port and production cache paths
+PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite cargo run -p lacraia-core
+```
+
+

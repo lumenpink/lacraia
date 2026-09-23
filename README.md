@@ -54,6 +54,16 @@ cargo test --workspace
 cargo clippy --workspace
 ```
 
+### Running Services
+
+```bash
+# Start backend daemon (default port: 8080)
+cargo run -p lacraia-core
+
+# Start backend on a custom port and directories
+PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite cargo run -p lacraia-core
+```
+
 ---
 
 ## Continuous Integration & Deployment
