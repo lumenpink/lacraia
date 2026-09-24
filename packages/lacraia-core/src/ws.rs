@@ -248,9 +248,19 @@ impl PlaybackHub {
                     }
                 }
 
-                // Periodic telemetry heartbeat broadcast
-                let update = self.build_state_update().await;
-                let _ = self.tx.send(update);
+                // Broadcast state update to active cabins and default
+                let mut cabin_ids = vec!["default".to_string()];
+                if let Ok(cabins) = self.db.list_cabins() {
+                    for c in cabins {
+                        if !cabin_ids.contains(&c.id) {
+                            cabin_ids.push(c.id);
+                        }
+                    }
+                }
+                for cid in cabin_ids {
+                    let update = self.build_state_update_for_cabin(&cid).await;
+                    let _ = self.tx.send(update);
+                }
             }
         })
     }
@@ -308,11 +318,24 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
         let _ = sender.send(Message::Text(json)).await;
     }
 
+    let cabin_id_for_send = cabin_id.clone();
     let mut send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
-            if let Ok(text) = serde_json::to_string(&msg) {
-                if sender.send(Message::Text(text)).await.is_err() {
-                    break;
+            let should_send = match &msg {
+                WsMessage::StateUpdate(s) => {
+                    s.payload.cabin_id.as_deref() == Some(&cabin_id_for_send)
+                }
+                WsMessage::CrewUpdate(c) => c.cabin_id == cabin_id_for_send,
+                WsMessage::Ejected(e) => e.cabin_id == cabin_id_for_send,
+                WsMessage::CabinLocked(l) => l.cabin_id == cabin_id_for_send,
+                WsMessage::Command(_) => false,
+            };
+
+            if should_send {
+                if let Ok(text) = serde_json::to_string(&msg) {
+                    if sender.send(Message::Text(text)).await.is_err() {
+                        break;
+                    }
                 }
             }
         }
@@ -495,6 +518,58 @@ mod tests {
                 assert!(e.reason.contains("piloto"));
             }
             _ => panic!("Expected Ejected message"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_playback_hub_cabin_queue_isolation() {
+        let db = Database::open_in_memory().unwrap();
+        let (tx, _rx) = broadcast::channel(10);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+
+        // Enqueue to cabin A
+        hub.dispatch_command_with_role(
+            CommandAction::QueueAppend {
+                track_id: "artist:song_a".into(),
+                requested_by: Some("@Tripulante A".into()),
+            },
+            "cabin_alpha",
+            Some(Role::Pilot),
+        )
+        .await
+        .unwrap();
+
+        // Enqueue to cabin B
+        hub.dispatch_command_with_role(
+            CommandAction::QueueAppend {
+                track_id: "artist:song_b".into(),
+                requested_by: Some("@Tripulante B".into()),
+            },
+            "cabin_beta",
+            Some(Role::Pilot),
+        )
+        .await
+        .unwrap();
+
+        let state_alpha = hub.build_state_update_for_cabin("cabin_alpha").await;
+        let state_beta = hub.build_state_update_for_cabin("cabin_beta").await;
+
+        match state_alpha {
+            WsMessage::StateUpdate(u) => {
+                assert_eq!(u.payload.cabin_id, Some("cabin_alpha".into()));
+                assert_eq!(u.payload.queue.len(), 1);
+                assert_eq!(u.payload.queue[0].title, "song_a");
+            }
+            _ => panic!("Expected StateUpdate for cabin_alpha"),
+        }
+
+        match state_beta {
+            WsMessage::StateUpdate(u) => {
+                assert_eq!(u.payload.cabin_id, Some("cabin_beta".into()));
+                assert_eq!(u.payload.queue.len(), 1);
+                assert_eq!(u.payload.queue[0].title, "song_b");
+            }
+            _ => panic!("Expected StateUpdate for cabin_beta"),
         }
     }
 }

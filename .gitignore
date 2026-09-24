@@ -32,4 +32,5 @@ cache/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+rustypipe_cache.json
 

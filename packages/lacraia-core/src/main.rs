@@ -66,8 +66,12 @@ pub struct RadioQuery {
 pub struct ResolveQuery {
     pub artist: String,
     pub title: String,
-    #[serde(rename = "expectedDurationSec")]
+    #[serde(alias = "expected_duration_sec", rename = "expectedDurationSec", default = "default_resolve_duration")]
     pub expected_duration_sec: u64,
+}
+
+fn default_resolve_duration() -> u64 {
+    210
 }
 
 #[tokio::main]
@@ -121,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/search", get(handle_search))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
-        .route("/api/queue", get(handle_queue))
+        .route("/api/queue", get(handle_queue).post(handle_queue_append))
         .route("/api/cabins", get(handle_list_cabins))
         .route("/api/cabin/create", post(handle_cabin_create))
         .route("/api/cabin/rotate-key", post(handle_cabin_rotate_key))
@@ -475,23 +479,43 @@ async fn handle_search(
 ) -> Result<Json<Vec<TrackSearchResult>>, (StatusCode, String)> {
     let term = params.q.unwrap_or_default();
     let limit = params.limit.unwrap_or(10).min(50);
-
-    let mut tracks = state.db.search_tracks(&term, limit).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Database search failed: {}", e),
-        )
-    })?;
-
-    // If query has at least 3 characters and doesn't match an existing title, synthesize an ad-hoc candidate
     let trimmed = term.trim();
-    if trimmed.len() >= 3 && !tracks.iter().any(|t| t.title.eq_ignore_ascii_case(trimmed)) {
+
+    if trimmed.is_empty() {
+        return Ok(Json(vec![]));
+    }
+
+    // 1. Search local SQLite catalog
+    let mut tracks = state.db.search_tracks(trimmed, limit).unwrap_or_default();
+
+    // 2. If fewer results than limit and query has at least 2 chars, query MusicBrainz / Last.fm
+    if tracks.len() < limit && trimmed.len() >= 2 {
+        let needed = limit.saturating_sub(tracks.len());
+        if let Ok(online_candidates) = state.similarity.search_tracks(trimmed, needed).await {
+            for c in online_candidates {
+                if !tracks.iter().any(|t| t.id == c.id) {
+                    tracks.push(crate::db::TrackRecord {
+                        id: c.id,
+                        artist: c.artist,
+                        title: c.title,
+                        duration_sec: c.duration_sec.unwrap_or(210),
+                        cached_path: None,
+                        genres: Some("jukebox".to_string()),
+                        last_played_at: None,
+                    });
+                }
+            }
+        }
+    }
+
+    // 3. If still empty and query has at least 3 characters, synthesize ad-hoc candidate
+    if tracks.is_empty() && trimmed.len() >= 3 {
         let (artist, title) = if let Some((a, b)) = trimmed.split_once(" - ") {
             (a.trim().to_string(), b.trim().to_string())
         } else if let Some((a, b)) = trimmed.split_once('-') {
             (a.trim().to_string(), b.trim().to_string())
         } else {
-            ("Desconhecido".to_string(), trimmed.to_string())
+            ("Tripulação".to_string(), trimmed.to_string())
         };
 
         if !title.is_empty() {
@@ -613,6 +637,42 @@ async fn handle_queue(
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to retrieve queue: {}", e),
+        )),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EnqueueRequest {
+    #[serde(alias = "trackId")]
+    pub track_id: String,
+    #[serde(alias = "requestedBy")]
+    pub requested_by: Option<String>,
+    #[serde(alias = "cabinId")]
+    pub cabin_id: Option<String>,
+}
+
+async fn handle_queue_append(
+    State(state): State<AppState>,
+    Json(payload): Json<EnqueueRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let cabin_id = payload.cabin_id.unwrap_or_else(|| "default".to_string());
+    match state.db.enqueue_track_with_meta(
+        &payload.track_id,
+        payload.requested_by.as_deref(),
+        &cabin_id,
+    ) {
+        Ok(queue_id) => {
+            let update = state.hub.build_state_update_for_cabin(&cabin_id).await;
+            let _ = state.hub.tx.send(update);
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "queueId": queue_id,
+                "cabinId": cabin_id
+            })))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to enqueue track: {}", e),
         )),
     }
 }

@@ -1458,8 +1458,8 @@
         targetWsUrl = 'ws://localhost:2011/ws';
         targetHttpUrl = 'http://localhost:2011';
       } else if (location.host === 'lacraia.2lp.in') {
-        targetWsUrl = 'ws://localhost:2011/ws';
-        targetHttpUrl = 'http://localhost:2011';
+        targetWsUrl = 'wss://mylacraia.2lp.in/ws';
+        targetHttpUrl = 'https://mylacraia.2lp.in';
       }
 
       // Dev Live-Reload Watcher: Polls /version
@@ -1760,8 +1760,22 @@
               cachePill.textContent = st === 'cached' ? '⚡ CACHED' : (st === 'playing' ? '▶ PLAYING' : '⏳ PENDING');
               row.appendChild(cachePill);
 
-              // Remove button for Pilot/Master
+              // Action buttons for Pilot/Master
               if (isPilotOrMaster()) {
+                const playBtn = document.createElement("button");
+                playBtn.className = "btn btn-main";
+                playBtn.style.cssText = "padding: 2px 7px; font-size: 11px; line-height: 1; margin-right: 4px;";
+                playBtn.textContent = "▶";
+                playBtn.title = `Tocar ${item.title} agora`;
+                playBtn.onclick = () => {
+                  state.currentTrack = item;
+                  state.isPlaying = true;
+                  syncAudioEngineWithTrack(item);
+                  sendWsCommand({ action: "PLAY" });
+                  renderState();
+                };
+                row.appendChild(playBtn);
+
                 const removeBtn = document.createElement("button");
                 removeBtn.className = "btn btn-danger";
                 removeBtn.style.cssText = "padding: 2px 7px; font-size: 11px; line-height: 1;";
@@ -1817,32 +1831,93 @@
         return false;
       }
 
+      let isResolvingAudio = false;
+
+      async function syncAudioEngineWithTrack(trk) {
+        if (!trk) return;
+        state.durationMs = trk.duration_ms || trk.durationMs || state.durationMs || 210000;
+
+        let streamUrl = trk.stream_url || trk.streamUrl;
+        if (streamUrl) {
+          const fullUrl = streamUrl.startsWith("http") ? streamUrl : `${targetHttpUrl}${streamUrl}`;
+          if (audio.src !== fullUrl) {
+            audio.src = fullUrl;
+            audio.load();
+            if (state.positionMs > 0 && !isNaN(audio.duration) && audio.duration > 0) {
+              audio.currentTime = state.positionMs / 1000;
+            }
+            if (state.isPlaying) {
+              audio.play().catch(e => console.warn("Audio autoplay blocked by browser:", e));
+            }
+          }
+        } else if (!isResolvingAudio) {
+          isResolvingAudio = true;
+          const art = trk.artist || "Artista";
+          const tit = trk.title || trk.id;
+          const durSec = Math.round((trk.duration_ms || 210000) / 1000);
+          showToast(`⚡ SINTONIZANDO ÁUDIO: ${tit.toUpperCase()}...`);
+          try {
+            const resp = await fetch(`${targetHttpUrl}/api/resolve?artist=${encodeURIComponent(art)}&title=${encodeURIComponent(tit)}&expected_duration_sec=${durSec}`);
+            if (resp.ok) {
+              const resData = await resp.json();
+              if (resData.stream_url) {
+                trk.stream_url = resData.stream_url;
+                const fullUrl = resData.stream_url.startsWith("http") ? resData.stream_url : `${targetHttpUrl}${resData.stream_url}`;
+                audio.src = fullUrl;
+                audio.load();
+                if (state.isPlaying) {
+                  audio.play().catch(e => console.warn("Auto-play blocked:", e));
+                }
+                showToast(`▶ REPRODUZINDO: ${tit.toUpperCase()}`);
+              }
+            }
+          } catch (e) {
+            console.warn("Resolve track error:", e);
+          } finally {
+            isResolvingAudio = false;
+          }
+        }
+      }
+
       function togglePlayPause() {
         state.isPlaying = !state.isPlaying;
         renderState();
         sendWsCommand({ action: state.isPlaying ? "PLAY" : "PAUSE" });
+
+        const trk = state.currentTrack || DEMO_PLAYLIST[state.currentIndex];
+        if (state.isPlaying) {
+          if (!audio.src || audio.src === "" || audio.src === window.location.href) {
+            syncAudioEngineWithTrack(trk);
+          } else {
+            audio.play().catch(e => {
+              console.warn("Playback prevented:", e);
+              syncAudioEngineWithTrack(trk);
+            });
+          }
+        } else {
+          audio.pause();
+        }
       }
 
       function nextTrack() {
-        state.currentIndex = (state.currentIndex + 1) % DEMO_PLAYLIST.length;
         state.positionMs = 0;
+        audio.pause();
         renderState();
         sendWsCommand({ action: "NEXT" });
       }
 
       function prevTrack() {
-        if (state.positionMs > 4000) {
-          state.positionMs = 0;
-        } else {
-          state.currentIndex = (state.currentIndex - 1 + DEMO_PLAYLIST.length) % DEMO_PLAYLIST.length;
-          state.positionMs = 0;
-        }
+        state.positionMs = 0;
+        audio.pause();
         renderState();
         sendWsCommand({ action: "PREVIOUS" });
       }
 
       function seekTo(pct) {
         state.positionMs = Math.floor(state.durationMs * pct);
+        if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+          audio.currentTime = (state.durationMs * pct) / 1000;
+        }
         renderState();
         sendWsCommand({ action: "SEEK", positionMs: state.positionMs });
       }
@@ -1853,6 +1928,19 @@
         gainValDisplay.textContent = `${val}/11`;
         audio.volume = state.volume;
       }
+
+      audio.addEventListener("timeupdate", () => {
+        if (state.isPlaying && !isNaN(audio.currentTime) && audio.currentTime > 0) {
+          state.positionMs = Math.floor(audio.currentTime * 1000);
+          renderState();
+        }
+      });
+
+      audio.addEventListener("ended", () => {
+        if (isPilotOrMaster()) {
+          nextTrack();
+        }
+      });
 
       function toggleDoors() {
         state.isLocked = !state.isLocked;
@@ -1998,6 +2086,20 @@
         }, 3500);
       }
 
+      async function syncQueue() {
+        try {
+          const cid = state.cabinId || 'default';
+          const resp = await fetch(`${targetHttpUrl}/api/queue?cabin=${encodeURIComponent(cid)}`);
+          if (resp.ok) {
+            const q = await resp.json();
+            if (Array.isArray(q)) {
+              state.queue = q;
+              renderState();
+            }
+          }
+        } catch (_) {}
+      }
+
       function enqueueCandidate(candidate) {
         const reqUser = state.role === "PILOTO" ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
 
@@ -2007,6 +2109,19 @@
           trackId: candidate.id,
           requestedBy: reqUser
         });
+
+        // Dual delivery: HTTP REST queue append to ensure instant database consistency
+        fetch(`${targetHttpUrl}/api/queue`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            trackId: candidate.id,
+            requestedBy: reqUser,
+            cabinId: state.cabinId || "default"
+          })
+        }).then(r => r.json()).then(() => {
+          syncQueue();
+        }).catch(() => {});
 
         // Optimistic local update / standalone demo fallback
         const existingIdx = state.queue.findIndex(item => (item.track_id || item.trackId) === candidate.id);
@@ -2048,7 +2163,31 @@
           const results = await resp.json();
           renderSearchResults(results, q);
         } catch (err) {
-          console.warn("Search HTTP query failed, falling back to local matches:", err);
+          console.warn("Search HTTP query failed, falling back to MusicBrainz / local matches:", err);
+          let foundOnline = [];
+          try {
+            const cleanQ = q.replace(/["\\]/g, "");
+            const mbUrl = `https://musicbrainz.org/ws/2/recording?query=recording:%22${encodeURIComponent(cleanQ)}%22^3%20OR%20artist:%22${encodeURIComponent(cleanQ)}%22^2%20OR%20%22${encodeURIComponent(cleanQ)}%22&fmt=json&limit=6`;
+            const mbResp = await fetch(mbUrl);
+            if (mbResp.ok) {
+              const mbData = await mbResp.json();
+              if (mbData.recordings && mbData.recordings.length > 0) {
+                foundOnline = mbData.recordings.map(r => ({
+                  id: `mb:${r.id}`,
+                  artist: r["artist-credit"] && r["artist-credit"][0] ? r["artist-credit"][0].name : "Desconhecido",
+                  title: r.title,
+                  durationSec: r.length ? Math.floor(r.length / 1000) : 210,
+                  cached: false
+                }));
+              }
+            }
+          } catch (_) {}
+
+          if (foundOnline.length > 0) {
+            renderSearchResults(foundOnline, q);
+            return;
+          }
+
           const term = q.toLowerCase();
           const localMatches = DEMO_PLAYLIST.filter(t =>
             t.title.toLowerCase().includes(term) || t.artist.toLowerCase().includes(term)
@@ -2478,8 +2617,10 @@
         url.searchParams.delete("key");
         window.history.replaceState({}, "", url);
 
+        state.queue = [];
         renderState();
         syncCabinInfo();
+        syncQueue();
         reconnectWs();
         showToast(`Sintonizado na cabine: ${state.cabinName.toUpperCase()}`);
       }
@@ -2680,16 +2821,7 @@
           ws = new WebSocket(finalWsUrl);
           ws.onopen = () => {
             updateWsStatus(true);
-            // Fetch initial queue via REST fallback if needed
-            fetch(`${targetHttpUrl}/api/queue`)
-              .then(r => r.json())
-              .then(q => {
-                if (Array.isArray(q) && q.length > 0) {
-                  state.queue = q;
-                  renderState();
-                }
-              })
-              .catch(() => {});
+            syncQueue();
           };
           ws.onclose = () => {
             updateWsStatus(false);
@@ -2704,12 +2836,28 @@
               const msg = JSON.parse(event.data);
               const type = (msg.type || "").toUpperCase();
               if (type === "STATE_UPDATE" && msg.payload) {
+                // Ignore state updates belonging to another cabin
+                if (msg.payload.cabinId && state.cabinId && msg.payload.cabinId !== state.cabinId) {
+                  return;
+                }
                 if (msg.payload.track) {
                   DEMO_PLAYLIST[state.currentIndex] = msg.payload.track;
+                  state.currentTrack = msg.payload.track;
+                  syncAudioEngineWithTrack(msg.payload.track);
                 }
                 if (msg.payload.playback) {
-                  state.positionMs = msg.payload.playback.positionMs || 0;
                   state.isPlaying = (msg.payload.playback.state || "").toUpperCase() === "PLAYING";
+                  if (msg.payload.playback.positionMs !== undefined && Math.abs((state.positionMs || 0) - msg.payload.playback.positionMs) > 2500) {
+                    state.positionMs = msg.payload.playback.positionMs;
+                    if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+                      audio.currentTime = state.positionMs / 1000;
+                    }
+                  }
+                  if (state.isPlaying && audio.paused && audio.src && audio.src !== window.location.href) {
+                    audio.play().catch(() => {});
+                  } else if (!state.isPlaying && !audio.paused) {
+                    audio.pause();
+                  }
                 }
                 if (msg.payload.isLocked !== undefined) {
                   state.isLocked = msg.payload.isLocked;

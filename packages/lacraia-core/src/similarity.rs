@@ -58,6 +58,80 @@ impl LastFmProvider {
             .unwrap_or_default();
         Self { client, api_key }
     }
+
+    pub async fn search_tracks(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SimilarityCandidate>, SimilarityError> {
+        let url = "https://ws.audioscrobbler.com/2.0/";
+        let resp = self
+            .client
+            .get(url)
+            .query(&[
+                ("method", "track.search"),
+                ("track", query),
+                ("api_key", &self.api_key),
+                ("format", "json"),
+                ("limit", &limit.to_string()),
+            ])
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            return Err(SimilarityError::Provider(format!(
+                "Last.fm track.search returned HTTP {}",
+                resp.status()
+            )));
+        }
+
+        let body: LastFmSearchResponse = resp.json().await?;
+        let tracks = body
+            .results
+            .and_then(|r| r.trackmatches)
+            .and_then(|tm| tm.track)
+            .unwrap_or_default();
+
+        let candidates = tracks
+            .into_iter()
+            .map(|t| {
+                let id = format!("{}:{}", t.artist.to_lowercase(), t.name.to_lowercase());
+                SimilarityCandidate {
+                    id,
+                    artist: t.artist,
+                    title: t.name,
+                    match_score: 0.9,
+                    mbid: t.mbid.filter(|s| !s.is_empty()),
+                    provider: "lastfm".to_string(),
+                    duration_sec: Some(210),
+                }
+            })
+            .collect();
+
+        Ok(candidates)
+    }
+}
+
+#[derive(Deserialize)]
+struct LastFmSearchResponse {
+    results: Option<LastFmSearchResults>,
+}
+
+#[derive(Deserialize)]
+struct LastFmSearchResults {
+    trackmatches: Option<LastFmTrackMatches>,
+}
+
+#[derive(Deserialize)]
+struct LastFmTrackMatches {
+    track: Option<Vec<LastFmSearchTrack>>,
+}
+
+#[derive(Deserialize)]
+struct LastFmSearchTrack {
+    name: String,
+    artist: String,
+    mbid: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -170,6 +244,60 @@ impl MetaBrainzProvider {
             .build()
             .unwrap_or_default();
         Self { client }
+    }
+
+    pub async fn search_tracks(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SimilarityCandidate>, SimilarityError> {
+        let clean = query.replace('"', "").replace('\\', "");
+        let query_str = format!("recording:\"{}\"^3 OR artist:\"{}\"^2 OR \"{}\"", clean, clean, clean);
+        let url = "https://musicbrainz.org/ws/2/recording";
+        let resp = self
+            .client
+            .get(url)
+            .query(&[("query", query_str.as_str()), ("fmt", "json"), ("limit", &limit.to_string())])
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            return Err(SimilarityError::Provider(format!(
+                "MusicBrainz returned HTTP {}",
+                resp.status()
+            )));
+        }
+
+        let body: MusicBrainzSearchResponse = resp.json().await?;
+        let recordings = body.recordings.unwrap_or_default();
+
+        let candidates = recordings
+            .into_iter()
+            .take(limit)
+            .map(|r| {
+                let artist_name = r
+                    .artist_credit
+                    .and_then(|ac| ac.into_iter().next())
+                    .map(|a| a.name)
+                    .unwrap_or_else(|| "Desconhecido".to_string());
+
+                let score = r.score.unwrap_or(80) as f64 / 100.0;
+                let duration_sec = r.length.map(|ms| ms / 1000);
+                let id = format!("{}:{}", artist_name.to_lowercase(), r.title.to_lowercase());
+
+                SimilarityCandidate {
+                    id,
+                    artist: artist_name,
+                    title: r.title,
+                    match_score: score,
+                    mbid: Some(r.id),
+                    provider: "metabrainz".to_string(),
+                    duration_sec,
+                }
+            })
+            .collect();
+
+        Ok(candidates)
     }
 }
 
@@ -301,6 +429,55 @@ impl CompositeSimilarityEngine {
 
             if let Err(e) = self.db.insert_edge(seed_id, &c.id, c.match_score, &c.provider) {
                 warn!("Failed to index edge {} -> {}: {}", seed_id, c.id, e);
+            }
+        }
+    }
+
+    /// Performs online search via Last.fm and/or MetaBrainz, persisting all candidates
+    pub async fn search_tracks(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SimilarityCandidate>, SimilarityError> {
+        // 1. Try Last.fm if configured
+        if let Some(ref lfm) = self.lastfm {
+            match lfm.search_tracks(query, limit).await {
+                Ok(results) if !results.is_empty() => {
+                    self.persist_search_candidates(&results);
+                    return Ok(results);
+                }
+                _ => {}
+            }
+        }
+
+        // 2. Try MetaBrainz (Open Data, no key required)
+        match self.metabrainz.search_tracks(query, limit).await {
+            Ok(results) if !results.is_empty() => {
+                self.persist_search_candidates(&results);
+                return Ok(results);
+            }
+            Ok(_) => {}
+            Err(e) => {
+                warn!("MusicBrainz search error: {}", e);
+            }
+        }
+
+        Ok(vec![])
+    }
+
+    pub fn persist_search_candidates(&self, candidates: &[SimilarityCandidate]) {
+        for c in candidates {
+            let record = TrackRecord {
+                id: c.id.clone(),
+                artist: c.artist.clone(),
+                title: c.title.clone(),
+                duration_sec: c.duration_sec.unwrap_or(210),
+                cached_path: None,
+                genres: Some("jukebox".to_string()),
+                last_played_at: None,
+            };
+            if let Err(e) = self.db.upsert_track(&record) {
+                warn!("Failed to persist search candidate {}: {}", c.id, e);
             }
         }
     }
