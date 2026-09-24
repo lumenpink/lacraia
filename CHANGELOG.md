@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (audio) implement real-time 32-bar biomechanical spectrum visualizer (#16)
   - (branding) decouple automotive focus and universalize soundwall ecosystem (#28)
   - (branding) integrate exoskeleton vector identity and biomechanical antennae kinematics (#23)
   - (queue) implement dynamic autopilot lookahead and dev reset routine (#14)

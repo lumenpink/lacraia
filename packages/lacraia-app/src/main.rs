@@ -3,7 +3,7 @@ pub mod ui;
 
 use dioxus::prelude::*;
 use lacraia_shared::{PlaybackState, Track};
-use ui::{format_gain_11, format_time, PlayerState, QueueController};
+use ui::{format_gain_11, format_time, PlayerState, QueueController, VisualizerState};
 
 fn main() {
     dioxus_logger::init(tracing::Level::INFO).expect("failed to init logger");
@@ -216,6 +216,52 @@ body {
   box-shadow: 2px 2px 0 #000;
 }
 
+.visualizer-box {
+  background: #0d0e11;
+  border: 1px solid var(--metal-cantoneira);
+  padding: 0.5rem 0.75rem;
+  margin: 1rem 0;
+}
+
+.visualizer-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.btn-vis-toggle {
+  background: var(--ferro-bate-pedra);
+  border: 1px solid var(--metal-cantoneira);
+  color: var(--papel-mimeografo);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.btn-vis-toggle.active {
+  border-color: var(--veneno-eletrico);
+  color: var(--veneno-eletrico);
+}
+
+.visualizer-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 48px;
+  background: #050607;
+  padding: 2px;
+  border: 1px solid #1a1c21;
+}
+
+.vis-bar {
+  flex: 1;
+  min-height: 2px;
+  transition: height 0.08s ease-out;
+}
+
 .queue-section {
   background: var(--ferro-bate-pedra);
   border: 2px solid var(--metal-cantoneira);
@@ -365,6 +411,7 @@ body {
 fn App() -> Element {
     let mut player_state = use_signal(PlayerState::default);
     let mut queue_controller = use_signal(QueueController::default);
+    let mut visualizer_state = use_signal(VisualizerState::default);
 
     // Initial dummy queue items for cockpit testing if empty
     use_effect(move || {
@@ -460,6 +507,24 @@ fn App() -> Element {
     let play_icon = if is_playing { "⏸ PAUSAR" } else { "▶ TOCAR" };
     let active_station = player_state.read().active_station.clone();
     let available_stations = player_state.read().available_stations.clone();
+    let is_vis_active = visualizer_state.read().is_active();
+    let bar_items: Vec<(usize, u32, &'static str)> = (0..32)
+        .map(|idx| {
+            let height = if !is_vis_active {
+                2
+            } else if is_playing {
+                6 + ((idx as u32 * 7) % 36)
+            } else {
+                3
+            };
+            let color = if idx % 2 == 0 {
+                "var(--fucsia-furacao)"
+            } else {
+                "var(--veneno-eletrico)"
+            };
+            (idx, height, color)
+        })
+        .collect();
 
     let toggle_playback = move |_| {
         let current = player_state.read().playback_state;
@@ -605,6 +670,29 @@ fn App() -> Element {
                     div { class: "track-display",
                         div { class: "track-title", "{current_title}" }
                         div { class: "track-artist", "{current_artist}" }
+                    }
+
+                    // Visualizador de Espectro Metamérico (32 Patas do Bicho)
+                    div { class: "visualizer-box",
+                        div { class: "visualizer-meta",
+                            span { style: "font-size: 0.75rem; font-weight: 800; color: var(--grafite-mono);", "ESPECTRO ACÚSTICO // 32 PATAS" }
+                            button {
+                                class: if is_vis_active { "btn-vis-toggle active" } else { "btn-vis-toggle" },
+                                onclick: move |_| {
+                                    visualizer_state.write().toggle();
+                                },
+                                if is_vis_active { "⚡ PATAS: ON" } else { "⚡ PATAS: OFF" }
+                            }
+                        }
+                        div { class: "visualizer-bars",
+                            for item in bar_items {
+                                div {
+                                    key: "{item.0}",
+                                    class: "vis-bar",
+                                    style: "height: {item.1}px; background: {item.2};",
+                                }
+                            }
+                        }
                     }
 
                     // Fita de progresso

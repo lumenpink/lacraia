@@ -207,6 +207,66 @@ impl PlayerState {
     }
 }
 
+/// Real-time WebAudio 32-segment spectrum analyzer state
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VisualizerState {
+    pub enabled: bool,
+    pub bands_count: usize,
+    pub peak_decay_rate: f32,
+    pub amplitudes: Vec<f32>,
+}
+
+impl Default for VisualizerState {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            bands_count: 32,
+            peak_decay_rate: 0.88,
+            amplitudes: vec![0.0; 32],
+        }
+    }
+}
+
+impl VisualizerState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn toggle(&mut self) -> bool {
+        self.enabled = !self.enabled;
+        if !self.enabled {
+            self.reset();
+        }
+        self.enabled
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn reset(&mut self) {
+        for amp in &mut self.amplitudes {
+            *amp = 0.0;
+        }
+    }
+
+    pub fn update_amplitudes(&mut self, new_raw_bands: &[f32]) {
+        if !self.enabled {
+            self.reset();
+            return;
+        }
+
+        for (i, amp) in self.amplitudes.iter_mut().enumerate() {
+            let target = new_raw_bands.get(i).copied().unwrap_or(0.0).clamp(0.0, 1.0);
+            if target > *amp {
+                *amp = target;
+            } else {
+                *amp = (*amp * self.peak_decay_rate + target * (1.0 - self.peak_decay_rate)).clamp(0.0, 1.0);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -369,4 +429,50 @@ mod tests {
         assert_eq!(format_gain_11(1.5), 11);
         assert_eq!(format_gain_11(-0.5), 0);
     }
+
+    #[test]
+    fn test_visualizer_state_lifecycle() {
+        let mut vis = VisualizerState::new();
+        assert!(vis.is_active());
+        assert_eq!(vis.bands_count, 32);
+        assert_eq!(vis.amplitudes.len(), 32);
+        assert!(vis.amplitudes.iter().all(|&a| a == 0.0));
+
+        let toggled = vis.toggle();
+        assert!(!toggled);
+        assert!(!vis.is_active());
+
+        // Feeding amplitudes when disabled does not populate
+        vis.update_amplitudes(&[0.9; 32]);
+        assert!(vis.amplitudes.iter().all(|&a| a == 0.0));
+
+        vis.toggle();
+        assert!(vis.is_active());
+    }
+
+    #[test]
+    fn test_visualizer_inertia_falloff() {
+        let mut vis = VisualizerState::new();
+        let impulse = vec![1.0; 32];
+        vis.update_amplitudes(&impulse);
+
+        for amp in &vis.amplitudes {
+            assert_eq!(*amp, 1.0);
+        }
+
+        // Drop signal to zero: verify smooth decay
+        let silence = vec![0.0; 32];
+        vis.update_amplitudes(&silence);
+
+        for amp in &vis.amplitudes {
+            assert!(*amp < 1.0 && *amp > 0.8, "Amplitude should decay smoothly: {}", amp);
+        }
+
+        // Reset clears all
+        vis.reset();
+        for amp in &vis.amplitudes {
+            assert_eq!(*amp, 0.0);
+        }
+    }
 }
+

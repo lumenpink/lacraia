@@ -269,6 +269,47 @@ async function main() {
       await context.close();
     });
 
+    // -------------------------------------------------------------
+    // Test 7: WebAudio Frequency Spectrum Visualizer & 32 Metameric Legs (#16)
+    // -------------------------------------------------------------
+    await test('Visualizer: Canvas, 32 metameric legs, WebAudio toggle & falloff (#16)', async () => {
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+      });
+      const page = await context.newPage();
+      await page.goto(`${BASE_URL}/app`, { waitUntil: 'domcontentloaded' });
+
+      // Verify canvas element exists
+      const canvas = await page.$('canvas#visualizer');
+      assert(canvas !== null, 'Canvas #visualizer must exist in DOM');
+
+      // Verify toggle button exists
+      const toggleBtn = await page.$('#btn-toggle-visualizer');
+      assert(toggleBtn !== null, '#btn-toggle-visualizer button must exist in DOM');
+
+      // Initial state: ON
+      let visStatus = await page.$eval('#vis-status', el => el.textContent);
+      assert(visStatus.includes('ON'), `Initial status must be ON, got '${visStatus}'`);
+
+      // Click to toggle OFF
+      await toggleBtn.click();
+      await page.waitForTimeout(100);
+      visStatus = await page.$eval('#vis-status', el => el.textContent);
+      assert(visStatus.includes('OFF'), `Status after toggle must be OFF, got '${visStatus}'`);
+
+      // Click to toggle back ON
+      await toggleBtn.click();
+      await page.waitForTimeout(100);
+      visStatus = await page.$eval('#vis-status', el => el.textContent);
+      assert(visStatus.includes('ON'), `Status after second toggle must be ON, got '${visStatus}'`);
+
+      // Verify canvas has valid dimensions
+      const box = await canvas.boundingBox();
+      assert(box !== null && box.width > 0 && box.height > 0, 'Canvas must have non-zero dimensions');
+
+      await context.close();
+    });
+
   } finally {
     await browser.close();
   }

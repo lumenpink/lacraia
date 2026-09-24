@@ -281,6 +281,58 @@
     }
 
     /* Waveform visualizer canvas */
+    .visualizer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .visualizer-title {
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: var(--chumbo);
+      text-transform: uppercase;
+    }
+
+    .btn-toggle-vis {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      background: var(--ferro-bate-pedra);
+      border: 1px solid var(--borda-chassi);
+      color: var(--papel-mimeografo);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn-toggle-vis:hover {
+      border-color: var(--veneno-eletrico);
+      color: #fff;
+    }
+
+    .btn-toggle-vis .dot-active {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--veneno-eletrico);
+      box-shadow: 0 0 4px var(--veneno-eletrico);
+    }
+
+    .btn-toggle-vis .dot-inactive {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--chumbo);
+      box-shadow: none;
+    }
+
     .visualizer-container {
       background: var(--asfalto-frio);
       border: 1px solid var(--borda-chassi);
@@ -1100,6 +1152,12 @@
         </div>
 
         <!-- 32-Segment Bio-Mechanical Visualizer -->
+        <div class="visualizer-header">
+          <span class="visualizer-title">ANALISADOR DE ESPECTRO // 32 PATAS</span>
+          <button class="btn btn-toggle-vis" id="btn-toggle-visualizer" title="Alternar renderização do espectro (economizar ciclos)">
+            <span id="vis-dot" class="dot-active"></span> <span id="vis-status">PATAS: ON</span>
+          </button>
+        </div>
         <div class="visualizer-container">
           <canvas id="visualizer"></canvas>
         </div>
@@ -2744,9 +2802,52 @@
         }
       });
 
-      // 32-Bar Bio-Mechanical Neon Visualizer Canvas
+      // 32-Bar Bio-Mechanical Neon Visualizer Canvas & WebAudio API
       const canvas = document.getElementById("visualizer");
       const ctx = canvas.getContext("2d");
+      const btnToggleVisualizer = document.getElementById("btn-toggle-visualizer");
+      const visDot = document.getElementById("vis-dot");
+      const visStatus = document.getElementById("vis-status");
+
+      let visualizerEnabled = true;
+      let animFrameId = null;
+      let audioCtx = null;
+      let analyser = null;
+      let audioSource = null;
+      let freqData = null;
+
+      // Lazy WebAudio Initialization on user gesture or playback
+      function initAudioContext() {
+        if (audioCtx) {
+          if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+          }
+          return;
+        }
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          audioCtx = new AudioContextClass();
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 128; // 64 frequency bins
+          analyser.smoothingTimeConstant = 0.8;
+          freqData = new Uint8Array(analyser.frequencyBinCount);
+
+          audioSource = audioCtx.createMediaElementSource(audio);
+          audioSource.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        } catch (e) {
+          console.warn("⚡ [VISUALIZER] WebAudio setup bypassed/failed:", e);
+        }
+      }
+
+      // Respect prefers-reduced-motion
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        visualizerEnabled = false;
+        if (visDot) visDot.className = "dot-inactive";
+        if (visStatus) visStatus.textContent = "PATAS: OFF";
+      }
+
       function resizeCanvas() {
         canvas.width = canvas.parentElement.clientWidth;
         canvas.height = canvas.parentElement.clientHeight;
@@ -2755,31 +2856,117 @@
       resizeCanvas();
 
       let animPhase = 0;
+      let smoothBars = new Float32Array(32);
+
       function renderVisualizer() {
-        requestAnimationFrame(renderVisualizer);
+        if (!visualizerEnabled) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "rgba(52, 58, 64, 0.4)";
+          ctx.fillRect(0, canvas.height - 2, canvas.width, 2);
+          animFrameId = null;
+          return;
+        }
+
+        animFrameId = requestAnimationFrame(renderVisualizer);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const bars = 32;
         const gap = 3;
         const barWidth = (canvas.width - (bars - 1) * gap) / bars;
 
-        animPhase += 0.05;
-        for (let i = 0; i < bars; i++) {
-          let heightPct;
-          if (state.isPlaying) {
-            heightPct = 0.2 + 0.7 * Math.abs(Math.sin(animPhase + i * 0.3) * Math.cos(animPhase * 0.7 - i * 0.15));
-          } else {
-            heightPct = 0.08 + 0.04 * Math.sin(animPhase * 0.3 + i * 0.2);
+        let hasRealSignal = false;
+        if (analyser && freqData && state.isPlaying) {
+          analyser.getByteFrequencyData(freqData);
+          for (let k = 0; k < freqData.length; k++) {
+            if (freqData[k] > 0) {
+              hasRealSignal = true;
+              break;
+            }
           }
-          const barHeight = Math.max(3, heightPct * canvas.height);
+        }
+
+        animPhase += 0.04;
+
+        for (let i = 0; i < bars; i++) {
+          let targetHeightPct = 0.05;
+
+          if (hasRealSignal) {
+            // Map 32 metameric legs across audio frequency spectrum
+            // Legs 0..10: Bass / Sub-bass
+            // Legs 11..21: Midrange
+            // Legs 22..31: Highs / Cymbals
+            let binIdx = Math.min(freqData.length - 1, Math.floor(Math.pow(i / bars, 1.4) * (freqData.length - 10)));
+            let val = freqData[binIdx] / 255.0;
+
+            // Extra leg kick for low frequencies
+            if (i < 8) {
+              val = Math.min(1.0, val * 1.25);
+            }
+            targetHeightPct = Math.max(0.06, val);
+          } else if (state.isPlaying) {
+            // Synthesized kinetic oscillation when audio source is silent or loading
+            targetHeightPct = 0.15 + 0.65 * Math.abs(Math.sin(animPhase + i * 0.28) * Math.cos(animPhase * 0.65 - i * 0.14));
+          } else {
+            // Resting breath pulse
+            targetHeightPct = 0.05 + 0.03 * Math.sin(animPhase * 0.4 + i * 0.2);
+          }
+
+          // Smooth inertia falloff
+          if (targetHeightPct > smoothBars[i]) {
+            smoothBars[i] = targetHeightPct;
+          } else {
+            smoothBars[i] = smoothBars[i] * 0.88 + targetHeightPct * 0.12;
+          }
+
+          const barHeight = Math.max(3, smoothBars[i] * canvas.height);
           const x = i * (barWidth + gap);
           const y = canvas.height - barHeight;
 
-          // Metameric segment neon gradient
-          ctx.fillStyle = i % 2 === 0 ? "#ff0055" : "#39ff14";
+          // Metameric alternating color: Fúcsia Furacão & Veneno Elétrico
+          if (i < 8 && smoothBars[i] > 0.65) {
+            ctx.fillStyle = "#ffffff"; // Peak claw strike highlight
+          } else {
+            ctx.fillStyle = i % 2 === 0 ? "#ff0055" : "#39ff14";
+          }
           ctx.fillRect(x, y, barWidth, barHeight);
         }
       }
+
+      function toggleVisualizer() {
+        visualizerEnabled = !visualizerEnabled;
+        if (visualizerEnabled) {
+          if (visDot) visDot.className = "dot-active";
+          if (visStatus) visStatus.textContent = "PATAS: ON";
+          initAudioContext();
+          if (!animFrameId) {
+            renderVisualizer();
+          }
+        } else {
+          if (visDot) visDot.className = "dot-inactive";
+          if (visStatus) visStatus.textContent = "PATAS: OFF";
+          if (animFrameId) {
+            cancelAnimationFrame(animFrameId);
+            animFrameId = null;
+          }
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "rgba(52, 58, 64, 0.4)";
+          ctx.fillRect(0, canvas.height - 2, canvas.width, 2);
+        }
+      }
+
+      if (btnToggleVisualizer) {
+        btnToggleVisualizer.addEventListener("click", () => {
+          toggleVisualizer();
+        });
+      }
+
+      // Trigger lazy initAudioContext on first user interaction
+      ["click", "keydown", "touchstart"].forEach(evt => {
+        window.addEventListener(evt, () => {
+          if (visualizerEnabled) initAudioContext();
+        }, { once: true });
+      });
+
       renderVisualizer();
 
       // WebSocket Hub Connection
