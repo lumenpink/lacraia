@@ -285,6 +285,27 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
     - Resolução sob demanda (`/api/resolve`) para faixas não cacheadas com feedback visual no player.
     - Sincronização do seekline e do controle de ganho até 11.
 
+---
+
+### Ticket #13: Testes de Integração, Resiliência do Pipeline de Áudio e Isolamento de Falhas
+* **Package:** `packages/lacraia-core`, `packages/lacraia-shared`, `docs/architecture.md`, `docs/roadmap.md`
+* **Goal:** Implementar suíte completa de testes de integração end-to-end, mitigar erros HTTP 403 Forbidden do YouTube via client android no yt-dlp, sanitizar operadores negativos em buscas, validar correspondência léxica de títulos e conter falhas no QueueDaemon evitando loops infinitos.
+* **Acceptance Criteria:**
+  - **Suíte de Testes de Integração (`packages/lacraia-core/tests/integration_tests.rs`):**
+    - `test_search_sanitization_and_operator_safety`: Valida a remoção de operadores de negação (`-`), normalização diacrítica e rejeição de candidatos com títulos desconexos.
+    - `test_queue_daemon_failure_isolation`: Valida que faixas inexistentes ou com falha de resolução transitam para o estado `QueueState::Failed` e são excluídas de ciclos subsequentes de pre-cache.
+    - `test_end_to_end_api_resolve_and_cache_serving`: Valida o ciclo completo da API Axum (`GET /api/resolve` e `/cache/`) com entrega estática de áudio via HTTP Range.
+    - `test_real_resolver_download_with_android_client`: Valida o download real de áudio Opus via yt-dlp com client android e o hit instantâneo em Tier 1.
+  - **Mitigação de Bloqueio HTTP 403 Forbidden:**
+    - Inclusão de `--extractor-args "youtube:player_client=android"` nas operações de busca e extração do `yt-dlp`, contornando experimentos SABR/visionOS.
+    - Inclusão de cabeçalhos `Referer` e `User-Agent` apropriados nas requisições do ffmpeg.
+  - **Sanitização de Consultas de Busca:**
+    - Queries formuladas sem hífen (`format!("{} {} audio")`), evitando que o caractere de subtração atue como operador NOT no YouTube.
+  - **Filtro Léxico de Títulos (`is_title_matching` e `strip_accents`):**
+    - Rejeição de candidatos sem sobreposição semântica mínima com o título solicitado, impedindo falsos positivos como faixas homônimas acidentais.
+  - **Isolamento de Falhas no `QueueDaemon`:**
+    - Transição de itens não resolvíveis para `QueueState::Failed` com persistência no SQLite, prevenindo loops de 1 segundo de consumo de CPU.
+
 
 
 

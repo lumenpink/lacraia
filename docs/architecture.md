@@ -117,16 +117,18 @@ LIMIT ?2;
    Before firing external network queries, the resolver inspects `tracks.cached_path` in SQLite. If the `.opus` file exists on disk, it returns immediately with zero network latency.
 2. **Tier 2 — Native Rust Innertube Extractor (`rustypipe`):**
    Executes direct, asynchronous queries against YouTube Music and YouTube via the pure Rust crate `rustypipe`. Streams are verified against fuzzy duration ($\Delta t \le 15\text{s}$) and studio title filters, then fetched and converted to Opus via `ffmpeg`.
-3. **Tier 3 — CLI Fallback (`yt-dlp` + `ffmpeg`):**
-   If native extraction encounters upstream signature changes, rate limits, or botguard challenges, the resolver automatically falls back to the system `yt-dlp` binary without interrupting the user.
+3. **Tier 3 — CLI Fallback (`yt-dlp` + `ffmpeg` with Android Client):**
+   If native extraction encounters upstream signature changes, SABR experiments, rate limits, or botguard challenges, the resolver automatically falls back to `yt-dlp` with `--extractor-args "youtube:player_client=android"` to bypass visionOS/web CDN 403 Forbidden blocks.
 4. **Search & Fuzzy Sanitization:**
+   * **Operator-Safe Search Queries:** Queries sanitize literal hyphens and dots (`format!("{} {} audio")`) avoiding Google/YouTube search engine negation (`-`) tokens that previously suppressed results.
+   * **Title Lexical Matching:** Verifies token overlap (`is_title_matching`) with diacritic stripping (`strip_accents`) to eliminate false-positive candidates with unrelated titles.
    * **Duration Discrepancy Filter:** Rejects results where $\Delta t = |t_{\text{obtained}} - t_{\text{expected}}| > 15\text{s}$.
    * **Title Noise Filter:** Drops items containing `live`, `ao vivo`, `cover`, `tribute`, `10 hours`, or unrequested `remix`.
 5. **Static Range Delivery:**
    Exposed over `/cache/{track_id}.opus` with native HTTP Range Request support (`206 Partial Content`) for immediate seeking in the frontend player.
 
 > 🦂 **[ VENENO NA CARNE ]**  
-> Áudios com discrepância temporal ou títulos adulterados por gravações piratas de celular em shows são descartados sem piedade. O filtro de pureza garante a versão de estúdio original.
+> Áudios com discrepância temporal, operadores de exclusão acidentais ou títulos adulterados são descartados sem piedade. O filtro de pureza léxica garante a versão de estúdio original.
 
 ---
 
@@ -135,12 +137,14 @@ LIMIT ?2;
 `lacraia-core` spawns an asynchronous background worker (`QueueDaemon`) tasked with maintaining continuous audio on the road:
 
 1. **Active Multi-Cabin Playhead Tracking:**
-   Continuously monitors queue states (`playing`, `cached`, `pending`) across all registered cabins (`default`, `van-furacao`, etc.) in SQLite.
+   Continuously monitors queue states (`playing`, `cached`, `pending`, `failed`) across all registered cabins (`default`, `van-furacao`, etc.) in SQLite.
 2. **Two-Track Lookahead Window:**
    Identifies the next 2 tracks immediately subsequent to the currently playing song that are still in `pending` state across active cabins.
-3. **Proactive Background Caching:**
+3. **Failure Containment & Loop Prevention:**
+   If media resolution fails for an unavailable or invalid track, `QueueDaemon` immediately transitions the entry to `failed` state via `db.mark_failed(track_id)`. This prevents infinite pre-caching retry loops while preserving cabin playback flow.
+4. **Proactive Background Caching:**
    Triggers `MediaResolver::resolve_and_cache` before the current track finishes. Once the `.opus` file is saved to disk, the database updates the queue state from `pending` to `cached`.
-4. **Resilience to Network Drops:**
+5. **Resilience to Network Drops:**
    By maintaining two fully resolved tracks cached in advance, the driver experiences zero playback interruptions even when passing through cellular dead zones.
 
 > ⚡ **[ FIO DESENCAPADO ]**  
