@@ -161,13 +161,13 @@ A tela principal do software organiza-se como um chassi modular aparafusado:
 * **Portal de Documentação (`site/index.html`):**  
   Implementação viva de referência dos tokens CSS, chassi de ferro com pintura bate-pedra, leds de telemetria, divisórias de fita isolante zebrada, os 4 callouts temáticos e o botão com efeito tátil mecânico `[ CLACK! ]`. Organizado em 6 cadernos metaméricos (iniciando pelo manifesto de soberania acústica em Caderno 01 e finalizando no Manual de Identidade Visual em Caderno 06).
 * **Favicon e Identidade Vetorial do Exoesqueleto (`site/favicon.svg` e `site/assets/icon.svg`):**  
-  Ícone geométrico puro da cabeça sensorial da lacraia combinando placa cefálica com chanfro brutalista em `--fucsia-furacao` e `--ferro-painel`, ocelos em `--veneno-eletrico`, forcípulas peçonhentas e antenas curvas estilizadas. Empregado como favicon SVG universal e exibido no painel de comando (`top-panel`) do chassi e no cabeçalho do cockpit automotivo (`site/app/index.html`).
+  Ícone geométrico puro da cabeça sensorial da lacraia combinando placa cefálica com chanfro brutalista em `--fucsia-furacao` e `--ferro-painel`, ocelos em `--veneno-eletrico`, forcípulas peçonhentas e antenas curvas estilizadas. Empregado como favicon SVG universal e exibido no painel de comando (`top-panel`) do chassi e no cabeçalho do console do paredão (`site/app/index.html`).
 * **Cinemática Biomecânica das Antenas Sensoriais (Ticket #24):**  
   Implementação viva na coluna vertebral da documentação e no chassi da criatura. Micro-contrações assíncronas via `@keyframes twitch-antenna-left` e `@keyframes twitch-antenna-right`, aliadas ao controlador cinemático em JavaScript com interpolação suave (`requestAnimationFrame` + lerp) rastreando as coordenadas do cursor do mouse e inércia aerodinâmica no scroll, com desativação irrestrita em `prefers-reduced-motion: reduce`.
 * **Social Share Preview & Open Graph Card (`scripts/generate_og_image.py`):**  
   Banner de compartilhamento em alta resolução (1200×630px, `site/assets/og_preview.png`) com Safe Zone 4:3 centralizada, imune aos recortes do WhatsApp, Telegram e Twitter Card (`summary_large_image`). Base em ferro bate-pedra com hachura diagonal, ambient glow fúcsia/glitter, fita isolante zebrada sob a marca e rodapé com telemetria ativa.
-* **Cockpit Player (`packages/lacraia-app` e `site/app`):**  
-  Interface automotiva modular com metâmeros, potenciômetro de ganho até 11 (`format_gain_11`), chaves mecânicas com micro-rotação assimétrica (`transform: rotate(-1.5deg)`), seletores de estação e fila de reprodução com tokens visuais do manifesto.
+* **Console do Paredão & Player (`packages/lacraia-app` e `site/app`):**  
+  Interface de bancada e paredão modular com metâmeros, potenciômetro de ganho até 11 (`format_gain_11`), chaves mecânicas com micro-rotação assimétrica (`transform: rotate(-1.5deg)`), seletores de estação e fila de reprodução com tokens visuais do manifesto.
 
 
 

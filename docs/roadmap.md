@@ -1,8 +1,8 @@
 # Roadmap v0.2.0 – La Craia
 
-## Sprint v0.2.0: Automotive Cockpit & Connectivity
+## Sprint v0.2.0: Soundwall Console, Continuous Flow & Connectivity
 
-This sprint focuses on steering wheel hardware controls, automotive smart caching, and responsive cockpit visuals.
+This sprint focuses on continuous flow, soundwall console controls, smart caching, and responsive high-contrast visuals for any environment (parties, streets, home, mobile, and vehicle sound systems).
 
 ---
 
@@ -305,6 +305,21 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
     - Rejeição de candidatos sem sobreposição semântica mínima com o título solicitado, impedindo falsos positivos como faixas homônimas acidentais.
   - **Isolamento de Falhas no `QueueDaemon`:**
     - Transição de itens não resolvíveis para `QueueState::Failed` com persistência no SQLite, prevenindo loops de 1 segundo de consumo de CPU.
+
+---
+
+### Ticket #28: Universalização do Ecossistema e Desacoplamento do Foco Automotivo
+* **Package:** `README.md`, `site/index.html`, `site/app/index.html`, `docs/architecture.md`, `docs/design-system.md`, `docs/roadmap.md`
+* **Goal:** Desacoplar a identidade de La Craia da categoria restritiva de "suíte automotiva" ou reprodutor exclusivo veicular, consolidando o projeto como um ecossistema universal de som autônomo, rádio infinita por grafo de afinidade acústica e HUD simbiótico de letras e cifras para qualquer ambiente (paredões, festas, casa, rua, vans, desktop Linux, web e mobile).
+* **Acceptance Criteria:**
+  - **Repensar a Narrativa e a Proposta de Valor:**
+    - Substituição da nomenclatura restritiva ("suíte automotiva", "automotive player") pela definição de **Paredão Digital Autônomo, Rádio por Grafo de Afinidade & Sincronia Lírica Simbiótica**.
+    - O caso de uso veicular permanece como uma das manifestações de ponta suportadas (via HUD flutuante e botões de hardware), sem limitar o escopo da plataforma.
+  - **Universalização dos Canais Web & Documentação:**
+    - Atualização de títulos, metadados OpenGraph/Twitter e manifestos PWA (`site/index.html` e `site/app/index.html`).
+    - Harmonização dos cadernos conceituais do portal: valorização da autonomia de quem escuta, da curadoria algorítmica descentralizada e da experiência de alta potência acústica.
+    - Revisão de especificações arquiteturais e de design system (`docs/architecture.md`, `docs/design-system.md`, `docs/roadmap.md`, `README.md`).
+
 
 
 

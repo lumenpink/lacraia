@@ -1,8 +1,8 @@
 # Technical Specification: La Craia Ecosystem
 
-**Project:** La Craia (Decentralized Automotive Audio & Heads-Up Display)  
-**Version:** 0.1.0  
-**Target Environment:** Linux Host Server (Debian 13 / Ubuntu) & Android Mobile  
+**Project:** La Craia (Autonomous Soundwall, Acoustic Affinity Radio & Symbiotic Lyric Ecosystem)  
+**Version:** 0.2.0  
+**Target Environment:** Linux Host Server (Debian 13 / Ubuntu), Web/PWA & Android Mobile  
 **Repository:** `ssh://git@codeberg.org/lumenpink/lacraia.git`  
 **Documentation Site:** `lacraia.2lp.in` (Cloudflare Workers Static Assets)
 
@@ -10,9 +10,9 @@
 
 ## 1. Project Overview & Mission
 
-**La Craia** is an integrated automotive audio streaming suite, continuous radio powered by acoustic similarity graphs, and real-time synchronized heads-up display (HUD) lyrics projected line-by-line over navigation apps (Waze).
+**La Craia** is an autonomous digital soundwall (*paredão*), continuous radio powered by acoustic affinity graphs, and real-time synchronized heads-up display (HUD) lyrics and chords designed for high-power sound systems, street parties, home listening, desktop Linux, and vehicular environments.
 
-The ecosystem eliminates ad-saturated commercial streaming interfaces, text-based recommendation traps, and cognitive sensory overload, prioritizing acoustic continuity, local control, and driver focus on road traffic.
+The ecosystem eliminates ad-saturated commercial streaming interfaces, paywalled algorithmic traps, and cognitive sensory overload, prioritizing acoustic continuity, decentralized control, and collective immersion across any audio setup.
 
 ---
 
@@ -59,10 +59,10 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
 
 * **`packages/lacraia-shared` (Rust Crate):** Shared domain models, `serde` serialization, WebSocket protocol packets (`StateUpdate`, `Command`), in-memory `.lrc` lyrics parser, and duration/title fuzzy sanitizer.
 * **`packages/lacraia-core` (Rust Crate):** Backend orchestrator running on the Linux host server. Handles track resolution, disk caching in Opus, SQLite state storage, and WebSocket broadcasts.
-* **`packages/lacraia-app` (Rust / Dioxus Crate):** Automotive cockpit player supporting both native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets (WASM/PWA). Acts as the track library, playlist controller, and audio engine.
+* **`packages/lacraia-app` (Rust / Dioxus Crate):** Soundwall console player supporting both native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets (WASM/PWA). Acts as the track library, playlist controller, and audio engine.
 * **`packages/lacraia-android` (Android Kotlin Multi-Module Workspace):**
-  * **`:app` (`in._2lp.lacraia.app`):** Native Android Cockpit & Jukebox application (`lacraia-app.apk`) with full-screen automotive immersion, MediaSession background playback, cabin onboarding and crew interaction.
-  * **`:simbiotyka` (`in._2lp.lacraia.simbiotyka`):** Floating HUD companion (`simbiotyka.apk`) running as an Android Foreground Service. Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD over GPS navigation apps via `WindowManager`.
+  * **`:app` (`in._2lp.lacraia.app`):** Native Android Console & Jukebox application (`lacraia-app.apk`) with high-contrast tactile immersion, MediaSession background playback, cabin onboarding and crew interaction.
+  * **`:simbiotyka` (`in._2lp.lacraia.simbiotyka`):** Floating HUD companion (`simbiotyka.apk`) running as an Android Foreground Service. Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD over any third-party app or navigation interface via `WindowManager`.
 
 ---
 
@@ -154,37 +154,37 @@ LIMIT ?2;
 
 ## 7. Audio Engine & Multiplatform Media Integration (`site/app/index.html` & `lacraia-app`)
 
-`lacraia-app` and the cockpit web player deliver unified automotive sound:
+`lacraia-app` and the soundwall web console deliver unified, high-power sound across all endpoints:
 
 1. **HTML5 Audio Engine (`audio-engine`):**
    Connects dynamically to `/cache/{track_id}.opus` streams, executing real audio playback (`audio.play()`, `audio.pause()`) in full synchronization with WebSocket telemetries and gain slider controls (clamped from 0 to 11). On-demand stream resolution (`/api/resolve`) runs automatically if a song is promoted before pre-caching finishes.
 2. **MediaSession API Synchronization:**
    Registers active song metadata (`title`, `artist`, `album`, and 512x512 artwork) directly on `navigator.mediaSession` when running in browser / PWA mode.
 3. **OS Lockscreen & Keybinding Handlers:**
-   Registers system action handlers for `play`, `pause`, `nexttrack`, `previoustrack`, and `seekto`, enabling hardware vehicle steering wheel buttons and lockscreen controls to operate seamlessly.
+   Registers system action handlers for `play`, `pause`, `nexttrack`, `previoustrack`, and `seekto`, enabling hardware transport buttons, steering wheels, and lockscreen controls to operate seamlessly.
 
 ---
 
-## 8. Cockpit Player UI, Queue Controller & PWA Capabilities (`lacraia-app`)
+## 8. Soundwall Console UI, Queue Controller & PWA Capabilities (`lacraia-app`)
 
-The automotive frontend is optimized for driver touch targets and cockpit display visibility:
+The frontend console is optimized for tactile precision, large touch targets, and outdoor/nighttime visibility:
 
-1. **Automotive Cockpit UI (`ui.rs` & `main.rs`):**
-   * High-contrast dark theme (`#121212` background, vibrant accent `#ff007f`) avoiding glare while driving at night.
-   * Large touch targets (buttons $\ge 48\text{dp}$) for previous, play/pause, next track, and volume slider.
+1. **Tactile Console UI (`ui.rs` & `main.rs`):**
+   * High-contrast dark theme (`#121212` background, vibrant accent `#ff007f`) avoiding glare and ensuring readability across phones, tablets, laptops, and consoles.
+   * Large touch targets (buttons $\ge 48\text{dp}$) for previous, play/pause, next track, and volume slider up to 11.
    * Prominent elapsed time and duration readout with millisecond formatting (`format_time`).
 2. **Station & Queue Controller:**
    * Station seeds with instant switching (e.g. MPB & Samba, Synthwave Drive, Rock Clássico, Lo-Fi Road Trip).
    * Up-next queue list with active track indicator and direct track selection.
 3. **PWA Manifest & Offline Shell Caching (`manifest.json` & `sw.js`):**
-   * Configured as standalone web application (`display: "standalone"`) with automotive categories.
+   * Configured as standalone web application (`display: "standalone"`) with media & music categories.
    * Service worker caches core application shell (`/`, `/manifest.json`, `/index.html`) while streaming requests (`/stream/*`) and WebSocket traffic pass through dynamically.
 
 ---
 
 ## 10. Cabin Security, Multi-Cabin Tenants & 3-Tier Access Hierarchy
 
-Lacraia features an automotive multi-cabin security layer designed for vehicles carrying the driver, delegated pilots, and passengers:
+Lacraia features a multi-cabin security layer designed for autonomous spaces shared by an audio pilot (or host) and crew members:
 
 1. **3-Tier Role-Based Security Hierarchy:**
    * **Master (`MASTER` / `LACRAIA_MASTER_KEY`):** Universal administrative authority across all cabins. Can create new cabins (`POST /api/cabin/create`), authenticate into any cabin, rotate passenger keys, and command master transport across the entire fleet.
@@ -237,7 +237,7 @@ PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite
 ```
 
 > ✨ **[ O PULO DA TRAVESTI ]**  
-> Para orquestrar o backend com banco populado, fila antecipada engatada e o reprodutor web do cockpit automotivo aberto no navegador em `/app` com uma única instrução, basta disparar `./start.sh --open`.
+> Para orquestrar o backend com banco populado, fila antecipada engatada e a bancada web do paredão autônomo aberta no navegador em `/app` com uma única instrução, basta disparar `./start.sh --open`.
 
 ---
 
