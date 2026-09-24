@@ -81,8 +81,8 @@ cargo clippy --workspace
 # Start backend daemon (default port: 8080)
 cargo run -p lacraia-core
 
-# Start backend on a custom port and directories
-PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite cargo run -p lacraia-core
+# Start backend on a custom port and directories with master key
+PORT=8081 LACRAIA_MASTER_KEY=my_master_key LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite cargo run -p lacraia-core
 ```
 
 ### Automated Cockpit Demo

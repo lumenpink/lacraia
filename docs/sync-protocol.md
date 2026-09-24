@@ -37,12 +37,14 @@ When audio is playing on a fixed server (e.g. Linux Debian host via MPV or headl
 Clients connect to the WebSocket endpoint supplying cabin identifier and authentication token:
 
 ```
-ws://<server>:8080/ws?cabin=default&token=<optional_token>
+ws://<server>:8080/ws?cabin=<cabin_id>&token=<optional_token>
 ```
 
-* **No Token / Master Key:** Authenticates as `Pilot` (`role: "PILOT"`), granting full cockpit authority.
-* **Passenger Token:** Obtained via `POST /api/cabin/join` with `{ cabinId: string, name: string, device?: string }`. Authenticates as `Passenger` (`role: "PASSENGER"`).
-* **Locked Cabin:** If `is_locked` is true, connections without pilot authorization are immediately rejected.
+* **Master Key (`token=<LACRAIA_MASTER_KEY>`):** Authenticates as `Pilot` (`role: "PILOT"`), granting universal authority across all cabins without cabin record lookup.
+* **Pilot Token (`token=<pilot_token>`):** Validated against the cabin's record in SQLite. Authenticates as `Pilot` (`role: "PILOT"`) strictly for the matching cabin.
+* **Passenger Session Token (`token=<passenger_token>`):** Obtained via `POST /api/cabin/join` with `{ cabinId: string, name: string, device?: string, key?: string }`. Requires a valid `key` matching the cabin's active `passenger_key`. Authenticates as `Passenger` (`role: "PASSENGER"`).
+* **Anonymous / No Token:** If the cabin is unlocked, grants non-privileged passenger rights (`role: "PASSENGER"`).
+* **Locked Cabin:** If `is_locked` is true, connections and joins without verified pilot or master authorization are immediately rejected (`403 Forbidden` / handshake termination).
 
 ---
 

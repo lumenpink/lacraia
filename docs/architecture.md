@@ -177,30 +177,33 @@ The automotive frontend is optimized for driver touch targets and cockpit displa
 
 ---
 
-## 10. Cabin Security, Multi-Cabin Tenants & Crew Management
+## 10. Cabin Security, Multi-Cabin Tenants & 3-Tier Access Hierarchy
 
-Lacraia features an automotive multi-cabin security layer designed for vehicles carrying both the pilot (driver) and passengers:
+Lacraia features an automotive multi-cabin security layer designed for vehicles carrying the driver, delegated pilots, and passengers:
 
-1. **Role-Based Command Permissions:**
-   * **Pilot (`PILOT`):** Master cockpit access. Commands `PLAY`, `PAUSE`, `NEXT`, `PREVIOUS`, `SEEK`, `LOCK_CABIN`, `EJECT_PASSENGER`, and `EJECT_ALL`.
-   * **Passenger (`PASSENGER`):** Shared jukebox access. Permitted exclusively to enqueue songs via `QUEUE_APPEND`. Requests to control playback, skip tracks, or manipulate cabin state are rejected with authorization errors.
-2. **Door Lock Mechanism (`is_locked`):**
+1. **3-Tier Role-Based Security Hierarchy:**
+   * **Master (`MASTER` / `LACRAIA_MASTER_KEY`):** Universal administrative authority across all cabins. Can create new cabins (`POST /api/cabin/create`), authenticate into any cabin, rotate passenger keys, and command master transport across the entire fleet.
+   * **Pilot (`PILOT` / `pilot_token`):** Scoped driver authority exclusively over their specific cabin. Commands `PLAY`, `PAUSE`, `NEXT`, `PREVIOUS`, `SEEK`, `LOCK_CABIN`, `EJECT_PASSENGER`, `EJECT_ALL`, `QUEUE_REMOVE`, and `rotate-key`.
+   * **Passenger (`PASSENGER` / `passenger_key`):** Crew member with shared jukebox access. Permitted exclusively to enqueue songs via `QUEUE_APPEND`. Requests to alter transport, skip tracks, or manipulate cabin state are rejected with authorization errors.
+2. **High-Entropy Cryptographic Keys & Instant Key Rotation:**
+   * Rather than weak, easily brute-forced numerical PINs, cabin passenger access relies on high-entropy cryptographic keys (`key_<entropy>`).
+   * **Key Rotation (`POST /api/cabin/rotate-key`):** The Pilot or Master can rotate the cabin's passenger key at any moment. Previous invite links and QR codes are instantly invalidated without renaming the cabin or clearing the queue.
+3. **Door Lock Mechanism (`is_locked`):**
    * The cockpit dashboard features a rocker switch (`[ 🔓 PORTAS ABERTAS / 🔒 TRANCADAS ]`).
-   * When locked, the HTTP onboarding endpoint (`POST /api/cabin/join`) and WebSocket handshake reject new passengers, preserving cabin privacy and preventing boarding by unknown devices even if a static QR code is visible.
-3. **Multi-Cabin Isolation with Shared Opus Cache:**
+   * When locked, the HTTP onboarding endpoint (`POST /api/cabin/join`) and WebSocket handshake reject new passengers, preserving cabin privacy and preventing boarding even if a passenger key is known.
+4. **Multi-Cabin Isolation with Shared Opus Cache:**
    * Each cabin operates an independent queue and crew roster in SQLite (`cabins`, `passengers`, `queue`).
    * Audio streams resolve into a unified, shared disk cache (`LACRAIA_CACHE_DIR`). If Cabin A and Cabin B request the same song, the second cabin benefits immediately from zero-network local cache retrieval.
-4. **Passenger Jukebox & Requester Attribution:**
+5. **Passenger Jukebox & Requester Attribution:**
    * When passengers enqueue tracks, their name/device handle is tagged via `requested_by`.
    * The cockpit queue displays requester badges (e.g. `[ por: @Mari ]` or `[ PILOTO ]`), giving the driver complete provenance of who queued each track.
-5. **Crew Manifesto & Ejection Lever:**
+6. **Crew Manifesto & Ejection Lever:**
    * Real-time roster broadcast (`CREW_UPDATE`) keeps the cockpit aware of all connected passengers.
    * The pilot can kick disruptive passengers individually (`[ 👢 CHUTAR ]`) or clear the entire vehicle (`[ 💥 EJETAR GERAL ]`).
    * Ejected clients receive an immediate `EJECTED` frame, terminate their WebSocket session, and display a brutalist ejection lockout screen.
 
 > 🦂 **[ VENENO NA CARNE ]**  
 > Passageiro engraçadinho tentando pular faixa ou pausar a cantiga alheia toma bloqueio instantâneo no WebSocket. No paredão da La Craia, a agulha obedece unicamente ao piloto.
-
 
 ---
 
@@ -215,6 +218,7 @@ Lacraia features an automotive multi-cabin security layer designed for vehicles 
 | `PORT` | HTTP & WebSocket server port | `8080` |
 | `LACRAIA_CACHE_DIR` | Directory for resolved Opus audio files | `./cache` |
 | `LACRAIA_DB_PATH` | Path to the SQLite storage file | `./lacraia.sqlite` |
+| `LACRAIA_MASTER_KEY` | Master administrative secret for universal cockpit access and cabin provisioning | `lacraia_master_2011` |
 | `LASTFM_API_KEY` | Optional Last.fm API credential for similarity graph lookups | *None (falls back to MetaBrainz)* |
 
 ### Service Startup
