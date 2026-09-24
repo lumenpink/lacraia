@@ -239,6 +239,27 @@ PORT=8081 LACRAIA_CACHE_DIR=/var/cache/la-craia LACRAIA_DB_PATH=./lacraia.sqlite
 > ✨ **[ O PULO DA TRAVESTI ]**  
 > Para orquestrar o backend com banco populado, fila antecipada engatada e o reprodutor web do cockpit automotivo aberto no navegador em `/app` com uma única instrução, basta disparar `./start.sh --open`.
 
+---
+
+## 12. End-to-End Browser Testing & Audio Parity (`tests/e2e/`)
+
+To validate real-world cockpit operation and browser-daemon interoperability without touching user browser profiles, `lacraia` includes an automated headless Playwright test suite:
+
+### Test Suite Architecture (`tests/e2e/run_tests.js`)
+
+1. **Isolation & Headless Guarantees:**
+   * Launches system Chromium/Chrome (`/usr/bin/google-chrome`) strictly in **headless** mode with isolated arguments (`--no-sandbox`, `--disable-setuid-sandbox`, `--autoplay-policy=no-user-gesture-required`).
+   * Every test runs within an ephemeral incognito context (`browser.newContext()`) with designated viewport dimensions, destroying cookies, cache, and storage between suites.
+2. **Coverage Areas:**
+   * **Desktop Cockpit Layout:** Validates header telemetry, active cabin badges, master pilot status, and three responsive panels (`#deck-01` HUD & cassette, `#deck-02` queue, `#deck-03` cabin & crew).
+   * **Jukebox & Queue Management:** Simulates live user input in `#enqueue-input`, confirms debounced autocomplete suggestions in `#search-dropdown`, and asserts WebSocket queue synchronization into `#queue-list-container`.
+   * **Audio Engine & Volume Clamping:** Modulates `#gain-slider` across the 0..11 scale, verifies audio element volume clamping (`audio.volume = 1.0`), and triggers audio resolution on transport play (`#btn-play-pause`).
+   * **Mobile Viewport (< 860px):** Emulates mobile devices (375x667), verifying sticky bottom navigation tabs (`#mobile-tabs`) and persistent synchronized miniplayers.
+3. **Audio Stream URL Parity:**
+   * Normalizes camelCase (`streamUrl`) and snake_case (`stream_url`) payload serialization across Rust backend models and frontend JavaScript consumers.
+   * Ensures instant Tier 1 cache hits with diacritic stripping (`strip_accents`) when requesting regional music tracks (e.g. *"Construção"* -> `chico_buarque_construcao.opus`).
+
+
 
 
 
