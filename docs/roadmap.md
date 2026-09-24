@@ -26,13 +26,17 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
 
 ---
 
-### Ticket #16: Cockpit Audio Waveform Visualizer
-* **Package:** `packages/lacraia-app`
-* **Goal:** Real-time WebAudio frequency analyzer displaying a high-contrast soundwave canvas optimized for night-time driving.
+### Ticket #16: Soundwall Audio Waveform Visualizer & 32 Metameric Legs
+* **Package:** `packages/lacraia-app` & `site/app`
+* **Goal:** Real-time WebAudio frequency analyzer displaying a high-contrast soundwave canvas optimized for soundwall consoles, tablets, and low-power screens.
 * **Acceptance Criteria:**
-  - Connect `AudioContext.createAnalyser()` to the HTML5 audio element.
-  - Render an animated 32-bar visualizer using the `--fucsia-furacao` (`#ff0055`) neon accent on `--ferro-bate-pedra` (`#151618`) background.
-  - Touch-toggle to enable/disable visualizer to conserve rendering cycles on low-spec car tablets.
+  - Conexão em tempo real via Web Audio API (`AudioContext`, `createMediaElementSource`, `createAnalyser`, `fftSize: 128` downsampled para 32 bins) acoplada ao elemento `<audio id="audio-engine">`.
+  - Inicialização preguiçosa (*lazy init*) no primeiro gesto de interação (play, clique no dial ou toque) contornando restrições de autoplay dos navegadores.
+  - Renderização biomecânica das 32 patas do quilópode em `--fucsia-furacao` (`#ff0055`) e `--veneno-eletrico` (`#39ff14`), com destaque em branco nos picos graves e decaimento inercial suave.
+  - Botão tátil mecânico `[ ⚡ PATAS: ON / OFF ]` suspendendo o loop `requestAnimationFrame` para economia rigorosa de ciclos de CPU/GPU.
+  - Conformidade com a preferência de acessibilidade `prefers-reduced-motion: reduce`.
+  - Implementação de `VisualizerState` com testes unitários em Rust no crate `lacraia-app`.
+  - Validação contínua através do Teste 7 na suíte Playwright E2E (`tests/e2e/run_tests.js`).
 
 > 📡 **[ TRANSMISSÃO DE CABINE ]**  
 > Os 32 segmentos do analisador de espectro pulsam simulando as patas laterais do quilópode em plena correria durante os picos de grave.

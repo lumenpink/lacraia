@@ -162,6 +162,8 @@ LIMIT ?2;
    Registers active song metadata (`title`, `artist`, `album`, and 512x512 artwork) directly on `navigator.mediaSession` when running in browser / PWA mode.
 3. **OS Lockscreen & Keybinding Handlers:**
    Registers system action handlers for `play`, `pause`, `nexttrack`, `previoustrack`, and `seekto`, enabling hardware transport buttons, steering wheels, and lockscreen controls to operate seamlessly.
+4. **Real-time WebAudio Spectrum Visualizer & 32 Metameric Legs:**
+   Employs `AudioContext.createAnalyser()` connected directly to the `<audio id="audio-engine">` media element source. Bins the frequency spectrum into 32 animated neon bars with biomechanical inertia falloff, simulating the rhythmic scurrying of the centipede's legs during heavy bass impacts. Includes a tactile mechanical switch (`[ ⚡ PATAS: ON / OFF ]`) to cancel `requestAnimationFrame` loops on demand, conserving battery and GPU cycles on mobile and embedded devices, and automatically honors `prefers-reduced-motion: reduce`.
 
 ---
 
