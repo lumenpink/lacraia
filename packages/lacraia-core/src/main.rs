@@ -122,6 +122,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
         .route("/api/queue", get(handle_queue))
+        .route("/api/cabins", get(handle_list_cabins))
+        .route("/api/cabin/create", post(handle_cabin_create))
+        .route("/api/cabin/rotate-key", post(handle_cabin_rotate_key))
+        .route("/api/cabin/auth/master", post(handle_master_auth))
         .route("/api/cabin/join", post(handle_cabin_join))
         .route("/api/cabin/:id", get(handle_cabin_info))
         .route("/ws", get(ws_handler))
@@ -160,6 +164,7 @@ pub struct CabinJoinRequest {
     pub cabin_id: String,
     pub name: String,
     pub device: Option<String>,
+    pub key: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -172,6 +177,11 @@ pub struct CabinJoinResponse {
     pub role: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CabinInfoQuery {
+    pub token: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CabinDetailsResponse {
     pub id: String,
@@ -180,6 +190,72 @@ pub struct CabinDetailsResponse {
     pub is_locked: bool,
     #[serde(rename = "passengersCount")]
     pub passengers_count: usize,
+    #[serde(rename = "passengerKey", skip_serializing_if = "Option::is_none")]
+    pub passenger_key: Option<String>,
+    #[serde(rename = "isPilot", skip_serializing_if = "Option::is_none")]
+    pub is_pilot: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinListItem {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "isLocked")]
+    pub is_locked: bool,
+    #[serde(rename = "passengersCount")]
+    pub passengers_count: usize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CabinCreateRequest {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "masterKey")]
+    pub master_key: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinCreateResponse {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub name: String,
+    #[serde(rename = "pilotToken")]
+    pub pilot_token: String,
+    #[serde(rename = "passengerKey")]
+    pub passenger_key: String,
+    #[serde(rename = "pilotUrl")]
+    pub pilot_url: String,
+    #[serde(rename = "passengerUrl")]
+    pub passenger_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CabinRotateKeyRequest {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub token: Option<String>,
+    #[serde(rename = "masterKey")]
+    pub master_key: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinRotateKeyResponse {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    #[serde(rename = "passengerKey")]
+    pub passenger_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MasterAuthRequest {
+    #[serde(rename = "masterKey")]
+    pub master_key: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MasterAuthResponse {
+    pub valid: bool,
+    pub role: String,
 }
 
 async fn handle_cabin_join(
@@ -190,6 +266,29 @@ async fn handle_cabin_join(
         return Err((
             StatusCode::FORBIDDEN,
             "CABIN_LOCKED: Portas trancadas pelo piloto".into(),
+        ));
+    }
+
+    // Verify passenger key against cabin record
+    let cabin = state.db.get_cabin(&payload.cabin_id).map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {}", e))
+    })?;
+
+    if let Some(cab) = cabin {
+        // If passenger_key is configured on cabin, require valid key
+        if !cab.passenger_key.is_empty() {
+            let provided = payload.key.as_deref().unwrap_or_default();
+            if !state.db.verify_passenger_key(&payload.cabin_id, provided).unwrap_or(false) {
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    "INVALID_KEY: Chave de embarque inválida ou expirada".into(),
+                ));
+            }
+        }
+    } else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            format!("Cabine '{}' não encontrada", payload.cabin_id),
         ));
     }
 
@@ -220,19 +319,154 @@ async fn handle_cabin_join(
     }
 }
 
+async fn handle_cabin_create(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinCreateRequest>,
+) -> Result<Json<CabinCreateResponse>, (StatusCode, String)> {
+    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
+        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let provided_master = payload.master_key.as_deref().unwrap_or_default();
+
+    if provided_master != configured_master {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED: Apenas a Master pode criar novas cabines".into(),
+        ));
+    }
+
+    let cabin_id = payload.id.trim().to_lowercase().replace(' ', "-");
+    if cabin_id.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "ID da cabine inválido".into()));
+    }
+
+    let pilot_token = format!("plt_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..16]);
+    let passenger_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+
+    match state.db.create_cabin(&cabin_id, &payload.name, &pilot_token, &passenger_key) {
+        Ok(rec) => Ok(Json(CabinCreateResponse {
+            cabin_id: rec.id.clone(),
+            name: rec.name,
+            pilot_token: rec.pilot_token.clone(),
+            passenger_key: rec.passenger_key.clone(),
+            pilot_url: format!("/app?cabin={}&pilot_token={}", rec.id, rec.pilot_token),
+            passenger_url: format!("/app?cabin={}&key={}", rec.id, rec.passenger_key),
+        })),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao criar cabine: {}", e),
+        )),
+    }
+}
+
+async fn handle_cabin_rotate_key(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinRotateKeyRequest>,
+) -> Result<Json<CabinRotateKeyResponse>, (StatusCode, String)> {
+    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
+        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let is_master = payload.master_key.as_deref() == Some(&configured_master);
+
+    let is_pilot = if let Some(ref tok) = payload.token {
+        state.db.validate_token(&payload.cabin_id, tok, Some(&configured_master)).unwrap_or(None) == Some(lacraia_shared::Role::Pilot)
+    } else {
+        false
+    };
+
+    if !is_master && !is_pilot {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED: Apenas o Piloto da cabine ou a Master podem rotacionar a chave".into(),
+        ));
+    }
+
+    let new_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+    match state.db.rotate_passenger_key(&payload.cabin_id, &new_key) {
+        Ok(()) => Ok(Json(CabinRotateKeyResponse {
+            cabin_id: payload.cabin_id,
+            passenger_key: new_key,
+        })),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao rotacionar chave: {}", e),
+        )),
+    }
+}
+
+async fn handle_list_cabins(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<CabinListItem>>, (StatusCode, String)> {
+    match state.db.list_cabins() {
+        Ok(cabins) => {
+            let list = cabins
+                .into_iter()
+                .map(|c| {
+                    let passengers = state.db.get_active_passengers(&c.id).unwrap_or_default();
+                    CabinListItem {
+                        id: c.id,
+                        name: c.name,
+                        is_locked: c.is_locked,
+                        passengers_count: passengers.len(),
+                    }
+                })
+                .collect();
+            Ok(Json(list))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to list cabins: {}", e),
+        )),
+    }
+}
+
+async fn handle_master_auth(
+    Json(payload): Json<MasterAuthRequest>,
+) -> Result<Json<MasterAuthResponse>, (StatusCode, String)> {
+    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
+        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    if payload.master_key == configured_master {
+        Ok(Json(MasterAuthResponse {
+            valid: true,
+            role: "MASTER".into(),
+        }))
+    } else {
+        Err((
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED: Chave Master incorreta".into(),
+        ))
+    }
+}
+
 async fn handle_cabin_info(
     State(state): State<AppState>,
     axum::extract::Path(cabin_id): axum::extract::Path<String>,
+    Query(query): Query<CabinInfoQuery>,
 ) -> Result<Json<CabinDetailsResponse>, (StatusCode, String)> {
-    let is_locked = state.db.is_cabin_locked(&cabin_id).unwrap_or(false);
-    let passengers = state.db.get_active_passengers(&cabin_id).unwrap_or_default();
+    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
+        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let role = if let Some(ref tok) = query.token {
+        state.db.validate_token(&cabin_id, tok, Some(&configured_master)).unwrap_or(None)
+    } else {
+        None
+    };
 
-    Ok(Json(CabinDetailsResponse {
-        id: cabin_id.clone(),
-        name: format!("Cabine {}", cabin_id),
-        is_locked,
-        passengers_count: passengers.len(),
-    }))
+    let is_pilot = role == Some(lacraia_shared::Role::Pilot);
+    let cabin = state.db.get_cabin(&cabin_id).map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {}", e))
+    })?;
+
+    if let Some(c) = cabin {
+        let passengers = state.db.get_active_passengers(&cabin_id).unwrap_or_default();
+        Ok(Json(CabinDetailsResponse {
+            id: c.id,
+            name: c.name,
+            is_locked: c.is_locked,
+            passengers_count: passengers.len(),
+            passenger_key: if is_pilot { Some(c.passenger_key) } else { None },
+            is_pilot: Some(is_pilot),
+        }))
+    } else {
+        Err((StatusCode::NOT_FOUND, "Cabine não encontrada".into()))
+    }
 }
 
 async fn handle_search(

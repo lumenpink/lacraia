@@ -47,15 +47,14 @@ impl PlaybackHub {
         }
     }
 
-    /// Builds a snapshot `STATE_UPDATE` message with the current playback status.
-    pub async fn build_state_update(&self) -> WsMessage {
+    /// Builds a snapshot `STATE_UPDATE` message with the current playback status for a specific cabin.
+    pub async fn build_state_update_for_cabin(&self, cabin_id: &str) -> WsMessage {
         let track = self.current_track.lock().await.clone();
         let state = *self.playback_state.lock().await;
         let pos = *self.position_ms.lock().await;
-        let cabin_id = self.cabin_id.lock().await.clone();
-        let is_locked = self.db.is_cabin_locked(&cabin_id).unwrap_or(false);
+        let is_locked = self.db.is_cabin_locked(cabin_id).unwrap_or(false);
 
-        let queue_entries = self.db.get_queue_for_cabin(&cabin_id).unwrap_or_default();
+        let queue_entries = self.db.get_queue_for_cabin(cabin_id).unwrap_or_default();
         let queue: Vec<lacraia_shared::QueueItem> = queue_entries
             .into_iter()
             .map(|(q, t)| lacraia_shared::QueueItem {
@@ -79,15 +78,22 @@ impl PlaybackHub {
                     updated_at: Utc::now().timestamp_millis(),
                 },
                 has_lrc: true,
-                cabin_id: Some(cabin_id),
+                cabin_id: Some(cabin_id.to_string()),
                 is_locked: Some(is_locked),
                 queue,
             },
         })
     }
 
+    /// Builds a snapshot `STATE_UPDATE` message with default cabin status.
+    pub async fn build_state_update(&self) -> WsMessage {
+        let cabin_id = self.cabin_id.lock().await.clone();
+        self.build_state_update_for_cabin(&cabin_id).await
+    }
+
     pub async fn dispatch_command(&self, action: CommandAction) -> Result<WsMessage, String> {
-        self.dispatch_command_with_role(action, Some(Role::Pilot)).await
+        let cabin_id = self.cabin_id.lock().await.clone();
+        self.dispatch_command_with_role(action, &cabin_id, Some(Role::Pilot)).await
     }
 
     /// Dispatches a command action, mutates internal state, queries the database if needed,
@@ -95,17 +101,31 @@ impl PlaybackHub {
     pub async fn dispatch_command_with_role(
         &self,
         action: CommandAction,
+        cabin_id: &str,
         caller_role: Option<Role>,
     ) -> Result<WsMessage, String> {
-        // Enforce role-based access control: passengers may only append to the queue
-        if let Some(Role::Passenger) = caller_role {
-            match &action {
-                CommandAction::QueueAppend { .. } => { /* Allowed */ }
-                _ => return Err("FORBIDDEN: Apenas o piloto pode comandar a cabine".to_string()),
+        // Enforce strict role-based access control
+        match caller_role {
+            Some(Role::Pilot) => {
+                // Pilot has full command authority
+            }
+            Some(Role::Passenger) => {
+                match &action {
+                    CommandAction::QueueAppend { .. } => { /* Allowed */ }
+                    _ => return Err("FORBIDDEN: Apenas o piloto pode comandar a cabine".to_string()),
+                }
+            }
+            None => {
+                // Unauthenticated / Anonymous
+                if self.db.is_cabin_locked(cabin_id).unwrap_or(false) {
+                    return Err("FORBIDDEN: Cabine trancada pelo piloto".to_string());
+                }
+                match &action {
+                    CommandAction::QueueAppend { .. } => { /* Allowed */ }
+                    _ => return Err("UNAUTHORIZED: Autenticação de piloto necessária para comandar a cabine".to_string()),
+                }
             }
         }
-
-        let cabin_id = self.cabin_id.lock().await.clone();
 
         match action {
             CommandAction::Play => {
@@ -119,7 +139,7 @@ impl PlaybackHub {
             }
             CommandAction::Next => {
                 *self.position_ms.lock().await = 0;
-                match self.db.advance_queue_for_cabin(&cabin_id) {
+                match self.db.advance_queue_for_cabin(cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
                             let track = Track {
@@ -147,20 +167,20 @@ impl PlaybackHub {
                 *self.position_ms.lock().await = 0;
             }
             CommandAction::QueueAppend { track_id, requested_by } => {
-                if let Err(e) = self.db.enqueue_track_with_meta(&track_id, requested_by.as_deref(), &cabin_id) {
+                if let Err(e) = self.db.enqueue_track_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
                     return Err(format!("Failed to enqueue track: {}", e));
                 }
             }
             CommandAction::QueueRemove { queue_id } => {
-                if let Err(e) = self.db.remove_queue_entry(queue_id, &cabin_id) {
+                if let Err(e) = self.db.remove_queue_entry(queue_id, cabin_id) {
                     return Err(format!("Failed to remove track from queue: {}", e));
                 }
             }
             CommandAction::LockCabin { locked } => {
-                let _ = self.db.set_cabin_locked(&cabin_id, locked);
-                let passengers = self.db.get_active_passengers(&cabin_id).unwrap_or_default();
+                let _ = self.db.set_cabin_locked(cabin_id, locked);
+                let passengers = self.db.get_active_passengers(cabin_id).unwrap_or_default();
                 let _ = self.tx.send(WsMessage::CrewUpdate(CrewUpdate {
-                    cabin_id: cabin_id.clone(),
+                    cabin_id: cabin_id.to_string(),
                     is_locked: locked,
                     passengers,
                 }));
@@ -168,33 +188,33 @@ impl PlaybackHub {
             CommandAction::EjectPassenger { passenger_id } => {
                 let _ = self.db.eject_passenger(&passenger_id);
                 let _ = self.tx.send(WsMessage::Ejected(EjectedNotification {
-                    cabin_id: cabin_id.clone(),
+                    cabin_id: cabin_id.to_string(),
                     reason: "Chute da cabine pelo piloto".into(),
                 }));
-                let passengers = self.db.get_active_passengers(&cabin_id).unwrap_or_default();
-                let is_locked = self.db.is_cabin_locked(&cabin_id).unwrap_or(false);
+                let passengers = self.db.get_active_passengers(cabin_id).unwrap_or_default();
+                let is_locked = self.db.is_cabin_locked(cabin_id).unwrap_or(false);
                 let _ = self.tx.send(WsMessage::CrewUpdate(CrewUpdate {
-                    cabin_id: cabin_id.clone(),
+                    cabin_id: cabin_id.to_string(),
                     is_locked,
                     passengers,
                 }));
             }
             CommandAction::EjectAll => {
-                let _ = self.db.eject_all_passengers(&cabin_id);
+                let _ = self.db.eject_all_passengers(cabin_id);
                 let _ = self.tx.send(WsMessage::Ejected(EjectedNotification {
-                    cabin_id: cabin_id.clone(),
+                    cabin_id: cabin_id.to_string(),
                     reason: "Todos os passageiros foram ejetados pelo piloto".into(),
                 }));
-                let is_locked = self.db.is_cabin_locked(&cabin_id).unwrap_or(false);
+                let is_locked = self.db.is_cabin_locked(cabin_id).unwrap_or(false);
                 let _ = self.tx.send(WsMessage::CrewUpdate(CrewUpdate {
-                    cabin_id: cabin_id.clone(),
+                    cabin_id: cabin_id.to_string(),
                     is_locked,
                     passengers: vec![],
                 }));
             }
         }
 
-        let update = self.build_state_update().await;
+        let update = self.build_state_update_for_cabin(cabin_id).await;
         let _ = self.tx.send(update.clone());
         Ok(update)
     }
@@ -249,12 +269,11 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
     let mut rx = hub.tx.subscribe();
 
     let cabin_id = params.cabin.unwrap_or_else(|| "default".to_string());
+    let master_key = std::env::var("LACRAIA_MASTER_KEY").ok();
 
-    // Check role from token if provided
+    // Check role from token if provided (strictly no automatic pilot fallback)
     let role = if let Some(ref tok) = params.token {
-        hub.db.validate_token(&cabin_id, tok).unwrap_or(None)
-    } else if cabin_id == "default" {
-        Some(Role::Pilot)
+        hub.db.validate_token(&cabin_id, tok, master_key.as_deref()).unwrap_or(None)
     } else {
         None
     };
@@ -272,7 +291,7 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
     }
 
     // Send initial snapshot state immediately upon client connection
-    let initial_state = hub.build_state_update().await;
+    let initial_state = hub.build_state_update_for_cabin(&cabin_id).await;
     if let Ok(json) = serde_json::to_string(&initial_state) {
         let _ = sender.send(Message::Text(json)).await;
     }
@@ -300,12 +319,13 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
     });
 
     let hub_clone = hub.clone();
+    let cabin_id_clone = cabin_id.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             match serde_json::from_str::<WsMessage>(&text) {
                 Ok(WsMessage::Command(cmd)) => {
-                    info!("WebSocket Hub: dispatching command {:?} with role {:?}", cmd.payload, role);
-                    let _ = hub_clone.dispatch_command_with_role(cmd.payload, role).await;
+                    info!("WebSocket Hub: dispatching command {:?} on cabin {} with role {:?}", cmd.payload, cabin_id_clone, role);
+                    let _ = hub_clone.dispatch_command_with_role(cmd.payload, &cabin_id_clone, role).await;
                 }
                 Ok(WsMessage::StateUpdate(_)) => {
                     warn!("Client sent unexpected StateUpdate, ignoring");
@@ -392,9 +412,16 @@ mod tests {
         let (tx, mut rx) = broadcast::channel(10);
         let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
 
+        // 0. Anonymous/Guest cannot Pause/Stop (unauthorized)
+        let unauth_res = hub
+            .dispatch_command_with_role(CommandAction::Pause, "default", None)
+            .await;
+        assert!(unauth_res.is_err());
+        assert!(unauth_res.unwrap_err().contains("UNAUTHORIZED"));
+
         // 1. Passenger cannot Pause/Stop (forbidden)
         let res = hub
-            .dispatch_command_with_role(CommandAction::Pause, Some(Role::Passenger))
+            .dispatch_command_with_role(CommandAction::Pause, "default", Some(Role::Passenger))
             .await;
         assert!(res.is_err());
         assert!(res.unwrap_err().contains("FORBIDDEN"));
@@ -417,6 +444,7 @@ mod tests {
                     track_id: "trk_party".into(),
                     requested_by: Some("@Mari".into()),
                 },
+                "default",
                 Some(Role::Passenger),
             )
             .await;
@@ -439,6 +467,20 @@ mod tests {
 
         // Drain subsequent state update from dispatch_command
         let _ = rx.recv().await.unwrap();
+
+        // 3.1. When cabin is locked, anonymous guest cannot append to queue
+        let locked_append_res = hub
+            .dispatch_command_with_role(
+                CommandAction::QueueAppend {
+                    track_id: "trk_party".into(),
+                    requested_by: Some("@Hacker".into()),
+                },
+                "default",
+                None,
+            )
+            .await;
+        assert!(locked_append_res.is_err());
+        assert!(locked_append_res.unwrap_err().contains("FORBIDDEN"));
 
         // 4. Pilot ejects passenger
         hub.dispatch_command(CommandAction::EjectPassenger {

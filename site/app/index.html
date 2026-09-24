@@ -111,6 +111,19 @@
       background: rgba(255, 0, 85, 0.1);
     }
 
+    .badge-master {
+      border-color: #ffd700;
+      color: #ffd700;
+      background: rgba(255, 215, 0, 0.12);
+      text-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
+    }
+
+    .badge-passenger {
+      border-color: var(--azul-fusca);
+      color: var(--azul-fusca);
+      background: rgba(0, 229, 255, 0.08);
+    }
+
     .badge-live {
       border-color: var(--veneno-eletrico);
       color: var(--veneno-eletrico);
@@ -1036,11 +1049,15 @@
     </div>
 
     <div class="top-telemetry">
+      <div id="cabin-badge" class="badge badge-btn" title="Alternar ou Criar Cabine">
+        <span>CABINE: <b id="cabin-name-display" style="color:var(--veneno-eletrico);">CENTRAL</b> ▾</span>
+      </div>
       <div id="ws-badge" class="badge" title="Clique para reconfigurar conexão">
         <span id="ws-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--chumbo);"></span>
         <span id="ws-text">WS :: OFFLINE</span>
       </div>
-      <div id="role-badge" class="badge badge-pilot">PILOTO</div>
+      <div id="role-badge" class="badge badge-passenger badge-btn" title="Clique para alterar papel ou autenticar">PASSAGEIRO</div>
+      <button id="btn-cabin-access" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Gerenciar Acesso e QR Code da Cabine">🔑 ACESSO &amp; QR</button>
       <div id="door-badge" class="badge badge-locked">🔓 PORTAS ABERTAS</div>
       <a href="/" class="badge badge-btn">&larr; BANCADA</a>
     </div>
@@ -1285,20 +1302,72 @@
     </div>
   </div>
 
-  <!-- Modal: QR Code Embarque -->
+  <!-- Modal: QR Code & Acesso de Cabine -->
   <div class="modal-overlay" id="qr-modal">
     <div class="modal-card">
-      <div class="modal-title">📲 EMBARQUE DE PASSAGEIRO</div>
+      <div class="modal-title">🔑 ACESSO &amp; EMBARQUE DE PASSAGEIRO</div>
       <div style="font-size: 12px; color: var(--papel-jornal-molhado);">
-        Aponte a câmera do celular para entrar na cabine e solicitar cantigas no som do carro:
+        Aponte a câmera do celular para entrar na cabine e solicitar cantigas no som:
       </div>
       <div class="qr-render" id="qr-code-box">
         <canvas id="qr-canvas" width="180" height="180"></canvas>
       </div>
-      <div id="qr-link-text" style="font-size: 10px; color: var(--chumbo); word-break: break-all;">
-        https://lacraia.2lp.in/app?cabin=automotive
+      <div style="font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-top:4px;">
+        LINK DE PASSAGEIRO COM CHAVE EMBUTIDA:
       </div>
-      <button class="btn btn-main" id="btn-close-qr">FECHAR [ESC]</button>
+      <div id="qr-link-text" style="font-size: 11px; color: #fff; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); padding: 8px; border-radius: 2px; word-break: break-all; margin: 6px 0;">
+        https://mylacraia.2lp.in/app?cabin=default&amp;key=...
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button class="btn btn-active" id="btn-copy-passenger-link" style="flex:1;">📋 COPIAR LINK</button>
+        <button class="btn btn-alert" id="btn-rotate-key" style="flex:1;">🔄 GIRAR CHAVE</button>
+      </div>
+      <div id="pilot-delegation-box" style="display:none; border-top:1px dashed var(--borda-chassi); padding-top:10px; margin-top:6px;">
+        <div style="font-size:10px; color:var(--fucsia-furacao); font-weight:bold;">LINK DE DELEGAÇÃO DO PILOTO (RESTRITO):</div>
+        <div id="pilot-link-text" style="font-size:10px; color:var(--chumbo); word-break:break-all; margin:4px 0;"></div>
+        <button class="btn btn-danger" id="btn-copy-pilot-link" style="width:100%; font-size:10px;">📋 COPIAR LINK DO PILOTO</button>
+      </div>
+      <button class="btn btn-main" id="btn-close-qr" style="margin-top:10px;">FECHAR [ESC]</button>
+    </div>
+  </div>
+
+  <!-- Modal: Autenticação de Piloto / Master -->
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal-card">
+      <div class="modal-title" id="auth-modal-title">🔐 CABINE DE COMANDO :: ACESSO</div>
+      <div style="font-size: 12px; color: var(--papel-jornal-molhado); margin-bottom: 12px;" id="auth-modal-desc">
+        Insira o Token de Piloto ou a Chave Master para assumir o controle do volante.
+      </div>
+      <div id="auth-modal-inputs">
+        <input type="password" id="auth-token-input" placeholder="Token do Piloto ou Chave Master" style="width: 100%; background: var(--asfalto-frio); border: 1px solid var(--veneno-eletrico); color: #fff; padding: 10px; font-family: var(--font-mono); font-size: 13px; border-radius: 2px; margin-bottom: 10px;" />
+        <div id="auth-error-msg" style="color: var(--curto-circuito); font-size: 11px; margin-bottom: 8px; display: none;"></div>
+        <button class="btn btn-main" id="btn-submit-auth" style="width: 100%; margin-bottom: 8px;">[ CLACK! AUTENTICAR ]</button>
+      </div>
+      <div id="auth-logout-box" style="display:none;">
+        <div style="font-size:11px; color:var(--papel-jornal-molhado); margin-bottom:10px;">Você está autenticado nesta cabine. Deseja entregar o volante e voltar a ser passageiro?</div>
+        <button class="btn btn-alert" id="btn-submit-logout" style="width: 100%; margin-bottom: 8px;">ENTREGAR O VOLANTE (DESLOGAR)</button>
+      </div>
+      <button class="btn btn-active" id="btn-close-auth" style="width: 100%;">CANCELAR</button>
+    </div>
+  </div>
+
+  <!-- Modal: Alternar / Criar Cabines -->
+  <div class="modal-overlay" id="cabin-modal">
+    <div class="modal-card">
+      <div class="modal-title">🎛️ CABINES ATIVAS</div>
+      <div style="font-size: 12px; color: var(--papel-jornal-molhado); margin-bottom: 10px;">
+        Selecione uma cabine para sintonizar no cockpit:
+      </div>
+      <div id="cabin-list-container" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+        <!-- Lista de cabines inserida via JS -->
+      </div>
+      <div id="master-create-cabin-box" style="display:none; border-top: 1px solid var(--borda-chassi); padding-top: 12px;">
+        <div style="font-size: 11px; font-weight: bold; color: #ffd700; margin-bottom: 6px;">👑 CRIAR NOVA CABINE (MASTER)</div>
+        <input type="text" id="new-cabin-name" placeholder="Nome da Cabine (ex: Van Furacão)" style="width:100%; background:var(--asfalto-frio); border:1px solid var(--borda-chassi); color:#fff; padding:6px; font-family:var(--font-mono); font-size:11px; margin-bottom:6px;" />
+        <input type="text" id="new-cabin-id" placeholder="ID slug (ex: van-furacao)" style="width:100%; background:var(--asfalto-frio); border:1px solid var(--borda-chassi); color:#fff; padding:6px; font-family:var(--font-mono); font-size:11px; margin-bottom:8px;" />
+        <button class="btn btn-main" id="btn-create-cabin-submit" style="width:100%; margin-bottom:8px;">+ CRIAR CABINE</button>
+      </div>
+      <button class="btn btn-active" id="btn-close-cabin" style="width: 100%;">FECHAR</button>
     </div>
   </div>
 
@@ -1327,19 +1396,53 @@
         { id: "trk_5", title: "Autobahn", artist: "Kraftwerk", duration_ms: 1360000, requested_by: "PILOTO" }
       ];
 
+      // URL parameters & Active Cabin
+      const urlParams = new URLSearchParams(window.location.search);
+      const cabinParam = urlParams.get("cabin") || localStorage.getItem("lacraia_active_cabin") || "default";
+      const pilotTokenParam = urlParams.get("pilot_token");
+      const masterKeyParam = urlParams.get("master_key");
+      const keyParam = urlParams.get("key");
+
+      if (masterKeyParam) {
+        localStorage.setItem("lacraia_master_key", masterKeyParam);
+      }
+      if (pilotTokenParam) {
+        localStorage.setItem("lacraia_pilot_token_" + cabinParam, pilotTokenParam);
+      }
+      if (keyParam) {
+        localStorage.setItem("lacraia_passenger_key_" + cabinParam, keyParam);
+      }
+      localStorage.setItem("lacraia_active_cabin", cabinParam);
+
+      function resolveInitialAuth(cabId) {
+        const storedMaster = localStorage.getItem("lacraia_master_key");
+        if (storedMaster) {
+          return { role: "MASTER", token: storedMaster };
+        }
+        const storedPilot = localStorage.getItem("lacraia_pilot_token_" + cabId);
+        if (storedPilot) {
+          return { role: "PILOTO", token: storedPilot };
+        }
+        const storedPassenger = localStorage.getItem("lacraia_passenger_token_" + cabId);
+        return { role: "PASSAGEIRO", token: storedPassenger || null };
+      }
+
+      const initialAuth = resolveInitialAuth(cabinParam);
+
       let state = {
+        cabinId: cabinParam,
+        cabinName: cabinParam === "default" ? "Cabine Central" : `Cabine ${cabinParam}`,
+        passengerKey: keyParam || localStorage.getItem("lacraia_passenger_key_" + cabinParam) || "",
         isPlaying: false,
         currentIndex: 0,
         positionMs: 0,
         durationMs: DEMO_PLAYLIST[0].duration_ms,
         volume: 0.72, // 8 / 11
         isLocked: false,
-        role: "PILOTO",
-        crew: [
-          { id: "pilot", name: "MOTORISTA (Você)", device: "Cockpit Central", role: "PILOTO" },
-          { id: "p1", name: "@Mari", device: "Pixel 8", role: "PASSAGEIRO", track: "Águas de Março" },
-          { id: "p2", name: "@Davi", device: "iPhone 14", role: "PASSAGEIRO", track: "Chega de Saudade" }
-        ],
+        role: initialAuth.role,
+        myToken: initialAuth.token,
+        myPassengerName: localStorage.getItem("lacraia_vulgo") || "",
+        crew: [],
         queue: [],
         station: "MPB & Samba",
         wsConnected: false
@@ -1391,6 +1494,37 @@
 
       // Elements
       const audio = document.getElementById("audio-engine");
+
+      const cabinBadge = document.getElementById("cabin-badge");
+      const cabinNameDisplay = document.getElementById("cabin-name-display");
+      const btnCabinAccess = document.getElementById("btn-cabin-access");
+      const roleBadge = document.getElementById("role-badge");
+
+      const authModal = document.getElementById("auth-modal");
+      const authModalTitle = document.getElementById("auth-modal-title");
+      const authModalDesc = document.getElementById("auth-modal-desc");
+      const authModalInputs = document.getElementById("auth-modal-inputs");
+      const authTokenInput = document.getElementById("auth-token-input");
+      const authErrorMsg = document.getElementById("auth-error-msg");
+      const btnSubmitAuth = document.getElementById("btn-submit-auth");
+      const authLogoutBox = document.getElementById("auth-logout-box");
+      const btnSubmitLogout = document.getElementById("btn-submit-logout");
+      const btnCloseAuth = document.getElementById("btn-close-auth");
+
+      const cabinModal = document.getElementById("cabin-modal");
+      const cabinListContainer = document.getElementById("cabin-list-container");
+      const masterCreateCabinBox = document.getElementById("master-create-cabin-box");
+      const newCabinName = document.getElementById("new-cabin-name");
+      const newCabinId = document.getElementById("new-cabin-id");
+      const btnCreateCabinSubmit = document.getElementById("btn-create-cabin-submit");
+      const btnCloseCabin = document.getElementById("btn-close-cabin");
+
+      const btnCopyPassengerLink = document.getElementById("btn-copy-passenger-link");
+      const btnRotateKey = document.getElementById("btn-rotate-key");
+      const qrLinkText = document.getElementById("qr-link-text");
+      const pilotDelegationBox = document.getElementById("pilot-delegation-box");
+      const pilotLinkText = document.getElementById("pilot-link-text");
+      const btnCopyPilotLink = document.getElementById("btn-copy-pilot-link");
 
       const trackTitle = document.getElementById("track-title");
       const trackArtist = document.getElementById("track-artist");
@@ -1497,6 +1631,23 @@
         if (stickyPlayIcon) stickyPlayIcon.textContent = playIconChar;
         if (stickyFill) stickyFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
 
+        // Cabin & Role Badges Update
+        if (cabinNameDisplay) {
+          cabinNameDisplay.textContent = (state.cabinName || state.cabinId).toUpperCase();
+        }
+        if (roleBadge) {
+          if (state.role === "MASTER") {
+            roleBadge.textContent = "👑 MASTER";
+            roleBadge.className = "badge badge-master badge-btn";
+          } else if (state.role === "PILOTO") {
+            roleBadge.textContent = "🏎️ PILOTO";
+            roleBadge.className = "badge badge-pilot badge-btn";
+          } else {
+            roleBadge.textContent = "PASSAGEIRO";
+            roleBadge.className = "badge badge-passenger badge-btn";
+          }
+        }
+
         // Update Mobile Tab Badges
         const tabQueueBadge = document.getElementById("tab-queue-badge");
         const tabCrewBadge = document.getElementById("tab-crew-badge");
@@ -1521,7 +1672,8 @@
         crewList.innerHTML = "";
         state.crew.forEach(p => {
           const item = document.createElement("div");
-          item.className = `crew-item ${p.role === 'PILOTO' ? 'pilot-item' : ''}`;
+          const isP = p.role === 'PILOTO' || p.role === 'MASTER';
+          item.className = `crew-item ${isP ? 'pilot-item' : ''}`;
           
           const info = document.createElement("div");
           info.className = "crew-item-info";
@@ -1538,17 +1690,19 @@
           info.appendChild(dev);
           item.appendChild(info);
 
-          if (p.role !== 'PILOTO') {
-            const ejectBtn = document.createElement("button");
-            ejectBtn.className = "btn btn-danger crew-item-btn";
-            ejectBtn.textContent = "👢";
-            ejectBtn.title = `Ejetar ${p.name}`;
-            ejectBtn.onclick = () => ejectPassenger(p.id);
-            item.appendChild(ejectBtn);
+          if (!isP) {
+            if (isPilotOrMaster()) {
+              const ejectBtn = document.createElement("button");
+              ejectBtn.className = "btn btn-danger crew-item-btn";
+              ejectBtn.textContent = "👢";
+              ejectBtn.title = `Ejetar ${p.name}`;
+              ejectBtn.onclick = () => ejectPassenger(p.id);
+              item.appendChild(ejectBtn);
+            }
           } else {
             const badge = document.createElement("span");
-            badge.className = "badge badge-pilot";
-            badge.textContent = "PILOTO";
+            badge.className = p.role === 'MASTER' ? "badge badge-master" : "badge badge-pilot";
+            badge.textContent = p.role === 'MASTER' ? "MASTER" : "PILOTO";
             item.appendChild(badge);
           }
 
@@ -1606,8 +1760,8 @@
               cachePill.textContent = st === 'cached' ? '⚡ CACHED' : (st === 'playing' ? '▶ PLAYING' : '⏳ PENDING');
               row.appendChild(cachePill);
 
-              // Remove button for Pilot
-              if (state.role === "PILOTO") {
+              // Remove button for Pilot/Master
+              if (isPilotOrMaster()) {
                 const removeBtn = document.createElement("button");
                 removeBtn.className = "btn btn-danger";
                 removeBtn.style.cssText = "padding: 2px 7px; font-size: 11px; line-height: 1;";
@@ -1648,6 +1802,19 @@
             }
           }
         }, 1000);
+      }
+
+      function isPilotOrMaster() {
+        return state.role === "PILOTO" || state.role === "MASTER";
+      }
+
+      function requirePilot(actionCallback) {
+        if (isPilotOrMaster()) {
+          if (actionCallback) actionCallback();
+          return true;
+        }
+        openAuthModal();
+        return false;
       }
 
       function togglePlayPause() {
@@ -1712,17 +1879,18 @@
       }
 
       // Event Listeners
-      btnPlayPause.addEventListener("click", togglePlayPause);
-      btnNext.addEventListener("click", nextTrack);
-      btnPrev.addEventListener("click", prevTrack);
-      btnToggleDoor.addEventListener("click", toggleDoors);
-      btnEjectAll.addEventListener("click", ejectAll);
+      btnPlayPause.addEventListener("click", () => requirePilot(togglePlayPause));
+      btnNext.addEventListener("click", () => requirePilot(nextTrack));
+      btnPrev.addEventListener("click", () => requirePilot(prevTrack));
+      btnToggleDoor.addEventListener("click", () => requirePilot(toggleDoors));
+      btnEjectAll.addEventListener("click", () => requirePilot(ejectAll));
 
       gainSlider.addEventListener("input", (e) => {
         setGain(parseInt(e.target.value, 10));
       });
 
       progressTrack.addEventListener("click", (e) => {
+        if (!requirePilot()) return;
         const rect = progressTrack.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const pct = Math.max(0, Math.min(1, clickX / rect.width));
@@ -1781,14 +1949,14 @@
       document.querySelectorAll(".mini-btn-toggle").forEach(btn => {
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
-          togglePlayPause();
+          requirePilot(togglePlayPause);
         });
       });
 
       document.querySelectorAll(".mini-btn-skip").forEach(btn => {
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
-          nextTrack();
+          requirePilot(nextTrack);
         });
       });
 
@@ -1800,14 +1968,15 @@
       });
 
       const stickyBtnPlay = document.getElementById("sticky-btn-play");
-      if (stickyBtnPlay) stickyBtnPlay.addEventListener("click", togglePlayPause);
+      if (stickyBtnPlay) stickyBtnPlay.addEventListener("click", () => requirePilot(togglePlayPause));
 
       const stickyBtnNext = document.getElementById("sticky-btn-next");
-      if (stickyBtnNext) stickyBtnNext.addEventListener("click", nextTrack);
+      if (stickyBtnNext) stickyBtnNext.addEventListener("click", () => requirePilot(nextTrack));
 
       // Mini Seek targets
       document.querySelectorAll(".mini-seek-target").forEach(target => {
         target.addEventListener("click", (e) => {
+          if (!requirePilot()) return;
           const rect = target.getBoundingClientRect();
           const clickX = e.clientX - rect.left;
           const pct = Math.max(0, Math.min(1, clickX / rect.width));
@@ -2007,8 +2176,9 @@
       });
 
 
-      // Modal QR Code
+      // Modal QR Code & Cabin Access
       function drawQrPreview() {
+        if (!qrCanvas) return;
         const ctx = qrCanvas.getContext("2d");
         const w = qrCanvas.width;
         const h = qrCanvas.height;
@@ -2039,27 +2209,393 @@
         }
       }
 
-      btnOpenQr.addEventListener("click", () => {
+      function updateQrModalContent() {
+        const baseUrl = `${window.location.origin}/app`;
+        let passengerUrl = `${baseUrl}?cabin=${encodeURIComponent(state.cabinId)}`;
+        if (state.passengerKey) {
+          passengerUrl += `&key=${encodeURIComponent(state.passengerKey)}`;
+        }
+        if (qrLinkText) qrLinkText.textContent = passengerUrl;
+
+        if (isPilotOrMaster()) {
+          if (pilotDelegationBox) pilotDelegationBox.style.display = "block";
+          const pilotToken = state.role === "MASTER" ? (localStorage.getItem("lacraia_pilot_token_" + state.cabinId) || state.myToken) : state.myToken;
+          const pilotUrl = `${baseUrl}?cabin=${encodeURIComponent(state.cabinId)}&pilot_token=${encodeURIComponent(pilotToken || '')}`;
+          if (pilotLinkText) pilotLinkText.textContent = pilotUrl;
+          if (btnRotateKey) btnRotateKey.style.display = "block";
+        } else {
+          if (pilotDelegationBox) pilotDelegationBox.style.display = "none";
+          if (btnRotateKey) btnRotateKey.style.display = "none";
+        }
         drawQrPreview();
-        qrModal.classList.add("active");
-      });
-      btnCloseQr.addEventListener("click", () => qrModal.classList.remove("active"));
-      qrModal.addEventListener("click", (e) => {
-        if (e.target === qrModal) qrModal.classList.remove("active");
-      });
+      }
+
+      function openQrModal() {
+        updateQrModalContent();
+        if (qrModal) qrModal.classList.add("active");
+      }
+
+      async function rotatePassengerKey() {
+        if (!isPilotOrMaster()) return;
+        if (!confirm("Tem certeza que deseja girar a chave desta cabine? Todos os links de passageiros anteriores serão invalidados imediatamente.")) {
+          return;
+        }
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/cabin/rotate-key`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cabinId: state.cabinId,
+              token: state.myToken,
+              masterKey: state.role === "MASTER" ? state.myToken : (localStorage.getItem("lacraia_master_key") || null)
+            })
+          });
+          if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error(txt || `HTTP ${resp.status}`);
+          }
+          const data = await resp.json();
+          state.passengerKey = data.passengerKey;
+          localStorage.setItem("lacraia_passenger_key_" + state.cabinId, data.passengerKey);
+          updateQrModalContent();
+          showToast("🔄 CHAVE DE PASSAGEIRO GIRADA COM SUCESSO!");
+        } catch (err) {
+          alert("Erro ao girar chave: " + err.message);
+        }
+      }
+
+      if (btnCopyPassengerLink) {
+        btnCopyPassengerLink.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(qrLinkText.textContent.trim());
+            showToast("✔ LINK DO PASSAGEIRO COPIADO!");
+          } catch (_) {
+            alert("Copiado: " + qrLinkText.textContent.trim());
+          }
+        });
+      }
+
+      if (btnCopyPilotLink) {
+        btnCopyPilotLink.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(pilotLinkText.textContent.trim());
+            showToast("✔ LINK DO PILOTO COPIADO!");
+          } catch (_) {
+            alert("Copiado: " + pilotLinkText.textContent.trim());
+          }
+        });
+      }
+
+      if (btnRotateKey) {
+        btnRotateKey.addEventListener("click", rotatePassengerKey);
+      }
+
+      if (btnCabinAccess) {
+        btnCabinAccess.addEventListener("click", openQrModal);
+      }
+      if (btnOpenQr) {
+        btnOpenQr.addEventListener("click", openQrModal);
+      }
+      if (btnCloseQr) {
+        btnCloseQr.addEventListener("click", () => qrModal.classList.remove("active"));
+      }
+      if (qrModal) {
+        qrModal.addEventListener("click", (e) => {
+          if (e.target === qrModal) qrModal.classList.remove("active");
+        });
+      }
+
+      // Modal: Autenticação de Piloto / Master
+      function openAuthModal() {
+        if (!authModal) return;
+        authModal.classList.add("active");
+        if (authErrorMsg) {
+          authErrorMsg.style.display = "none";
+          authErrorMsg.textContent = "";
+        }
+        if (isPilotOrMaster()) {
+          authModalTitle.textContent = state.role === "MASTER" ? "👑 MODO MASTER ATIVO" : "🏎️ PILOTO AUTENTICADO";
+          authModalDesc.textContent = `Você está no comando da ${state.cabinName}. Deseja entregar o volante e voltar a ser passageiro?`;
+          authModalInputs.style.display = "none";
+          authLogoutBox.style.display = "block";
+        } else {
+          authModalTitle.textContent = "🔐 CABINE DE COMANDO :: ACESSO";
+          authModalDesc.textContent = "Insira o Token de Piloto ou a Chave Master para assumir o controle do volante.";
+          authModalInputs.style.display = "block";
+          authLogoutBox.style.display = "none";
+          authTokenInput.value = "";
+          setTimeout(() => authTokenInput.focus(), 100);
+        }
+      }
+
+      function closeAuthModal() {
+        if (authModal) authModal.classList.remove("active");
+      }
+
+      async function submitAuth() {
+        const val = authTokenInput.value.trim();
+        if (!val) return;
+        if (authErrorMsg) authErrorMsg.style.display = "none";
+
+        // 1. Tentar validar como Master Key
+        try {
+          const mResp = await fetch(`${targetHttpUrl}/api/cabin/auth/master`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ masterKey: val })
+          });
+          if (mResp.ok) {
+            localStorage.setItem("lacraia_master_key", val);
+            state.role = "MASTER";
+            state.myToken = val;
+            closeAuthModal();
+            renderState();
+            showToast("👑 MODO MASTER ATIVADO!");
+            reconnectWs();
+            return;
+          }
+        } catch (_) {}
+
+        // 2. Tentar validar como Token de Piloto desta cabine
+        try {
+          const cResp = await fetch(`${targetHttpUrl}/api/cabin/${state.cabinId}?token=${encodeURIComponent(val)}`);
+          if (cResp.ok) {
+            const data = await cResp.json();
+            if (data.isPilot) {
+              localStorage.setItem("lacraia_pilot_token_" + state.cabinId, val);
+              state.role = "PILOTO";
+              state.myToken = val;
+              if (data.passengerKey) {
+                state.passengerKey = data.passengerKey;
+                localStorage.setItem("lacraia_passenger_key_" + state.cabinId, data.passengerKey);
+              }
+              closeAuthModal();
+              renderState();
+              showToast("🏎️ VOLANTE ASSUMIDO :: PILOTO AUTENTICADO!");
+              reconnectWs();
+              return;
+            }
+          }
+        } catch (_) {}
+
+        if (authErrorMsg) {
+          authErrorMsg.textContent = "Chave ou token inválido para esta cabine.";
+          authErrorMsg.style.display = "block";
+        }
+      }
+
+      function submitLogout() {
+        if (state.role === "MASTER") {
+          localStorage.removeItem("lacraia_master_key");
+        }
+        localStorage.removeItem("lacraia_pilot_token_" + state.cabinId);
+        const storedPassenger = localStorage.getItem("lacraia_passenger_token_" + state.cabinId);
+        state.role = "PASSAGEIRO";
+        state.myToken = storedPassenger || null;
+        closeAuthModal();
+        renderState();
+        showToast("Volante entregue :: Modo passageiro ativado.");
+        reconnectWs();
+      }
+
+      if (roleBadge) roleBadge.addEventListener("click", openAuthModal);
+      if (btnSubmitAuth) btnSubmitAuth.addEventListener("click", submitAuth);
+      if (authTokenInput) {
+        authTokenInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") submitAuth();
+        });
+      }
+      if (btnSubmitLogout) btnSubmitLogout.addEventListener("click", submitLogout);
+      if (btnCloseAuth) btnCloseAuth.addEventListener("click", closeAuthModal);
+      if (authModal) {
+        authModal.addEventListener("click", (e) => {
+          if (e.target === authModal) closeAuthModal();
+        });
+      }
+
+      // Modal: Alternar / Criar Cabines
+      async function openCabinModal() {
+        if (!cabinModal) return;
+        cabinModal.classList.add("active");
+        cabinListContainer.innerHTML = `<div style="font-size:11px; color:var(--chumbo); padding:8px;">Carregando cabines...</div>`;
+        if (state.role === "MASTER") {
+          masterCreateCabinBox.style.display = "block";
+        } else {
+          masterCreateCabinBox.style.display = "none";
+        }
+
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/cabins`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const list = await resp.json();
+          cabinListContainer.innerHTML = "";
+          list.forEach(c => {
+            const item = document.createElement("div");
+            item.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:var(--asfalto-frio); border:1px solid var(--borda-chassi); padding:8px; border-radius:2px;";
+            const isActive = c.id === state.cabinId;
+            item.innerHTML = `
+              <div>
+                <div style="font-size:12px; font-weight:bold; color:${isActive ? 'var(--veneno-eletrico)' : '#fff'};">
+                  ${isActive ? '▶ ' : ''}${c.name} <span style="font-size:10px; color:var(--papel-jornal-molhado);">(${c.id})</span>
+                </div>
+                <div style="font-size:10px; color:var(--papel-jornal-molhado);">
+                  ${c.isLocked ? '🔒 Trancada' : '🔓 Aberta'} &bull; ${c.passengersCount} tripulantes
+                </div>
+              </div>
+            `;
+            const btnSwitch = document.createElement("button");
+            btnSwitch.className = isActive ? "btn btn-main" : "btn btn-active";
+            btnSwitch.style.cssText = "font-size:11px; padding:4px 8px;";
+            btnSwitch.textContent = isActive ? "SINTONIZADA" : "ENTRAR";
+            btnSwitch.onclick = () => {
+              if (!isActive) switchCabin(c.id, c.name);
+            };
+            item.appendChild(btnSwitch);
+            cabinListContainer.appendChild(item);
+          });
+        } catch (err) {
+          cabinListContainer.innerHTML = `<div style="font-size:11px; color:var(--curto-circuito); padding:8px;">Erro ao listar cabines: ${err.message}</div>`;
+        }
+      }
+
+      function closeCabinModal() {
+        if (cabinModal) cabinModal.classList.remove("active");
+      }
+
+      function switchCabin(newCabinId, newCabinName) {
+        closeCabinModal();
+        const auth = resolveInitialAuth(newCabinId);
+        state.cabinId = newCabinId;
+        state.cabinName = newCabinName || `Cabine ${newCabinId}`;
+        state.role = auth.role;
+        state.myToken = auth.token;
+        state.passengerKey = localStorage.getItem("lacraia_passenger_key_" + newCabinId) || "";
+        localStorage.setItem("lacraia_active_cabin", newCabinId);
+
+        const url = new URL(window.location);
+        url.searchParams.set("cabin", newCabinId);
+        url.searchParams.delete("pilot_token");
+        url.searchParams.delete("key");
+        window.history.replaceState({}, "", url);
+
+        renderState();
+        syncCabinInfo();
+        reconnectWs();
+        showToast(`Sintonizado na cabine: ${state.cabinName.toUpperCase()}`);
+      }
+
+      async function submitCreateCabin() {
+        const name = newCabinName.value.trim();
+        const id = newCabinId.value.trim();
+        if (!name || !id) {
+          alert("Preencha o nome e o identificador da cabine!");
+          return;
+        }
+        const masterKey = localStorage.getItem("lacraia_master_key");
+        if (!masterKey) {
+          alert("Apenas a Master pode criar novas cabines.");
+          return;
+        }
+
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/cabin/create`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, name, masterKey })
+          });
+          if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error(txt || `HTTP ${resp.status}`);
+          }
+          const data = await resp.json();
+          localStorage.setItem("lacraia_pilot_token_" + data.cabinId, data.pilotToken);
+          localStorage.setItem("lacraia_passenger_key_" + data.cabinId, data.passengerKey);
+          newCabinName.value = "";
+          newCabinId.value = "";
+          showToast(`Cabine "${data.name}" criada com sucesso!`);
+          switchCabin(data.cabinId, data.name);
+        } catch (e) {
+          alert("Erro ao criar cabine: " + e.message);
+        }
+      }
+
+      if (cabinBadge) cabinBadge.addEventListener("click", openCabinModal);
+      if (btnCloseCabin) btnCloseCabin.addEventListener("click", closeCabinModal);
+      if (cabinModal) {
+        cabinModal.addEventListener("click", (e) => {
+          if (e.target === cabinModal) closeCabinModal();
+        });
+      }
+      if (btnCreateCabinSubmit) btnCreateCabinSubmit.addEventListener("click", submitCreateCabin);
+
+      // Sincronização e Auto-Join de Passageiro
+      async function syncCabinInfo() {
+        try {
+          const tokenParam = state.myToken ? `?token=${encodeURIComponent(state.myToken)}` : "";
+          const resp = await fetch(`${targetHttpUrl}/api/cabin/${state.cabinId}${tokenParam}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            state.cabinName = data.name;
+            state.isLocked = data.isLocked;
+            if (data.passengerKey) {
+              state.passengerKey = data.passengerKey;
+              localStorage.setItem("lacraia_passenger_key_" + state.cabinId, data.passengerKey);
+            }
+            if (data.isPilot && state.role !== "MASTER") {
+              state.role = "PILOTO";
+            }
+            renderState();
+          }
+        } catch (_) {}
+
+        // Se passageiro e não tem token registrado, faz o auto-join
+        if (!isPilotOrMaster()) {
+          const storedToken = localStorage.getItem("lacraia_passenger_token_" + state.cabinId);
+          if (!storedToken) {
+            let passengerName = state.myPassengerName;
+            if (!passengerName) {
+              passengerName = "Tripulante " + Math.floor(100 + Math.random() * 900);
+              state.myPassengerName = passengerName;
+              localStorage.setItem("lacraia_vulgo", passengerName);
+            }
+            try {
+              const joinResp = await fetch(`${targetHttpUrl}/api/cabin/join`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  cabinId: state.cabinId,
+                  name: passengerName,
+                  device: navigator.userAgent.includes("Android") ? "Android" : (navigator.userAgent.includes("iPhone") ? "iPhone" : "Cockpit Web"),
+                  key: state.passengerKey || null
+                })
+              });
+              if (joinResp.ok) {
+                const jData = await joinResp.json();
+                state.myToken = jData.token;
+                localStorage.setItem("lacraia_passenger_token_" + state.cabinId, jData.token);
+                reconnectWs();
+              } else if (joinResp.status === 403) {
+                console.warn("Entrada na cabine bloqueada ou chave de embarque inválida.");
+              }
+            } catch (_) {}
+          }
+        }
+      }
 
       // Keyboard Controls
       window.addEventListener("keydown", (e) => {
         if (e.target.tagName === "INPUT") return;
         if (e.code === "Space") {
           e.preventDefault();
-          togglePlayPause();
+          requirePilot(togglePlayPause);
         } else if (e.code === "ArrowRight") {
-          nextTrack();
+          requirePilot(nextTrack);
         } else if (e.code === "ArrowLeft") {
-          prevTrack();
+          requirePilot(prevTrack);
         } else if (e.code === "Escape") {
-          qrModal.classList.remove("active");
+          if (qrModal) qrModal.classList.remove("active");
+          if (authModal) authModal.classList.remove("active");
+          if (cabinModal) cabinModal.classList.remove("active");
         }
       });
 
@@ -2122,9 +2658,26 @@
         }
       }
 
+      let reconnectWsTimer = null;
+      function reconnectWs() {
+        if (reconnectWsTimer) clearTimeout(reconnectWsTimer);
+        if (ws) {
+          ws.onclose = null;
+          ws.close();
+        }
+        connectWs();
+      }
+
       function connectWs() {
         try {
-          ws = new WebSocket(targetWsUrl);
+          const wsUrlObj = new URL(targetWsUrl, window.location.href);
+          wsUrlObj.searchParams.set("cabin", state.cabinId);
+          if (state.myToken) {
+            wsUrlObj.searchParams.set("token", state.myToken);
+          }
+          const finalWsUrl = wsUrlObj.toString().replace(/^http/, "ws");
+
+          ws = new WebSocket(finalWsUrl);
           ws.onopen = () => {
             updateWsStatus(true);
             // Fetch initial queue via REST fallback if needed
@@ -2140,7 +2693,8 @@
           };
           ws.onclose = () => {
             updateWsStatus(false);
-            setTimeout(connectWs, 4000);
+            if (reconnectWsTimer) clearTimeout(reconnectWsTimer);
+            reconnectWsTimer = setTimeout(connectWs, 4000);
           };
           ws.onerror = () => {
             updateWsStatus(false);
@@ -2173,6 +2727,9 @@
               } else if (type === "CABIN_LOCKED") {
                 state.isLocked = true;
                 renderState();
+              } else if (type === "UNAUTHORIZED") {
+                showToast("⚠️ Comando não autorizado: privilégios de Piloto necessários");
+                openAuthModal();
               } else if (type === "RELOAD" || type === "DEV_RELOAD") {
                 console.log("⚡ [LIVE-RELOAD] Sinal WebSocket de recarregamento recebido!");
                 location.reload();
@@ -2189,16 +2746,15 @@
       btnConfigWs.addEventListener("click", () => {
         const input = prompt("Endereço WebSocket da La Craia Core (ex: ws://localhost:8080/ws):", targetWsUrl);
         if (input && input.trim()) {
-
           targetWsUrl = input.trim();
-          if (ws) ws.close();
-          connectWs();
+          reconnectWs();
         }
       });
 
       // Initial Boot
       renderState();
       startPlaybackLoop();
+      syncCabinInfo();
       connectWs();
     })();
   </script>

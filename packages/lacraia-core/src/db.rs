@@ -21,6 +21,7 @@ pub struct CabinRecord {
     pub name: String,
     pub is_locked: bool,
     pub pilot_token: String,
+    pub passenger_key: String,
     pub created_at: i64,
 }
 
@@ -161,6 +162,7 @@ impl Database {
                 name TEXT NOT NULL,
                 is_locked INTEGER NOT NULL DEFAULT 0,
                 pilot_token TEXT NOT NULL,
+                passenger_key TEXT NOT NULL DEFAULT '',
                 created_at INTEGER NOT NULL
             );
 
@@ -191,9 +193,26 @@ impl Database {
             "#,
         )?;
 
-        // Ensure backwards compatibility with earlier queue table versions
+        // Ensure backwards compatibility with earlier database versions
+        let _ = conn.execute("ALTER TABLE cabins ADD COLUMN passenger_key TEXT NOT NULL DEFAULT ''", []);
         let _ = conn.execute("ALTER TABLE queue ADD COLUMN cabin_id TEXT NOT NULL DEFAULT 'default'", []);
         let _ = conn.execute("ALTER TABLE queue ADD COLUMN requested_by TEXT", []);
+
+        // Seed default cabin if not exists
+        let default_pilot_token = std::env::var("LACRAIA_PILOT_TOKEN")
+            .unwrap_or_else(|_| "pilot_default_sec".to_string());
+        let default_passenger_key = std::env::var("LACRAIA_PASSENGER_KEY")
+            .unwrap_or_else(|_| "key_central_2011".to_string());
+        let now = Utc::now().timestamp();
+        let _ = conn.execute(
+            r#"
+            INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, created_at)
+            VALUES ('default', 'Cabine Central', 0, ?1, ?2, ?3)
+            ON CONFLICT(id) DO UPDATE SET
+                passenger_key = CASE WHEN cabins.passenger_key = '' THEN excluded.passenger_key ELSE cabins.passenger_key END
+            "#,
+            params![default_pilot_token, default_passenger_key, now],
+        );
 
         Ok(())
     }
@@ -613,20 +632,48 @@ impl Database {
         Ok(())
     }
 
-    pub fn get_or_create_cabin(&self, id: &str, name: &str, pilot_token: &str) -> Result<CabinRecord, DbError> {
+    pub fn create_cabin(
+        &self,
+        id: &str,
+        name: &str,
+        pilot_token: &str,
+        passenger_key: &str,
+    ) -> Result<CabinRecord, DbError> {
         let conn = self.conn.lock().unwrap();
         let now = Utc::now().timestamp();
         conn.execute(
             r#"
-            INSERT INTO cabins (id, name, is_locked, pilot_token, created_at)
-            VALUES (?1, ?2, 0, ?3, ?4)
+            INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, created_at)
+            VALUES (?1, ?2, 0, ?3, ?4, ?5)
+            "#,
+            params![id, name, pilot_token, passenger_key, now],
+        )?;
+
+        Ok(CabinRecord {
+            id: id.to_string(),
+            name: name.to_string(),
+            is_locked: false,
+            pilot_token: pilot_token.to_string(),
+            passenger_key: passenger_key.to_string(),
+            created_at: now,
+        })
+    }
+
+    pub fn get_or_create_cabin(&self, id: &str, name: &str, pilot_token: &str) -> Result<CabinRecord, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+        let default_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+        conn.execute(
+            r#"
+            INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, created_at)
+            VALUES (?1, ?2, 0, ?3, ?4, ?5)
             ON CONFLICT(id) DO NOTHING
             "#,
-            params![id, name, pilot_token, now],
+            params![id, name, pilot_token, default_key, now],
         )?;
 
         let cabin = conn.query_row(
-            "SELECT id, name, is_locked, pilot_token, created_at FROM cabins WHERE id = ?1",
+            "SELECT id, name, is_locked, pilot_token, passenger_key, created_at FROM cabins WHERE id = ?1",
             params![id],
             |row| {
                 Ok(CabinRecord {
@@ -634,11 +681,76 @@ impl Database {
                     name: row.get(1)?,
                     is_locked: row.get::<_, i64>(2)? == 1,
                     pilot_token: row.get(3)?,
-                    created_at: row.get(4)?,
+                    passenger_key: row.get(4)?,
+                    created_at: row.get(5)?,
                 })
             },
         )?;
         Ok(cabin)
+    }
+
+    pub fn get_cabin(&self, id: &str) -> Result<Option<CabinRecord>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let cabin = conn
+            .query_row(
+                "SELECT id, name, is_locked, pilot_token, passenger_key, created_at FROM cabins WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok(CabinRecord {
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                        is_locked: row.get::<_, i64>(2)? == 1,
+                        pilot_token: row.get(3)?,
+                        passenger_key: row.get(4)?,
+                        created_at: row.get(5)?,
+                    })
+                },
+            )
+            .ok();
+        Ok(cabin)
+    }
+
+    pub fn list_cabins(&self) -> Result<Vec<CabinRecord>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, is_locked, pilot_token, passenger_key, created_at FROM cabins ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(CabinRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                is_locked: row.get::<_, i64>(2)? == 1,
+                pilot_token: row.get(3)?,
+                passenger_key: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
+    }
+
+    pub fn rotate_passenger_key(&self, cabin_id: &str, new_key: &str) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE cabins SET passenger_key = ?1 WHERE id = ?2",
+            params![new_key, cabin_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn verify_passenger_key(&self, cabin_id: &str, key: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let matched: Option<String> = conn
+            .query_row(
+                "SELECT id FROM cabins WHERE id = ?1 AND passenger_key = ?2",
+                params![cabin_id, key],
+                |row| row.get(0),
+            )
+            .ok();
+        Ok(matched.is_some())
     }
 
     pub fn set_cabin_locked(&self, cabin_id: &str, locked: bool) -> Result<(), DbError> {
@@ -738,9 +850,21 @@ impl Database {
         Ok(())
     }
 
-    pub fn validate_token(&self, cabin_id: &str, token: &str) -> Result<Option<Role>, DbError> {
+    pub fn validate_token(
+        &self,
+        cabin_id: &str,
+        token: &str,
+        master_key: Option<&str>,
+    ) -> Result<Option<Role>, DbError> {
+        // 1. Master Key has universal Pilot authority on any cabin
+        if let Some(mk) = master_key {
+            if !mk.is_empty() && token == mk {
+                return Ok(Some(Role::Pilot));
+            }
+        }
+
         let conn = self.conn.lock().unwrap();
-        // Check if token matches cabin pilot
+        // 2. Check if token matches cabin pilot
         let is_pilot: Option<String> = conn
             .query_row(
                 "SELECT id FROM cabins WHERE id = ?1 AND pilot_token = ?2",
@@ -753,7 +877,7 @@ impl Database {
             return Ok(Some(Role::Pilot));
         }
 
-        // Check if token matches active passenger
+        // 3. Check if token matches active passenger
         let is_passenger: Option<String> = conn
             .query_row(
                 "SELECT id FROM passengers WHERE cabin_id = ?1 AND token = ?2 AND is_active = 1",
@@ -861,15 +985,35 @@ mod tests {
     fn test_db_cabin_and_passenger_operations() {
         let db = Database::open_in_memory().unwrap();
 
-        // 1. Create cabin
-        let cabin = db.get_or_create_cabin("van-furacao", "Van Furacão", "pilot-secret-123").unwrap();
+        // 1. Create cabin with high entropy passenger key
+        let cabin = db.create_cabin("van-furacao", "Van Furacão", "pilot-secret-123", "key-furacao-42").unwrap();
         assert_eq!(cabin.id, "van-furacao");
         assert_eq!(cabin.name, "Van Furacão");
+        assert_eq!(cabin.passenger_key, "key-furacao-42");
         assert!(!cabin.is_locked);
 
+        // Verify passenger key
+        assert!(db.verify_passenger_key("van-furacao", "key-furacao-42").unwrap());
+        assert!(!db.verify_passenger_key("van-furacao", "wrong-key").unwrap());
+
+        // Rotate passenger key
+        db.rotate_passenger_key("van-furacao", "key-furacao-new-99").unwrap();
+        assert!(!db.verify_passenger_key("van-furacao", "key-furacao-42").unwrap());
+        assert!(db.verify_passenger_key("van-furacao", "key-furacao-new-99").unwrap());
+
         // 2. Validate pilot token
-        let role = db.validate_token("van-furacao", "pilot-secret-123").unwrap();
+        let role = db.validate_token("van-furacao", "pilot-secret-123", None).unwrap();
         assert_eq!(role, Some(Role::Pilot));
+
+        // Master key grants pilot authority on any cabin
+        let master_role = db.validate_token("van-furacao", "master-overlord-key", Some("master-overlord-key")).unwrap();
+        assert_eq!(master_role, Some(Role::Pilot));
+
+        // Token of cabin A is NOT valid in cabin B (cross-cabin isolation)
+        let cabin2 = db.create_cabin("sala-vip", "Sala VIP", "pilot-vip-777", "key-vip-00").unwrap();
+        assert_eq!(cabin2.id, "sala-vip");
+        let cross_role = db.validate_token("sala-vip", "pilot-secret-123", None).unwrap();
+        assert_eq!(cross_role, None);
 
         // 3. Add passenger
         let passenger = db.add_passenger("van-furacao", "Mari", Some("iPhone 14"), "psg-token-999").unwrap();
@@ -877,8 +1021,12 @@ mod tests {
         assert!(passenger.is_active);
 
         // 4. Validate passenger token
-        let pass_role = db.validate_token("van-furacao", "psg-token-999").unwrap();
+        let pass_role = db.validate_token("van-furacao", "psg-token-999", None).unwrap();
         assert_eq!(pass_role, Some(Role::Passenger));
+
+        // Passenger of cabin A is NOT valid in cabin B
+        let cross_passenger = db.validate_token("sala-vip", "psg-token-999", None).unwrap();
+        assert_eq!(cross_passenger, None);
 
         // 5. Active passengers count
         let passengers = db.get_active_passengers("van-furacao").unwrap();
@@ -895,7 +1043,7 @@ mod tests {
         assert_eq!(remaining.len(), 0);
 
         // Token should now be invalid
-        let invalid_role = db.validate_token("van-furacao", "psg-token-999").unwrap();
+        let invalid_role = db.validate_token("van-furacao", "psg-token-999", None).unwrap();
         assert_eq!(invalid_role, None);
     }
 
