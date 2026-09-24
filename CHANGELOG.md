@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (branding) decouple automotive focus and universalize soundwall ecosystem (#28)
   - (branding) integrate exoskeleton vector identity and biomechanical antennae kinematics (#23)
   - (queue) implement dynamic autopilot lookahead and dev reset routine (#14)
   - (audio) implement hybrid media resolver and real audio playback (closes #12)

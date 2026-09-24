@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>LA CRAIA :: Cockpit Automotivo Web &amp; PWA</title>
+  <title>LA CRAIA :: Console do Paredão Web &amp; PWA</title>
   
-  <meta name="description" content="Cockpit automotivo da La Craia: reprodutor de cabine, controle de portas, jukebox colaborativo e streaming por afinidade acústica.">
+  <meta name="description" content="Console do paredão digital La Craia: reprodutor contínuo, controle de portas, jukebox colaborativo e streaming por afinidade acústica.">
   <meta name="theme-color" content="#0a0b0d">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1044,8 +1044,8 @@
         <img src="/assets/icon.svg" width="28" height="28" alt="La Craia Exoskeleton" class="brand-logo-img">
       </a>
       <div>
-        <div class="brand-title">LA CRAIA <span>//</span> COCKPIT</div>
-        <div style="font-size: 10px; color: var(--chumbo);">AUTOMOTIVE WEB PLAYER &bull; v0.2.0</div>
+        <div class="brand-title">LA CRAIA <span>//</span> CONSOLE</div>
+        <div style="font-size: 10px; color: var(--chumbo);">AUTONOMOUS SOUNDWALL PLAYER &bull; v0.2.0</div>
       </div>
     </div>
 
@@ -1791,12 +1791,12 @@
           }
         }
 
-        // MediaSession support for steering wheel controls & Android HUD
+        // MediaSession support for hardware/lockscreen controls & external HUD
         if ("mediaSession" in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
             title: trk.title,
             artist: trk.artist,
-            album: "La Craia Automotive",
+            album: "La Craia Soundwall",
             artwork: [{ src: "/assets/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
           });
           navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused";

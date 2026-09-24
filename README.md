@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-lacraia.2lp.in-green.svg)](https://lacraia.2lp.in)
 
-> **Decentralized Automotive Audio & Heads-Up Display Ecosystem**
+> **Autonomous Soundwall, Acoustic Affinity Radio & Symbiotic Lyric Ecosystem**
 
-La Craia is a focused suite integrating acoustic similarity radio streaming, local audio caching, and synchronized lyrics projected line-by-line via a floating heads-up display (HUD) over navigation apps (Waze).
+La Craia is a dissident audio suite integrating acoustic similarity streaming, proactive audio caching, and synchronized lyrics projected line-by-line via the Simbiótyka floating companion over any application or interface. Engineered for universal operation across Linux desktop, home servers, soundwalls, web, mobile, vans, and road trips.
 
 ---
 
@@ -40,8 +40,8 @@ lacraia/
 ├── packages/
 │   ├── lacraia-shared/    # Shared models, LRC parser, fuzzy validator, WS protocol (Rust)
 │   ├── lacraia-core/      # Backend service: Axum, SQLite, yt-dlp, Last.fm, WS hub (Rust)
-│   ├── lacraia-app/       # Automotive player & cockpit UI in Dioxus (Linux Native & Web/PWA)
-│   └── lacraia-android/   # Native Android workspace: :app (Player) & :simbiotyka (HUD Overlay)
+│   ├── lacraia-app/       # Universal player, soundwall & cabin console in Dioxus (Linux Native & Web/PWA)
+│   └── lacraia-android/   # Native Android workspace: :app (Player) & :simbiotyka (Floating Lyric HUD)
 ├── docs/                  # Design system, identity manual and technical specifications
 ├── site/                  # Static documentation site deployed to Cloudflare Workers
 ├── serve.sh               # Local preview HTTP server for site/
