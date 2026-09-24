@@ -138,17 +138,17 @@ LIMIT ?2;
 
 1. **Active Multi-Cabin Playhead Tracking:**
    Continuously monitors queue states (`playing`, `cached`, `pending`, `failed`) across all registered cabins (`default`, `van-furacao`, etc.) in SQLite.
-2. **Two-Track Lookahead Window:**
-   Identifies the next 2 tracks immediately subsequent to the currently playing song that are still in `pending` state across active cabins.
+2. **Five-Track Autopilot Lookahead Buffer:**
+   Ensures that for any active cabin, there are at least **5 upcoming tracks** ahead in the queue (`pending` or `cached`). If the queue falls below 5 tracks during active playback, the daemon queries `CompositeSimilarityEngine` using the seed track (current song or last queued item) to discover similar tracks from Last.fm, MetaBrainz, local SQLite similarity edges, and genre affinity fallbacks, automatically enqueuing them with `requested_by = "AUTOPILOT"`.
 3. **Failure Containment & Loop Prevention:**
    If media resolution fails for an unavailable or invalid track, `QueueDaemon` immediately transitions the entry to `failed` state via `db.mark_failed(track_id)`. This prevents infinite pre-caching retry loops while preserving cabin playback flow.
 4. **Proactive Background Caching:**
    Triggers `MediaResolver::resolve_and_cache` before the current track finishes. Once the `.opus` file is saved to disk, the database updates the queue state from `pending` to `cached`.
-5. **Resilience to Network Drops:**
-   By maintaining two fully resolved tracks cached in advance, the driver experiences zero playback interruptions even when passing through cellular dead zones.
+5. **Continuous Infinity Playback & Network Resilience:**
+   By maintaining a 5-track lookahead window with pre-cached Opus streams, playback never halts. When a song finishes naturally (`audio.ended`) or the pilot clicks Next, the next song plays with 0ms latency, and the autopilot immediately replenishes the 5th upcoming slot, keeping the buffer perpetually full.
 
 > ⚡ **[ FIO DESENCAPADO ]**  
-> Caso a conexão celular caia abruptamente no meio de um túnel ou serra, o QueueDaemon recua para o acervo local em cache, garantindo zero segundos de silêncio na cabine.
+> Caso a conexão celular caia abruptamente no meio de um túnel ou serra, o QueueDaemon recua para o acervo local em cache e sementes do grafo offline, garantindo zero segundos de silêncio na cabine.
 
 ---
 
