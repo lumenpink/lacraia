@@ -229,6 +229,46 @@ async function main() {
       await context.close();
     });
 
+    // -------------------------------------------------------------
+    // Test 6: Exoskeleton Vector Identity & Antennae Kinematics
+    // -------------------------------------------------------------
+    await test('Branding & Kinematics: Vector favicon, logo and biomechanical antennae (#23, #24)', async () => {
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+      });
+      const page = await context.newPage();
+
+      // 1. Validate Main Portal (site/index.html)
+      await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
+      
+      const faviconLink = await page.$('link[rel="icon"][type="image/svg+xml"]');
+      assert(faviconLink !== null, 'Main portal must have SVG favicon link');
+
+      const antennaeSvg = await page.$('#antennaeSvg');
+      const leftAntenna = await page.$('#leftAntenna');
+      const rightAntenna = await page.$('#rightAntenna');
+      assert(antennaeSvg !== null, '#antennaeSvg must exist in DOM');
+      assert(leftAntenna !== null, '#leftAntenna must exist in DOM');
+      assert(rightAntenna !== null, '#rightAntenna must exist in DOM');
+
+      // Dispatch mouse move to test kinematics listener
+      await page.mouse.move(500, 250);
+      await page.waitForTimeout(100);
+
+      // 2. Validate Cockpit Web (site/app/index.html)
+      await page.goto(`${BASE_URL}/app`, { waitUntil: 'domcontentloaded' });
+
+      const appFavicon = await page.$('link[rel="icon"][type="image/svg+xml"]');
+      assert(appFavicon !== null, 'Cockpit Web must have SVG favicon link');
+
+      const brandLogo = await page.$('.brand-logo-img');
+      assert(brandLogo !== null, '.brand-logo-img must exist in cockpit brand header');
+      const logoSrc = await brandLogo.getAttribute('src');
+      assert(logoSrc.includes('icon.svg'), `Logo src '${logoSrc}' must reference icon.svg`);
+
+      await context.close();
+    });
+
   } finally {
     await browser.close();
   }

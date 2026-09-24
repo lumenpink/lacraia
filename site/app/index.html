@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any">
   <link rel="alternate icon" type="image/svg+xml" href="/assets/icon.svg">
 
   <style>
@@ -67,10 +67,17 @@
       gap: 12px;
     }
 
-    .brand-section svg {
+    .brand-section svg, .brand-logo-img {
       width: 28px;
       height: 28px;
-      filter: drop-shadow(0 0 6px var(--fucsia-furacao));
+      border-radius: 6px;
+      filter: drop-shadow(0 0 6px var(--veneno-eletrico));
+      transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), filter 0.25s;
+    }
+
+    .brand-section a:hover .brand-logo-img {
+      transform: scale(1.15) rotate(-5deg);
+      filter: drop-shadow(0 0 10px var(--fucsia-furacao));
     }
 
     .brand-title {
@@ -1034,13 +1041,7 @@
   <header>
     <div class="brand-section">
       <a href="/" title="Voltar ao portal La Craia">
-        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="16" r="14" fill="#151618" stroke="#ff0055" stroke-width="2"/>
-          <path d="M8 12C10 6 12 4 16 4C20 4 22 6 24 12" stroke="#ff0055" stroke-width="2" stroke-linecap="round"/>
-          <ellipse cx="12" cy="15" rx="2" ry="3" fill="#39ff14"/>
-          <ellipse cx="20" cy="15" rx="2" ry="3" fill="#39ff14"/>
-          <path d="M11 20L16 26L21 20" stroke="#ff0055" stroke-width="2" stroke-linejoin="round"/>
-        </svg>
+        <img src="/assets/icon.svg" width="28" height="28" alt="La Craia Exoskeleton" class="brand-logo-img">
       </a>
       <div>
         <div class="brand-title">LA CRAIA <span>//</span> COCKPIT</div>

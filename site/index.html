@@ -35,7 +35,7 @@
   <meta name="twitter:image:src"        content="https://lacraia.2lp.in/assets/og_preview.png">
   <meta name="twitter:image:alt"        content="LA CRAIA — Streaming por Grafo de Afinidade Acústica · Simbiótyka HUD de Letras · Paredão Autônomo">
 
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" sizes="any">
   <link rel="alternate icon" type="image/svg+xml" href="assets/icon.svg">
   <link rel="apple-touch-icon" href="assets/icon.svg">
 
@@ -257,16 +257,17 @@
 
     .antenna {
       transition: stroke 0.2s;
+      transform-box: fill-box;
     }
 
     .left-antenna {
       transform-origin: 32px 34px;
-      animation: twitch-left 3.2s infinite ease-in-out;
+      animation: twitch-antenna-left 3.4s infinite ease-in-out;
     }
 
     .right-antenna {
       transform-origin: 40px 34px;
-      animation: twitch-right 3.9s infinite ease-in-out;
+      animation: twitch-antenna-right 4.1s infinite ease-in-out;
     }
 
     .centipede-head:active .left-antenna {
@@ -281,24 +282,24 @@
       stroke: var(--fucsia-furacao);
     }
 
-    @keyframes twitch-left {
+    @keyframes twitch-antenna-left {
       0%, 100% { transform: rotate(0deg); }
-      14%      { transform: rotate(-7deg) scale(1.02); }
-      28%      { transform: rotate(-1deg); }
-      42%      { transform: rotate(-9deg) translateY(-1px); }
-      60%      { transform: rotate(-3deg); }
-      75%      { transform: rotate(-8deg); }
-      90%      { transform: rotate(-2deg); }
+      12%      { transform: rotate(-8deg) scale(1.03); }
+      24%      { transform: rotate(-2deg); }
+      38%      { transform: rotate(-12deg) translateY(-1px); }
+      55%      { transform: rotate(-4deg); }
+      70%      { transform: rotate(-10deg) scale(1.02); }
+      85%      { transform: rotate(-3deg); }
     }
 
-    @keyframes twitch-right {
+    @keyframes twitch-antenna-right {
       0%, 100% { transform: rotate(0deg); }
-      18%      { transform: rotate(8deg) scale(1.02); }
-      32%      { transform: rotate(2deg); }
-      50%      { transform: rotate(10deg) translateY(-1px); }
-      68%      { transform: rotate(1deg); }
-      82%      { transform: rotate(7deg); }
-      92%      { transform: rotate(3deg); }
+      15%      { transform: rotate(9deg) scale(1.03); }
+      30%      { transform: rotate(2deg); }
+      45%      { transform: rotate(13deg) translateY(-1px); }
+      62%      { transform: rotate(3deg); }
+      78%      { transform: rotate(8deg) scale(1.02); }
+      90%      { transform: rotate(4deg); }
     }
 
     .head-plate {
@@ -1079,8 +1080,8 @@
           <div class="centipede-head" id="centipedeHead" title="Exoesqueleto Sensorial da Lacraia">
             <!-- ANTENAS ARTICULADAS -->
             <svg class="antennae-svg" id="antennaeSvg" viewBox="0 0 72 38" aria-hidden="true">
-              <path class="antenna left-antenna" d="M 32 34 C 28 20, 16 10, 4 4" />
-              <path class="antenna right-antenna" d="M 40 34 C 44 20, 56 10, 68 4" />
+              <path class="antenna left-antenna" id="leftAntenna" d="M 32 34 C 28 20, 16 10, 4 4" />
+              <path class="antenna right-antenna" id="rightAntenna" d="M 40 34 C 44 20, 56 10, 68 4" />
             </svg>
             <!-- PLACA CEFÁLICA -->
             <div class="head-plate">
@@ -1627,20 +1628,92 @@ cargo run -p lacraia-app --features desktop</pre>
 
     sections.forEach(sec => sectionObserver.observe(sec));
 
-    // 2. ANTENAS REATIVAS AO CURSOR
+    // 2. MOBILIDADE BIOMECÂNICA DAS ANTENAS SENSERIAIS (TICKETS #23 & #24)
     const centipedeHead = document.getElementById('centipedeHead');
     const antennaeSvg = document.getElementById('antennaeSvg');
+    const leftAntenna = document.getElementById('leftAntenna');
+    const rightAntenna = document.getElementById('rightAntenna');
 
     if (centipedeHead && antennaeSvg) {
+      let targetRot = 0;
+      let targetTransY = 0;
+      let targetLeftFlex = 0;
+      let targetRightFlex = 0;
+
+      let currentRot = 0;
+      let currentTransY = 0;
+      let currentLeftFlex = 0;
+      let currentRightFlex = 0;
+
+      let lastScrollY = window.scrollY;
+      let scrollVelocity = 0;
+      let rafId = null;
+
+      function updateAntennaeKinematics() {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          antennaeSvg.style.transform = '';
+          if (leftAntenna) leftAntenna.style.transform = '';
+          if (rightAntenna) rightAntenna.style.transform = '';
+          return;
+        }
+
+        // Smooth Lerp interpolation (smoothing factor 0.1)
+        currentRot += (targetRot - currentRot) * 0.1;
+        currentTransY += (targetTransY - currentTransY) * 0.1;
+        currentLeftFlex += (targetLeftFlex - currentLeftFlex) * 0.1;
+        currentRightFlex += (targetRightFlex - currentRightFlex) * 0.1;
+
+        antennaeSvg.style.transform = `rotate(${currentRot.toFixed(2)}deg) translateY(${currentTransY.toFixed(2)}px)`;
+        if (leftAntenna) {
+          leftAntenna.style.transform = `rotate(${currentLeftFlex.toFixed(2)}deg)`;
+        }
+        if (rightAntenna) {
+          rightAntenna.style.transform = `rotate(${currentRightFlex.toFixed(2)}deg)`;
+        }
+
+        rafId = requestAnimationFrame(updateAntennaeKinematics);
+      }
+
       document.addEventListener('mousemove', (e) => {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         const rect = centipedeHead.getBoundingClientRect();
         const headX = rect.left + rect.width / 2;
         const headY = rect.top + rect.height / 2;
+
         const deltaX = (e.clientX - headX) / window.innerWidth;
         const deltaY = (e.clientY - headY) / window.innerHeight;
-        antennaeSvg.style.transform = `rotate(${deltaX * 18}deg) translateY(${Math.min(deltaY * 6, 2)}px)`;
-      });
+
+        // Base head angle tracking cursor
+        targetRot = deltaX * 18;
+        targetTransY = Math.min(Math.max(deltaY * 6, -3), 4);
+
+        // Independent antennae flexion pointing toward stimuli
+        targetLeftFlex = deltaX * 12 + (deltaY < 0 ? -4 : 2);
+        targetRightFlex = deltaX * 12 + (deltaY < 0 ? 4 : -2);
+
+        if (!rafId) {
+          rafId = requestAnimationFrame(updateAntennaeKinematics);
+        }
+      }, { passive: true });
+
+      window.addEventListener('scroll', () => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const currentScrollY = window.scrollY;
+        scrollVelocity = currentScrollY - lastScrollY;
+        lastScrollY = currentScrollY;
+
+        // Aerodynamic inertia: wind drag bends antennae slightly back on scroll
+        const drag = Math.max(-10, Math.min(10, scrollVelocity * 0.4));
+        targetTransY = drag * 0.5;
+        targetLeftFlex -= drag * 0.3;
+        targetRightFlex += drag * 0.3;
+
+        if (!rafId) {
+          rafId = requestAnimationFrame(updateAntennaeKinematics);
+        }
+      }, { passive: true });
+
+      rafId = requestAnimationFrame(updateAntennaeKinematics);
     }
 
     // 3. BOTÕES TÁTEIS MECÂNICOS [ CLACK! COPIADO ] COM SOM SINTETIZADO (WEBAUDIO)

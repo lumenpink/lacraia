@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (branding) integrate exoskeleton vector identity and biomechanical antennae kinematics (#23)
   - (queue) implement dynamic autopilot lookahead and dev reset routine (#14)
   - (audio) implement hybrid media resolver and real audio playback (closes #12)
   - (auth) implement master key, per-cabin rbac and rotatable passenger keys (closes #11)
