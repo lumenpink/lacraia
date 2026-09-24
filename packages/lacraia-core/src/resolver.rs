@@ -1,5 +1,7 @@
 use crate::db::{Database, TrackRecord};
-use lacraia_shared::{is_title_clean, is_valid_duration_delta};
+use lacraia_shared::{
+    is_title_clean, is_title_matching, is_valid_duration_delta, strip_accents,
+};
 use rustypipe::client::RustyPipe;
 use rustypipe::model::{AudioCodec, TrackItem};
 use serde::{Deserialize, Serialize};
@@ -78,6 +80,9 @@ impl MediaResolver {
             return false;
         }
         if !is_title_clean(candidate_title, seed_title) {
+            return false;
+        }
+        if !is_title_matching(candidate_title, seed_title) {
             return false;
         }
         true
@@ -159,10 +164,11 @@ impl MediaResolver {
 
         let stream_url = audio_stream.url;
 
-        // Transcode stream directly to target Opus file using ffmpeg with browser User-Agent
+        // Transcode stream directly to target Opus file using ffmpeg with browser User-Agent and headers
         let child = TokioCommand::new("ffmpeg")
             .args(&[
                 "-y",
+                "-headers", "Referer: https://music.youtube.com/\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36\r\n",
                 "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
                 "-i", &stream_url,
                 "-c:a", "libopus",
@@ -201,7 +207,15 @@ impl MediaResolver {
             artist, title
         );
 
-        let search_query = format!("ytsearch5:{} - {} audio", artist, title);
+        let clean_artist = strip_accents(artist)
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+            .collect::<String>();
+        let clean_title = strip_accents(title)
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+            .collect::<String>();
+        let search_query = format!("ytsearch5:{} {} audio", clean_artist.trim(), clean_title.trim());
         let output = TokioCommand::new(&self.ytdlp_bin)
             .args(&[
                 &search_query,
@@ -209,6 +223,8 @@ impl MediaResolver {
                 "--default-search",
                 "ytsearch",
                 "--no-playlist",
+                "--extractor-args",
+                "youtube:player_client=android",
             ])
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -259,6 +275,8 @@ impl MediaResolver {
                 "-x",
                 "--audio-format",
                 "opus",
+                "--extractor-args",
+                "youtube:player_client=android",
                 "-o",
                 target_path_str,
                 &video_url,
@@ -267,6 +285,7 @@ impl MediaResolver {
             .stderr(Stdio::piped())
             .output()
             .await?;
+
 
         if !dl_output.status.success() {
             let err = String::from_utf8_lossy(&dl_output.stderr);
@@ -300,6 +319,23 @@ impl MediaResolver {
         let target_path_str = target_path.to_string_lossy().to_string();
 
         // Tier 1: Check local cache hit in SQLite and filesystem
+        if target_path.exists() {
+            info!("Tier 1 Filesystem Cache hit for track '{}' at {}", track_id, target_path_str);
+            let (tit, art, dur) = if let Ok(Some(existing)) = self.db.get_track(&track_id) {
+                (existing.title, existing.artist, existing.duration_sec)
+            } else {
+                (title.to_string(), artist.to_string(), expected_duration_sec)
+            };
+            return Ok(TrackResolution {
+                track_id,
+                title: tit,
+                artist: art,
+                duration_sec: dur,
+                stream_url: format!("/cache/{}", safe_filename),
+                cache_path: target_path_str,
+            });
+        }
+
         if let Ok(Some(existing)) = self.db.get_track(&track_id) {
             if let Some(ref path) = existing.cached_path {
                 if Path::new(path).exists() {
@@ -384,5 +420,22 @@ mod tests {
             "Rebel Rebel",
             274
         ));
+
+        // Rejected: false positive with unrelated title
+        assert!(!MediaResolver::evaluate_candidate(
+            "RIO",
+            210,
+            "lacraia",
+            210
+        ));
+
+        // Accepted: fuzzy matching with diacritics
+        assert!(MediaResolver::evaluate_candidate(
+            "Construção | Chico Buarque (Vídeo Oficial)",
+            258,
+            "Construcao",
+            258
+        ));
     }
 }
+

@@ -7,6 +7,10 @@ license.workspace = true
 repository.workspace = true
 description = "Backend orchestrator, radio similarity engine, media cache, and telemetry hub for La Craia"
 
+[lib]
+name = "lacraia_core"
+path = "src/lib.rs"
+
 [[bin]]
 name = "lacraia-core"
 path = "src/main.rs"

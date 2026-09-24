@@ -53,6 +53,7 @@ pub enum QueueState {
     Cached,
     Playing,
     Played,
+    Failed,
 }
 
 impl QueueState {
@@ -62,6 +63,7 @@ impl QueueState {
             Self::Cached => "cached",
             Self::Playing => "playing",
             Self::Played => "played",
+            Self::Failed => "failed",
         }
     }
 
@@ -70,6 +72,7 @@ impl QueueState {
             "cached" => Self::Cached,
             "playing" => Self::Playing,
             "played" => Self::Played,
+            "failed" => Self::Failed,
             _ => Self::Pending,
         }
     }
@@ -632,6 +635,15 @@ impl Database {
         Ok(())
     }
 
+    pub fn mark_failed(&self, track_id: &str) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE queue SET state = 'failed' WHERE track_id = ?1 AND state = 'pending'",
+            params![track_id],
+        )?;
+        Ok(())
+    }
+
     pub fn create_cabin(
         &self,
         id: &str,
@@ -1071,6 +1083,34 @@ mod tests {
         let results = db.search_tracks("", 3).unwrap();
         assert_eq!(results.len(), 3);
     }
+
+    #[test]
+    fn test_mark_failed_queue_entry() {
+        let db = Database::open_in_memory().unwrap();
+        let track_id = "test_art:test_tit";
+        let track = TrackRecord {
+            id: track_id.to_string(),
+            artist: "Test Art".to_string(),
+            title: "Test Tit".to_string(),
+            duration_sec: 180,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track).unwrap();
+        let _qid = db.enqueue_track(track_id).unwrap();
+
+        let queue = db.get_queue().unwrap();
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue[0].0.state, QueueState::Pending);
+
+        db.mark_failed(track_id).unwrap();
+
+        let queue = db.get_queue().unwrap();
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue[0].0.state, QueueState::Failed);
+    }
 }
+
 
 

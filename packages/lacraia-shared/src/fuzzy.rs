@@ -41,6 +41,50 @@ pub fn is_title_clean(title: &str, seed_title: &str) -> bool {
     true
 }
 
+/// Strips common diacritics and converts to ASCII lowercase.
+pub fn strip_accents(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'ã' | 'â' | 'ä' | 'Á' | 'À' | 'Ã' | 'Â' | 'Ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' | 'É' | 'È' | 'Ê' | 'Ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' | 'Í' | 'Ì' | 'Î' | 'Ï' => 'i',
+            'ó' | 'ò' | 'õ' | 'ô' | 'ö' | 'Ó' | 'Ò' | 'Õ' | 'Ô' | 'Ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' | 'Ú' | 'Ù' | 'Û' | 'Ü' => 'u',
+            'ç' | 'Ç' => 'c',
+            'ñ' | 'Ñ' => 'n',
+            other => other.to_ascii_lowercase(),
+        })
+        .collect()
+}
+
+/// Checks whether the candidate title contains recognizable tokens from the seed title.
+pub fn is_title_matching(candidate_title: &str, seed_title: &str) -> bool {
+    let candidate_clean = strip_accents(candidate_title);
+    let seed_clean = strip_accents(seed_title);
+
+    let candidate_norm: String = candidate_clean
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect();
+    let seed_norm: String = seed_clean
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect();
+
+    let seed_tokens: Vec<&str> = seed_norm
+        .split_whitespace()
+        .filter(|t| t.len() >= 2)
+        .collect();
+
+    if seed_tokens.is_empty() {
+        return true;
+    }
+
+    // At least one significant token from seed title must be in candidate title
+    seed_tokens.iter().any(|tok| candidate_norm.contains(tok))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -64,4 +108,13 @@ mod tests {
         // Allowed if seed requested remix
         assert!(is_title_clean("Rebel Rebel (Club Remix)", "Rebel Rebel Remix"));
     }
+
+    #[test]
+    fn test_title_matching() {
+        assert!(is_title_matching("Bonde do Tigrão feat MC Serginho - Vai Lacraia", "Vai Lacraia"));
+        assert!(is_title_matching("Construção | Chico Buarque (Vídeo Oficial)", "Construcao"));
+        assert!(!is_title_matching("RIO", "lacraia"));
+        assert!(!is_title_matching("Random Song", "Tempo Perdido"));
+    }
 }
+

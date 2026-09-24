@@ -59,7 +59,7 @@ impl QueueDaemon {
             if targets.len() >= lookahead_window {
                 break;
             }
-            if entry.state == QueueState::Pending {
+            if entry.state == QueueState::Pending && track.cached_path.is_none() {
                 targets.push(track.clone());
             }
         }
@@ -111,12 +111,16 @@ impl QueueDaemon {
                         "QueueDaemon: Pre-caching failed for '{}': {}",
                         track.title, e
                     );
+                    if let Err(db_err) = self.db.mark_failed(&track.id) {
+                        warn!("QueueDaemon: Failed to mark track as failed: {}", db_err);
+                    }
                 }
             }
         }
 
         Ok(processed)
     }
+
 
     /// Spawns the daemon background task.
     pub fn start(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
@@ -231,4 +235,39 @@ mod tests {
         let targets = QueueDaemon::find_prefetch_targets(&queue, 2);
         assert_eq!(targets.len(), 0);
     }
+
+    #[test]
+    fn test_lookahead_skips_failed() {
+        let dummy_track = |id: &str| TrackRecord {
+            id: id.into(),
+            artist: "Artist".into(),
+            title: id.into(),
+            duration_sec: 200,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+
+        let dummy_entry = |id: i64, state: QueueState| QueueEntry {
+            id,
+            track_id: format!("trk_{}", id),
+            position: id,
+            state,
+            created_at: 0,
+            cabin_id: "default".into(),
+            requested_by: None,
+        };
+
+        // Scenario: Track 1 Playing, Track 2 Failed, Track 3 Pending
+        let queue = vec![
+            (dummy_entry(1, QueueState::Playing), dummy_track("trk_1")),
+            (dummy_entry(2, QueueState::Failed), dummy_track("trk_2")),
+            (dummy_entry(3, QueueState::Pending), dummy_track("trk_3")),
+        ];
+
+        let targets = QueueDaemon::find_prefetch_targets(&queue, 2);
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].id, "trk_3");
+    }
 }
+
