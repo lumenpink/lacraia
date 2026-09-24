@@ -111,17 +111,18 @@ LIMIT ?2;
 
 ## 5. Media Resolution & Local Opus Cache (`resolver.rs`)
 
-`lacraia-core` resolves raw audio streams and extracts clean Opus tracks for offline delivery:
+`lacraia-core` implements a resilient multi-tier cascaded architecture to resolve raw audio streams and extract clean Opus tracks for offline delivery:
 
-1. **Instant SQLite Cache Verification:**
-   Before firing external search queries, the resolver inspects `tracks.cached_path` in SQLite. If the `.opus` file exists on disk, it returns immediately with zero network latency.
-2. **Search & Fuzzy Sanitization:**
-   Executes `yt-dlp` / YouTube search with JSON output parsing:
+1. **Tier 1 — Instant SQLite & Disk Cache Verification:**
+   Before firing external network queries, the resolver inspects `tracks.cached_path` in SQLite. If the `.opus` file exists on disk, it returns immediately with zero network latency.
+2. **Tier 2 — Native Rust Innertube Extractor (`rustypipe`):**
+   Executes direct, asynchronous queries against YouTube Music and YouTube via the pure Rust crate `rustypipe`. Streams are verified against fuzzy duration ($\Delta t \le 15\text{s}$) and studio title filters, then fetched and converted to Opus via `ffmpeg`.
+3. **Tier 3 — CLI Fallback (`yt-dlp` + `ffmpeg`):**
+   If native extraction encounters upstream signature changes, rate limits, or botguard challenges, the resolver automatically falls back to the system `yt-dlp` binary without interrupting the user.
+4. **Search & Fuzzy Sanitization:**
    * **Duration Discrepancy Filter:** Rejects results where $\Delta t = |t_{\text{obtained}} - t_{\text{expected}}| > 15\text{s}$.
    * **Title Noise Filter:** Drops items containing `live`, `ao vivo`, `cover`, `tribute`, `10 hours`, or unrequested `remix`.
-3. **Extraction & Conversion:**
-   Downloads and converts audio directly into `/var/cache/la-craia/{track_id}.opus` via `yt-dlp` and `ffmpeg`.
-4. **Static Range Delivery:**
+5. **Static Range Delivery:**
    Exposed over `/cache/{track_id}.opus` with native HTTP Range Request support (`206 Partial Content`) for immediate seeking in the frontend player.
 
 > 🦂 **[ VENENO NA CARNE ]**  
@@ -129,14 +130,14 @@ LIMIT ?2;
 
 ---
 
-## 6. Lookahead Queue Daemon & Gapless Playback (`queue_daemon.rs`)
+## 6. Lookahead Queue Daemon & Multi-Cabin Pre-Caching (`queue_daemon.rs`)
 
 `lacraia-core` spawns an asynchronous background worker (`QueueDaemon`) tasked with maintaining continuous audio on the road:
 
-1. **Active Playhead Tracking:**
-   Continuously monitors queue states (`playing`, `cached`, `pending`) in SQLite.
+1. **Active Multi-Cabin Playhead Tracking:**
+   Continuously monitors queue states (`playing`, `cached`, `pending`) across all registered cabins (`default`, `van-furacao`, etc.) in SQLite.
 2. **Two-Track Lookahead Window:**
-   Identifies the next 2 tracks immediately subsequent to the currently playing song that are still in `pending` state.
+   Identifies the next 2 tracks immediately subsequent to the currently playing song that are still in `pending` state across active cabins.
 3. **Proactive Background Caching:**
    Triggers `MediaResolver::resolve_and_cache` before the current track finishes. Once the `.opus` file is saved to disk, the database updates the queue state from `pending` to `cached`.
 4. **Resilience to Network Drops:**
@@ -147,12 +148,12 @@ LIMIT ?2;
 
 ---
 
-## 7. Audio Engine & Multiplatform Media Integration (`lacraia-app`)
+## 7. Audio Engine & Multiplatform Media Integration (`site/app/index.html` & `lacraia-app`)
 
-`lacraia-app` acts as an automotive cockpit application supporting native Linux desktop and PWA targets:
+`lacraia-app` and the cockpit web player deliver unified automotive sound:
 
-1. **HTML5 & Native Audio Engine (`audio.rs`):**
-   Manages playback with support for volume clamping, precise millisecond seeking, and error recovery across native desktop (Wry) and web targets.
+1. **HTML5 Audio Engine (`audio-engine`):**
+   Connects dynamically to `/cache/{track_id}.opus` streams, executing real audio playback (`audio.play()`, `audio.pause()`) in full synchronization with WebSocket telemetries and gain slider controls (clamped from 0 to 11). On-demand stream resolution (`/api/resolve`) runs automatically if a song is promoted before pre-caching finishes.
 2. **MediaSession API Synchronization:**
    Registers active song metadata (`title`, `artist`, `album`, and 512x512 artwork) directly on `navigator.mediaSession` when running in browser / PWA mode.
 3. **OS Lockscreen & Keybinding Handlers:**

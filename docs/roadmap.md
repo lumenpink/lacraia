@@ -254,6 +254,38 @@ This sprint focuses on steering wheel hardware controls, automotive smart cachin
   - **Sticky Bottom Miniplayer Mobile:** Barra flutuante de controle na base da tela ativada ao navegar pelas abas da Fila e da Cabine.
   - **Seletor de Abas Mobile (< 860px):** Navegação tátil por abas (`PLAYER`, `FILA`, `CABINE`) com badges de contagem dinâmica e áreas de toque mínimas de 44px.
 
+---
+
+### Ticket #11: Hierarquia de Acesso Master-Piloto e Rotação de Chaves de Passageiros
+* **Package:** `packages/lacraia-core`, `site/app/index.html`, `docs/architecture.md`, `docs/roadmap.md`
+* **Goal:** Implementar o controle de acesso de três níveis (Master, Piloto, Passageiro) com rotação dinâmica de senhas e autenticação por cabine.
+* **Acceptance Criteria:**
+  - **Autenticação Master (`LACRAIA_MASTER_KEY`):** Chave mestra imutável via variável de ambiente concedendo soberania administrativa sobre qualquer cabine do sistema.
+  - **Chaves de Embarque Rotativas de Passageiros:** Geração e rotação instantânea de PINs alfanuméricos de 6 caracteres via `/api/cabin/rotate-key` invalidando passageiros anteriores.
+  - **Persistência Segura em SQLite:** Tabelas `cabins` e `passengers` armazenando tokens e metadados de acesso.
+  - **Ejeção Atômica de Tripulantes:** Comandos de ejeção individual e coletiva com encerramento de sessão em tempo real via WebSocket.
+
+---
+
+### Ticket #12: Resolução Híbrida (rustypipe + yt-dlp), Pre-cache Multi-Cabine e Áudio Real no Cockpit
+* **Package:** `packages/lacraia-core`, `site/app/index.html`, `docs/architecture.md`, `docs/roadmap.md`
+* **Goal:** Conectar o downloader nativo em Rust (`rustypipe`) com fallback em cascata para `yt-dlp`, estender o pre-cache do `QueueDaemon` para cobrir todas as cabines ativas e ligar o motor de áudio HTML5 no cockpit web para saída real de som nos alto-falantes.
+* **Acceptance Criteria:**
+  - **MediaResolver Híbrido em Cascata (`resolver.rs`):**
+    - Verificação primária de cache local em disco (`./cache/*.opus`) com zero rede.
+    - Tentativa primária de busca e extração de áudio via crate Rust nativa (`rustypipe`).
+    - Fallback secundário transparente via CLI (`yt-dlp` + `ffmpeg`) em caso de falha ou incompatibilidade de assinatura na crate.
+    - Gravação atômica do arquivo Opus e catalogação no SQLite.
+  - **Pre-cache Multi-Cabine (`queue_daemon.rs`):**
+    - O daemon inspeciona e pre-carrega faixas pendentes da janela de lookahead de todas as cabines ativas e da cabine padrão.
+  - **Execução Real de Áudio no Cockpit (`site/app/index.html`):**
+    - Elemento `<audio id="audio-engine">` conectado ao `stream_url` da faixa em reprodução.
+    - Disparo de reprodução (`audio.play()`) ao iniciar ou receber estado `PLAYING`.
+    - Pausa (`audio.pause()`) ao receber estado `PAUSED`.
+    - Resolução sob demanda (`/api/resolve`) para faixas não cacheadas com feedback visual no player.
+    - Sincronização do seekline e do controle de ganho até 11.
+
+
 
 
 
