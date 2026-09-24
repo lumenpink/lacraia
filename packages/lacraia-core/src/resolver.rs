@@ -310,7 +310,9 @@ impl MediaResolver {
         title: &str,
         expected_duration_sec: u64,
     ) -> Result<TrackResolution, ResolverError> {
-        let track_id = format!("{}:{}", artist.to_lowercase(), title.to_lowercase());
+        let clean_artist = strip_accents(artist);
+        let clean_title = strip_accents(title);
+        let track_id = format!("{}:{}", clean_artist.trim(), clean_title.trim());
         let safe_filename = format!(
             "{}.opus",
             track_id.replace(|c: char| !c.is_alphanumeric(), "_")

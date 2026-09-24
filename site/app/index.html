@@ -1860,9 +1860,11 @@
             const resp = await fetch(`${targetHttpUrl}/api/resolve?artist=${encodeURIComponent(art)}&title=${encodeURIComponent(tit)}&expected_duration_sec=${durSec}`);
             if (resp.ok) {
               const resData = await resp.json();
-              if (resData.stream_url) {
-                trk.stream_url = resData.stream_url;
-                const fullUrl = resData.stream_url.startsWith("http") ? resData.stream_url : `${targetHttpUrl}${resData.stream_url}`;
+              const sUrl = resData.streamUrl || resData.stream_url;
+              if (sUrl) {
+                trk.stream_url = sUrl;
+                trk.streamUrl = sUrl;
+                const fullUrl = sUrl.startsWith("http") ? sUrl : `${targetHttpUrl}${sUrl}`;
                 audio.src = fullUrl;
                 audio.load();
                 if (state.isPlaying) {
@@ -1871,6 +1873,7 @@
                 showToast(`▶ REPRODUZINDO: ${tit.toUpperCase()}`);
               }
             }
+
           } catch (e) {
             console.warn("Resolve track error:", e);
           } finally {
