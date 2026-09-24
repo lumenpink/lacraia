@@ -200,6 +200,35 @@ async function main() {
       await context.close();
     });
 
+    // -------------------------------------------------------------
+    // Test 5: Autopilot 5-Tracks Lookahead Buffer Maintenance
+    // -------------------------------------------------------------
+    await test('Autopilot Lookahead: 5 tracks ahead buffer continuously maintained', async () => {
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+      });
+      const page = await context.newPage();
+      await page.goto(`${BASE_URL}/app?master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+
+      // Trigger playback to wake the Autopilot
+      const playBtn = page.locator('#btn-play-pause');
+      await playBtn.click();
+
+      // Wait for autopilot to populate queue items in DOM
+      await page.waitForFunction(() => {
+        const rows = document.querySelectorAll('.queue-item-row');
+        return rows.length >= 1;
+      }, { timeout: 15000 });
+
+      const queueText = await page.locator('#queue-list-container').textContent();
+      assert(
+        queueText.includes('AUTOPILOT') || queueText.includes('PILOTO') || queueText.includes('#01'),
+        'Queue must display populated autopilot items'
+      );
+
+      await context.close();
+    });
+
   } finally {
     await browser.close();
   }

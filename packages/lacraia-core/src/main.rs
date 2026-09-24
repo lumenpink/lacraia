@@ -27,17 +27,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let similarity = Arc::new(CompositeSimilarityEngine::new(lastfm_key, db.clone()));
     let resolver = Arc::new(MediaResolver::new(cache_dir.clone(), db.clone()));
 
-    let daemon = Arc::new(QueueDaemon::new(
-        db.clone(),
-        resolver.clone(),
-        2, // Lookahead window of 2 tracks
-        std::time::Duration::from_secs(5),
-    ));
-    daemon.start();
-
     let (tx, _rx) = broadcast::channel::<WsMessage>(100);
     let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
     hub.clone().start_telemetry_ticker();
+
+    let daemon = Arc::new(QueueDaemon::new(
+        db.clone(),
+        resolver.clone(),
+        similarity.clone(),
+        hub.clone(),
+        5, // Lookahead window of 5 tracks ahead
+        std::time::Duration::from_secs(3),
+    ));
+    daemon.start();
 
     let state = AppState {
         db,

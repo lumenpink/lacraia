@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (queue) implement dynamic autopilot lookahead and dev reset routine (#14)
   - (audio) implement hybrid media resolver and real audio playback (closes #12)
   - (auth) implement master key, per-cabin rbac and rotatable passenger keys (closes #11)
   - (app) add responsive mobile layout, deck reordering, and sticky miniplayer (closes #10)

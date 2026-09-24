@@ -1,5 +1,7 @@
 use crate::db::{Database, QueueEntry, QueueState, TrackRecord};
 use crate::resolver::{MediaResolver, ResolverError};
+use crate::similarity::{CompositeSimilarityEngine, SimilarityEngine};
+use crate::ws::PlaybackHub;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -17,6 +19,8 @@ pub enum QueueDaemonError {
 pub struct QueueDaemon {
     db: Database,
     resolver: Arc<MediaResolver>,
+    similarity: Arc<CompositeSimilarityEngine>,
+    hub: Arc<PlaybackHub>,
     lookahead_window: usize,
     poll_interval: Duration,
 }
@@ -25,12 +29,16 @@ impl QueueDaemon {
     pub fn new(
         db: Database,
         resolver: Arc<MediaResolver>,
+        similarity: Arc<CompositeSimilarityEngine>,
+        hub: Arc<PlaybackHub>,
         lookahead_window: usize,
         poll_interval: Duration,
     ) -> Self {
         Self {
             db,
             resolver,
+            similarity,
+            hub,
             lookahead_window,
             poll_interval,
         }
@@ -67,9 +75,130 @@ impl QueueDaemon {
         targets
     }
 
+    /// Ensures that for each active cabin, there are at least `target_ahead` (e.g. 5) tracks
+    /// ahead in the queue (pending or cached), auto-populating from similarity recommendations.
+    pub async fn maintain_autopilot_queue(
+        &self,
+        cabin_id: &str,
+        target_ahead: usize,
+    ) -> Result<usize, QueueDaemonError> {
+        let queue = self.db.get_queue_for_cabin(cabin_id)?;
+
+        let mut playing_index = None;
+        let mut upcoming_count = 0;
+        let mut exclude_ids = Vec::new();
+
+        for (i, (entry, track)) in queue.iter().enumerate() {
+            exclude_ids.push(track.id.clone());
+            if entry.state == QueueState::Playing {
+                playing_index = Some(i);
+            }
+        }
+
+        let start_index = match playing_index {
+            Some(idx) => idx + 1,
+            None => 0,
+        };
+
+        for (_, (entry, _)) in queue.iter().enumerate().skip(start_index) {
+            if entry.state == QueueState::Pending || entry.state == QueueState::Cached {
+                upcoming_count += 1;
+            }
+        }
+
+        // The autopilot activates only when the cabin is actively playing (either in the hub
+        // or has a track marked as Playing in the queue). If dormant/idle, it waits for the user.
+        let is_playing_in_hub = self.hub.is_cabin_playing(cabin_id).await;
+        let has_playing_in_queue = queue.iter().any(|(e, _)| e.state == QueueState::Playing);
+        if !is_playing_in_hub && !has_playing_in_queue {
+            return Ok(0);
+        }
+
+        if upcoming_count >= target_ahead {
+            return Ok(0);
+        }
+
+        let deficit = target_ahead - upcoming_count;
+
+        let current_track_in_hub = self.hub.get_current_track_for_cabin(cabin_id).await;
+        // Determine seed track: last track in queue, or current playing track in hub
+        let seed: Option<(String, String, String)> = if let Some((_, last_track)) = queue.last() {
+            Some((last_track.artist.clone(), last_track.title.clone(), last_track.id.clone()))
+        } else if let Some(ref current) = current_track_in_hub {
+            Some((current.artist.clone(), current.title.clone(), current.id.clone()))
+        } else {
+            None
+        };
+
+        let (seed_artist, seed_title, seed_id) = match seed {
+            Some(s) => s,
+            None => return Ok(0),
+        };
+
+        info!(
+            "Autopilot: Cabin '{}' has {} tracks ahead (target: {}). Querying similarity for '{} - {}' (deficit: {})",
+            cabin_id, upcoming_count, target_ahead, seed_artist, seed_title, deficit
+        );
+
+        let mut candidates_to_add: Vec<(String, String, String, u64)> = Vec::new();
+
+        if let Ok(sim_results) = self.similarity.find_similar(&seed_artist, &seed_title, 10).await {
+            for c in sim_results {
+                if !exclude_ids.contains(&c.id)
+                    && !candidates_to_add.iter().any(|(id, ..)| id == &c.id)
+                {
+                    candidates_to_add.push((c.id, c.artist, c.title, c.duration_sec.unwrap_or(210)));
+                    if candidates_to_add.len() >= deficit {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if candidates_to_add.len() < deficit {
+            let mut local_exclude = exclude_ids.clone();
+            for (id, ..) in &candidates_to_add {
+                local_exclude.push(id.clone());
+            }
+            if let Ok(local_recs) = self.db.get_recommendations_for_seed(&seed_id, &local_exclude, deficit - candidates_to_add.len()) {
+                for r in local_recs {
+                    if !candidates_to_add.iter().any(|(id, ..)| id == &r.id) {
+                        candidates_to_add.push((r.id, r.artist, r.title, r.duration_sec));
+                        if candidates_to_add.len() >= deficit {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut enqueued = 0;
+        for (id, artist, title, dur) in candidates_to_add {
+            let record = TrackRecord {
+                id: id.clone(),
+                artist,
+                title,
+                duration_sec: dur,
+                cached_path: None,
+                genres: None,
+                last_played_at: None,
+            };
+            let _ = self.db.upsert_track(&record);
+            if let Ok(_) = self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id) {
+                enqueued += 1;
+            }
+        }
+
+        if enqueued > 0 {
+            info!("Autopilot: Successfully enqueued {} tracks for cabin '{}'", enqueued, cabin_id);
+            self.hub.broadcast_state_for_cabin(cabin_id).await;
+        }
+
+        Ok(enqueued)
+    }
+
     /// Executes a single prefetch cycle for the lookahead window.
     pub async fn step(&self) -> Result<usize, QueueDaemonError> {
-        let mut all_queues = Vec::new();
         let mut cabin_ids = vec!["default".to_string()];
         if let Ok(cabins) = self.db.list_cabins() {
             for c in cabins {
@@ -78,6 +207,12 @@ impl QueueDaemon {
                 }
             }
         }
+
+        for cid in &cabin_ids {
+            let _ = self.maintain_autopilot_queue(cid, self.lookahead_window).await;
+        }
+
+        let mut all_queues = Vec::new();
         for cid in cabin_ids {
             if let Ok(q) = self.db.get_queue_for_cabin(&cid) {
                 all_queues.extend(q);

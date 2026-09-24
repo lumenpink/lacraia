@@ -91,6 +91,20 @@ impl PlaybackHub {
         self.build_state_update_for_cabin(&cabin_id).await
     }
 
+    pub async fn broadcast_state_for_cabin(&self, cabin_id: &str) {
+        let update = self.build_state_update_for_cabin(cabin_id).await;
+        let _ = self.tx.send(update);
+    }
+
+    pub async fn is_cabin_playing(&self, _cabin_id: &str) -> bool {
+        let state = self.playback_state.lock().await;
+        *state == PlaybackState::Playing
+    }
+
+    pub async fn get_current_track_for_cabin(&self, _cabin_id: &str) -> Option<Track> {
+        self.current_track.lock().await.clone()
+    }
+
     pub async fn dispatch_command(&self, action: CommandAction) -> Result<WsMessage, String> {
         let cabin_id = self.cabin_id.lock().await.clone();
         self.dispatch_command_with_role(action, &cabin_id, Some(Role::Pilot)).await

@@ -64,9 +64,14 @@ async fn test_queue_daemon_failure_isolation() {
     let _qid = db.enqueue_track(track_id).unwrap();
 
     let resolver = Arc::new(MediaResolver::new(cache_dir.clone(), db.clone()));
+    let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+    let (tx, _rx) = broadcast::channel::<WsMessage>(50);
+    let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
     let daemon = QueueDaemon::new(
         db.clone(),
         resolver,
+        similarity,
+        hub,
         2,
         std::time::Duration::from_millis(50),
     );
@@ -199,4 +204,71 @@ async fn test_real_resolver_download_with_android_client() {
             eprintln!("Network resolution skipped/failed: {}", e);
         }
     }
+}
+
+#[tokio::test]
+async fn test_autopilot_infinite_lookahead_maintenance() {
+    let db = Database::open_in_memory().unwrap();
+    db.seed_defaults_if_empty().unwrap();
+
+    let cache_dir = std::env::temp_dir().join(format!("lacraia_test_autopilot_{}", uuid::Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&cache_dir);
+    let resolver = Arc::new(MediaResolver::new(cache_dir, db.clone()));
+    let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+    let (tx, _rx) = broadcast::channel::<WsMessage>(50);
+    let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+
+    let daemon = QueueDaemon::new(
+        db.clone(),
+        resolver,
+        similarity,
+        hub.clone(),
+        5, // 5 tracks ahead target
+        std::time::Duration::from_millis(50),
+    );
+
+    // 1. In dormant state (no playback, no queue), daemon does NOT add random tracks
+    let pre_queue = db.get_queue().unwrap();
+    assert!(pre_queue.is_empty(), "Queue must start empty");
+    let enqueued = daemon.maintain_autopilot_queue("default", 5).await.unwrap();
+    assert_eq!(enqueued, 0, "Dormant daemon must not enqueue anything on idle cabin");
+    assert!(db.get_queue().unwrap().is_empty());
+
+    // 2. User enqueues the first seed track and starts playback
+    let _ = db
+        .enqueue_track_with_meta("chico buarque:construcao", Some("PILOTO"), "default")
+        .unwrap();
+    let advanced = db.advance_queue_for_cabin("default").unwrap();
+    assert!(advanced.is_some());
+    assert_eq!(advanced.unwrap().state, QueueState::Playing);
+    *hub.playback_state.lock().await = lacraia_shared::PlaybackState::Playing;
+
+    // 3. Autopilot maintenance detects active playback with 0 tracks ahead (target: 5), adding 5 similar tracks
+    let added = daemon.maintain_autopilot_queue("default", 5).await.unwrap();
+    assert_eq!(added, 5, "Autopilot must add 5 tracks ahead of active playing track");
+
+    let full_queue = db.get_queue().unwrap();
+    // 1 playing + 5 upcoming = 6 total entries
+    assert_eq!(full_queue.len(), 6, "Queue must contain 1 playing + 5 tracks ahead");
+    for entry in &full_queue[1..] {
+        assert_eq!(entry.0.requested_by.as_deref(), Some("AUTOPILOT"));
+    }
+
+    // 4. Pilot advances the queue (first upcoming track is promoted to playing, leaving 4 upcoming)
+    let advanced2 = db.advance_queue_for_cabin("default").unwrap();
+    assert!(advanced2.is_some());
+    assert_eq!(advanced2.unwrap().state, QueueState::Playing);
+
+    // 5. Autopilot maintenance runs again: only 4 tracks ahead, fills 1 more to keep 5 ahead
+    let replenished = daemon.maintain_autopilot_queue("default", 5).await.unwrap();
+    assert_eq!(replenished, 1, "Autopilot must replenish 1 track to maintain 5 ahead");
+
+    let queue_active = db.get_queue().unwrap();
+    // 1 playing + 5 upcoming = 6 total entries with state != 'played'
+    assert_eq!(queue_active.len(), 6);
+    let upcoming_count = queue_active
+        .iter()
+        .filter(|(e, _)| e.state == QueueState::Pending || e.state == QueueState::Cached)
+        .count();
+    assert_eq!(upcoming_count, 5, "Autopilot must maintain 5 upcoming tracks ahead forever");
 }

@@ -453,6 +453,116 @@ impl Database {
         Ok(results)
     }
 
+    /// Fetches recommendation candidates for a seed track using similarity edges,
+    /// same artist/genre affinity, and local catalog fallback, excluding specified track IDs.
+    pub fn get_recommendations_for_seed(
+        &self,
+        seed_id: &str,
+        exclude_ids: &[String],
+        limit: usize,
+    ) -> Result<Vec<TrackRecord>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut results = Vec::new();
+
+        // 1. Traverse similarity edges from graph
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT t.id, t.artist, t.title, t.duration_sec, t.cached_path, t.genres, t.last_played_at
+            FROM similarity_edges e
+            JOIN tracks t ON t.id = e.target_track_id
+            WHERE e.source_track_id = ?1
+            ORDER BY e.weight DESC
+            LIMIT 20
+            "#,
+        )?;
+        let rows = stmt.query_map(params![seed_id], |row| {
+            Ok(TrackRecord {
+                id: row.get(0)?,
+                artist: row.get(1)?,
+                title: row.get(2)?,
+                duration_sec: row.get(3)?,
+                cached_path: row.get(4)?,
+                genres: row.get(5)?,
+                last_played_at: row.get(6)?,
+            })
+        })?;
+        for r in rows.flatten() {
+            if !exclude_ids.contains(&r.id)
+                && r.id != seed_id
+                && !results.iter().any(|existing: &TrackRecord| existing.id == r.id)
+            {
+                results.push(r);
+                if results.len() >= limit {
+                    return Ok(results);
+                }
+            }
+        }
+
+        // 2. Query same artist or genres affinity
+        let seed_opt: Option<(String, Option<String>)> = conn
+            .query_row(
+                "SELECT artist, genres FROM tracks WHERE id = ?1",
+                params![seed_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+
+        if let Some((artist, _genres)) = seed_opt {
+            let mut stmt_artist = conn.prepare(
+                "SELECT id, artist, title, duration_sec, cached_path, genres, last_played_at FROM tracks WHERE artist = ?1 AND id != ?2 LIMIT 10",
+            )?;
+            let artist_rows = stmt_artist.query_map(params![artist, seed_id], |row| {
+                Ok(TrackRecord {
+                    id: row.get(0)?,
+                    artist: row.get(1)?,
+                    title: row.get(2)?,
+                    duration_sec: row.get(3)?,
+                    cached_path: row.get(4)?,
+                    genres: row.get(5)?,
+                    last_played_at: row.get(6)?,
+                })
+            })?;
+            for r in artist_rows.flatten() {
+                if !exclude_ids.contains(&r.id)
+                    && !results.iter().any(|existing: &TrackRecord| existing.id == r.id)
+                {
+                    results.push(r);
+                    if results.len() >= limit {
+                        return Ok(results);
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback to catalog defaults (diverse seeds)
+        let mut stmt_all = conn.prepare(
+            "SELECT id, artist, title, duration_sec, cached_path, genres, last_played_at FROM tracks WHERE id != ?1 ORDER BY id ASC LIMIT 30",
+        )?;
+        let all_rows = stmt_all.query_map(params![seed_id], |row| {
+            Ok(TrackRecord {
+                id: row.get(0)?,
+                artist: row.get(1)?,
+                title: row.get(2)?,
+                duration_sec: row.get(3)?,
+                cached_path: row.get(4)?,
+                genres: row.get(5)?,
+                last_played_at: row.get(6)?,
+            })
+        })?;
+        for r in all_rows.flatten() {
+            if !exclude_ids.contains(&r.id)
+                && !results.iter().any(|existing: &TrackRecord| existing.id == r.id)
+            {
+                results.push(r);
+                if results.len() >= limit {
+                    break;
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
     pub fn enqueue_track(&self, track_id: &str) -> Result<i64, DbError> {
         self.enqueue_track_with_meta(track_id, None, "default")
     }
@@ -1109,6 +1219,26 @@ mod tests {
         let queue = db.get_queue().unwrap();
         assert_eq!(queue.len(), 1);
         assert_eq!(queue[0].0.state, QueueState::Failed);
+    }
+
+    #[test]
+    fn test_get_recommendations_for_seed() {
+        let db = Database::open_in_memory().unwrap();
+        db.seed_defaults_if_empty().unwrap();
+
+        let recs = db
+            .get_recommendations_for_seed("chico buarque:construcao", &[], 5)
+            .unwrap();
+        assert_eq!(recs.len(), 5);
+        assert!(!recs.iter().any(|r| r.id == "chico buarque:construcao"));
+
+        // With exclusion list
+        let exclude = vec![recs[0].id.clone()];
+        let recs2 = db
+            .get_recommendations_for_seed("chico buarque:construcao", &exclude, 5)
+            .unwrap();
+        assert_eq!(recs2.len(), 5);
+        assert!(!recs2.iter().any(|r| r.id == recs[0].id));
     }
 }
 
