@@ -1,12 +1,21 @@
 # La Craia
 
-[![CCCP Compliant](https://img.shields.io/badge/CCCP-v2.3.0-blue.svg)](https://cccp.2lp.in)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CCCP Compliant](https://img.shields.io/badge/CCCP-v2.4.0-blue.svg)](https://cccp.2lp.in)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-yellow.svg)](LICENSE)
+[![Normative Standard: GOST 1.0](https://img.shields.io/badge/GOST-SPEC--01-ff0055.svg)](SPEC.md)
 [![Docs](https://img.shields.io/badge/docs-lacraia.2lp.in-green.svg)](https://lacraia.2lp.in)
 
 > **Autonomous Soundwall, Acoustic Affinity Radio & Symbiotic Lyric Ecosystem**
 
 La Craia is a dissident audio suite integrating acoustic similarity streaming, proactive audio caching, and synchronized lyrics projected line-by-line via the Simbiótyka floating companion over any application or interface. Engineered for universal operation across Linux desktop, home servers, soundwalls, web, mobile, vans, and road trips.
+
+---
+
+## Technical Specification & GOST Conformance
+
+This repository conforms to the **GOST (General Open Source Standard)** and the **Lumen Implementation Profile** (`profiles/lumen.md`). Complete normative architectural contracts, SQLite data models, WebAudio visualizer mechanics, RBAC multi-cabin security, and testing strategies are defined in:
+
+👉 **[SPEC-01: La Craia Technical Specification (SPEC.md)](SPEC.md)**
 
 ---
 
@@ -37,13 +46,15 @@ The project is structured as a monorepo across Rust crates and a native Android 
 
 ```
 lacraia/
+├── SPEC.md                # Normative Technical Specification (GOST SPEC-01)
 ├── packages/
 │   ├── lacraia-shared/    # Shared models, LRC parser, fuzzy validator, WS protocol (Rust)
 │   ├── lacraia-core/      # Backend service: Axum, SQLite, yt-dlp, Last.fm, WS hub (Rust)
 │   ├── lacraia-app/       # Universal player, soundwall & cabin console in Dioxus (Linux Native & Web/PWA)
 │   └── lacraia-android/   # Native Android workspace: :app (Player) & :simbiotyka (Floating Lyric HUD)
-├── docs/                  # Design system, identity manual and technical specifications
+├── docs/                  # Design system, identity manual and release roadmaps
 ├── site/                  # Static documentation site deployed to Cloudflare Workers
+├── tests/e2e/             # Automated headless Playwright E2E test suite (7 scenarios)
 ├── serve.sh               # Local preview HTTP server for site/
 └── wrangler.jsonc         # Cloudflare Workers configuration for lacraia.2lp.in
 ```
