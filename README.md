@@ -84,6 +84,9 @@ cargo test --workspace
 
 # Lint Rust crates
 cargo clippy --workspace
+
+# Run exhaustive Playwright E2E suite (13 comprehensive UI, audio, and autopilot scenarios)
+node tests/e2e/run_tests.js
 ```
 
 ### Running Services
