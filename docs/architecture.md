@@ -4,7 +4,11 @@
 **Version:** 0.2.0  
 **Target Environment:** Linux Host Server (Debian 13 / Ubuntu), Web/PWA & Android Mobile  
 **Repository:** `ssh://git@codeberg.org/lumenpink/lacraia.git`  
-**Documentation Site:** `lacraia.2lp.in` (Cloudflare Workers Static Assets)
+**Documentation Site:** `lacraia.2lp.in` (Cloudflare Workers Static Assets)  
+**Normative Standard:** GOST `1.0.0-draft` / SPEC-01 (`SPEC.md`)
+
+> 📐 **[ PADRÃO TÉCNICO GOST ]**  
+> Este documento é mantido em paridade normativa estrita com a especificação canônica [**SPEC-01 (`SPEC.md`)**](../SPEC.md), em conformidade com a norma técnica **GOST `1.0.0-draft`** e o **Perfil Lumen** (`profiles/lumen.md`).
 
 ---
 

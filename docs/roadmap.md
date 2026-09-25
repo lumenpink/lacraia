@@ -324,6 +324,18 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
     - Harmonização dos cadernos conceituais do portal: valorização da autonomia de quem escuta, da curadoria algorítmica descentralizada e da experiência de alta potência acústica.
     - Revisão de especificações arquiteturais e de design system (`docs/architecture.md`, `docs/design-system.md`, `docs/roadmap.md`, `README.md`).
 
+---
+
+### Ticket #29: Adequação da Especificação Técnica à Norma GOST (SPEC-01)
+* **Package:** `SPEC.md`, `README.md`, `docs/architecture.md`, `docs/roadmap.md`
+* **Goal:** Formalizar a especificação técnica normativa de La Craia (`SPEC-01`) em conformidade com o padrão GOST `1.0.0-draft` (`../gost`) e o perfil Lumen (`profiles/lumen.md`), consolidando em 12 seções normativas a governança, exceção estratégica de licenciamento GPLv3, anatomia do monorepo, pipeline de áudio contínuo, WebAudio visualizer, RBAC de cabines e pirâmide de testes com Playwright E2E.
+* **Acceptance Criteria:**
+  - Criação do arquivo canônico `SPEC.md` na raiz do repositório em conformidade com o padrão de referência (como em `navalha/SPEC.md`).
+  - Declaração explícita dos metadados normativos: Versão 1.0.0, Referência GOST 1.0.0-draft, Perfil Lumen e salvaguarda de cópia livre GPLv3.
+  - Alinhamento de referências e badges no `README.md`.
+  - Harmonização de `docs/architecture.md` em paridade conceitual estrita com o `SPEC.md`.
+
+
 
 
 
