@@ -54,7 +54,7 @@ pub struct MediaResolver {
 impl MediaResolver {
     pub fn new(cache_dir: PathBuf, db: Database) -> Self {
         let ytdlp_bin = std::env::var("YTDLP_BIN")
-            .unwrap_or_else(|_| "/home/lumen/.local/bin/yt-dlp".to_string());
+            .unwrap_or_else(|_| "yt-dlp".to_string());
         let rp = RustyPipe::new();
         Self {
             cache_dir,

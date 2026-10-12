@@ -18,7 +18,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   # JOB 1 — Rust Workspace: Tests & Release Binaries
   # ─────────────────────────────────────────────────────────────────────────────
-  test-and-build-rust:
+  test:
     name: "Rust Workspace — Tests & Binaries"
     runs-on: ubuntu-latest
     container:
@@ -110,7 +110,7 @@ jobs:
   deploy-site:
     name: "Deploy Documentation Site (lacraia.2lp.in)"
     runs-on: ubuntu-latest
-    needs: [test-and-build-rust, build-apk]
+    needs: [test, build-apk]
     if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -167,7 +167,7 @@ jobs:
   release:
     name: "Publish Release / Nightly Distribution"
     runs-on: ubuntu-latest
-    needs: [test-and-build-rust, build-apk]
+    needs: [test, build-apk]
     if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
     steps:
       - name: "Checkout repository"
@@ -286,3 +286,45 @@ jobs:
             dist/*.tar.gz
             dist/checksums.sha256
           body_path: /tmp/release_notes.md
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 5 — Build & Push Multi-Stage Atomic Docker Container
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-and-push-docker:
+    name: "Container — Build & Push (lumenpink/lacraia)"
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
+    steps:
+      - name: "Checkout repository"
+        uses: https://github.com/actions/checkout@v4
+
+      - name: "Login to Docker Hub"
+        uses: docker/login-action@v3
+        if: env.DOCKER_PASSWORD != ''
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: "Build and Push lacraia Docker Image"
+        uses: docker/build-push-action@v5
+        if: env.DOCKER_PASSWORD != ''
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: lumenpink/lacraia:latest
+
+      - name: "Trigger Watchtower Webhook"
+        if: env.WATCHTOWER_WEBHOOK_URL != ''
+        env:
+          WATCHTOWER_WEBHOOK_URL: ${{ secrets.WATCHTOWER_WEBHOOK_URL }}
+          WATCHTOWER_TOKEN: ${{ secrets.WATCHTOWER_TOKEN }}
+        run: |
+          curl -H "Authorization: Bearer ${WATCHTOWER_TOKEN}" "${WATCHTOWER_WEBHOOK_URL}" || true
+

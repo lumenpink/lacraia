@@ -1,0 +1,29 @@
+# ==============================================================================
+# 🦂 La Craia — Especificação Canônica Docker Compose (compose.yaml)
+# Conformidade com GOST (Seção 13.6.7) e Perfil Kollontai (Seção 12.4 & 14)
+# ==============================================================================
+
+services:
+  lacraia:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lumenpink/lacraia:latest
+    container_name: lacraia
+    restart: unless-stopped
+    ports:
+      - "${PORT:-2011}:2011"
+    environment:
+      - PORT=2011
+      - HOST=0.0.0.0
+      - LACRAIA_MASTER_KEY=${LACRAIA_MASTER_KEY:-2011}
+      - LASTFM_API_KEY=${LASTFM_API_KEY:-}
+      - LASTFM_SHARED_SECRET=${LASTFM_SHARED_SECRET:-}
+      - LACRAIA_DB_PATH=/app/data/lacraia.sqlite
+      - LACRAIA_CACHE_DIR=/app/cache
+      - LACRAIA_SITE_DIR=/app/site
+    volumes:
+      - ./data:/app/data
+      - ./cache:/app/cache
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"

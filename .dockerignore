@@ -1,0 +1,13 @@
+.git
+.gitignore
+target/
+.env*
+!*.example
+cache/
+*.sqlite*
+node_modules/
+dist/
+*.log
+packages/lacraia-android/
+.antigravity/
+.forgejo/
