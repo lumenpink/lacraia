@@ -1549,18 +1549,94 @@ impl Database {
     }
 
     pub fn get_attempts_success_distribution(&self) -> Result<Vec<AttemptsSuccessDistribution>, DbError> {
-        // Red test stub
-        Ok(vec![])
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT attempt_number, COUNT(*) as cnt
+            FROM cache_resolution_attempts
+            WHERE success = 1
+            GROUP BY attempt_number
+            ORDER BY attempt_number ASC
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let attempt: u32 = row.get(0)?;
+            let cnt: i64 = row.get(1)?;
+            Ok(AttemptsSuccessDistribution {
+                attempt_number: attempt,
+                count: cnt.max(0) as u64,
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
     }
 
     pub fn get_tier_success_rates(&self) -> Result<Vec<TierSuccessRate>, DbError> {
-        // Red test stub
-        Ok(vec![])
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT tier,
+                   COUNT(*) as total_attempts,
+                   SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successes,
+                   SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failures,
+                   CAST(SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) AS REAL) * 100.0 / COUNT(*) as success_rate,
+                   AVG(duration_ms) as avg_duration
+            FROM cache_resolution_attempts
+            GROUP BY tier
+            ORDER BY tier ASC
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let total: i64 = row.get(1)?;
+            let succ: i64 = row.get(2)?;
+            let fail: i64 = row.get(3)?;
+            let rate: f64 = row.get(4)?;
+            let avg_dur: f64 = row.get(5)?;
+            Ok(TierSuccessRate {
+                tier: row.get(0)?,
+                total_attempts: total.max(0) as u64,
+                successes: succ.max(0) as u64,
+                failures: fail.max(0) as u64,
+                success_rate_pct: (rate * 10.0).round() / 10.0,
+                avg_duration_ms: (avg_dur * 10.0).round() / 10.0,
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
     }
 
-    pub fn get_top_resolution_errors(&self, _limit: usize) -> Result<Vec<ResolutionErrorDiagnostic>, DbError> {
-        // Red test stub
-        Ok(vec![])
+    pub fn get_top_resolution_errors(&self, limit: usize) -> Result<Vec<ResolutionErrorDiagnostic>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT tier, error_code, COUNT(*) as cnt, MAX(error_output) as sample_out
+            FROM cache_resolution_attempts
+            WHERE success = 0 AND error_code IS NOT NULL
+            GROUP BY tier, error_code
+            ORDER BY cnt DESC
+            LIMIT ?1
+            "#,
+        )?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            let cnt: i64 = row.get(2)?;
+            Ok(ResolutionErrorDiagnostic {
+                tier: row.get(0)?,
+                error_code: row.get(1)?,
+                count: cnt.max(0) as u64,
+                sample_output: row.get(3)?,
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
     }
 
     pub fn record_playback_history(
