@@ -359,3 +359,15 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
   - Métodos analíticos SQL: `get_attempts_success_distribution` (quantas faixas resolvem na 1ª tentativa vs fallbacks), `get_tier_success_rates` e `get_top_resolution_errors`.
   - Instrumentação do `MediaResolver` registrando hits e tentativas reais de download/transcode.
   - Cobertura total com testes unitários em `db.rs` e `resolver.rs`.
+
+---
+
+### Issue #24: Remux Ultrarrápido com Copy de Stream Opus sem Re-encoding FFmpeg
+* **Package:** `packages/lacraia-core`
+* **Goal:** Acelerar drasticamente a ingestão de áudio para viabilizar prefetch em rajada (burst mode), copiando streams Opus nativos com `-c:a copy` sem recodificar por software.
+* **Acceptance Criteria:**
+  - `MediaResolver::ffmpeg_audio_codec_args(is_opus)` retornando `["-c:a", "copy"]` quando o stream é nativo Opus e `["-c:a", "libopus", "-b:a", "128k"]` como fallback.
+  - Priorização de streams Opus em yt-dlp via `-f "ba[acodec=opus]/ba/bestaudio"`.
+  - Redução de tempo de processamento de áudio para < 300ms por faixa.
+  - Cobertura de testes unitários e de integração de remux direto com FFmpeg.
+
