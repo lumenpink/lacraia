@@ -673,5 +673,55 @@ mod tests {
         let enqueued_disabled = daemon.maintain_autopilot_queue_sliding("cab_lookahead").await.unwrap();
         assert_eq!(enqueued_disabled, 0, "When non-stop is disabled, autopilot must not auto-populate");
     }
+
+    #[tokio::test]
+    async fn test_queue_daemon_temporal_lookahead_duration_based() {
+        let db = Database::open_in_memory().unwrap();
+        let (tx, _rx) = tokio::sync::broadcast::channel(100);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+        let resolver = Arc::new(crate::resolver::MediaResolver::new(std::path::PathBuf::from("/tmp/cache"), db.clone()));
+        let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+
+        // Temporal lookahead daemon: 600s cache target, 1200s queue target
+        let daemon = QueueDaemon::new_with_temporal_window(
+            db.clone(),
+            resolver,
+            similarity,
+            hub.clone(),
+            600,  // target_cache_duration_sec: 600s (10 min)
+            1200, // target_queue_duration_sec: 1200s (20 min)
+            Duration::from_millis(50),
+        );
+
+        let dummy_track = |id: &str, dur: u64| TrackRecord {
+            id: id.into(),
+            artist: "Garotos Podres".into(),
+            title: id.into(),
+            duration_sec: dur,
+            cached_path: None,
+            genres: Some("punk".into()),
+            last_played_at: None,
+        };
+
+        let dummy_entry = |id: i64, state: QueueState| QueueEntry {
+            id,
+            track_id: format!("punk_{}", id),
+            position: id,
+            state,
+            created_at: 0,
+            cabin_id: "cab_temporal".into(),
+            requested_by: None,
+        };
+
+        // Track 1 playing (60s), followed by 15 pending short tracks of 60s each
+        let mut queue = vec![(dummy_entry(1, QueueState::Playing), dummy_track("punk_1", 60))];
+        for i in 2..=16 {
+            queue.push((dummy_entry(i, QueueState::Pending), dummy_track(&format!("punk_{}", i), 60)));
+        }
+
+        // To satisfy 600s of cache with 60s tracks, it must select 10 tracks, NOT 5!
+        let prefetch_targets = daemon.find_prefetch_targets_for_window(&queue);
+        assert_eq!(prefetch_targets.len(), 10, "With 60s tracks and 600s target, must select 10 tracks");
+    }
 }
 
