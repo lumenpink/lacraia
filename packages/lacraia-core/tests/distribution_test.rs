@@ -55,6 +55,20 @@ fn test_obtainium_html_autodiscovery() {
 
     let html = fs::read_to_string(&index_html_path).expect("Leitura de site/index.html");
 
+    // Validação da loja Pratilera da Banca (F-Droid / Droid-ify)
+    assert!(
+        html.contains("banca.2lp.in/pratilera"),
+        "site/index.html deve conter a URL canônica da Pratilera na Banca (banca.2lp.in/pratilera)"
+    );
+    assert!(
+        html.contains("fdroidrepos://banca.2lp.in/pratilera"),
+        "site/index.html deve conter o deep link fdroidrepos:// para adição direta no Droid-ify"
+    );
+    assert!(
+        html.contains("patilera") && html.contains("prateleira"),
+        "site/index.html deve conter as menções bem-humoradas aos aliases patilera e prateleira"
+    );
+
     // Validação de links diretos servidos em lacraia.2lp.in
     assert!(
         html.contains("https://lacraia.2lp.in/lacraia-app.apk"),
@@ -65,18 +79,14 @@ fn test_obtainium_html_autodiscovery() {
         "site/index.html deve conter link direto para simbiotyka.apk no domínio oficial"
     );
 
-    // Validação de instruções e Package IDs para o Obtainium
+    // Validação de instruções e Package IDs
     assert!(
         html.contains("in.twolp.lacraia.app"),
-        "site/index.html deve declarar o Package ID in.twolp.lacraia.app para Obtainium"
+        "site/index.html deve declarar o Package ID in.twolp.lacraia.app"
     );
     assert!(
         html.contains("in.twolp.lacraia.simbiotyka"),
-        "site/index.html deve declarar o Package ID in.twolp.lacraia.simbiotyka para Obtainium"
-    );
-    assert!(
-        html.contains("Obtainium") || html.contains("OBTAINIUM"),
-        "site/index.html deve conter seção com orientações para o Obtainium"
+        "site/index.html deve declarar o Package ID in.twolp.lacraia.simbiotyka"
     );
 }
 
