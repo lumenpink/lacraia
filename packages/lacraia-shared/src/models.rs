@@ -59,19 +59,28 @@ impl Default for PlaybackState {
     }
 }
 
+/// Entry representing a song playback record for telemetry, history, and quick replay.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlaybackHistoryEntry {
+    /// Unique auto-incrementing ID in SQLite.
     pub id: i64,
+    /// Cabin identifier where playback occurred.
     #[serde(rename = "cabinId")]
     pub cabin_id: String,
+    /// Canonical track identifier.
     #[serde(rename = "trackId")]
     pub track_id: String,
+    /// Song title.
     pub title: String,
+    /// Artist or performer name.
     pub artist: String,
+    /// Passenger name who requested the playback, if any.
     #[serde(rename = "passengerName")]
     pub passenger_name: Option<String>,
+    /// UTC unix timestamp of when playback started.
     #[serde(rename = "playedAt")]
     pub played_at: i64,
+    /// Track duration in seconds.
     #[serde(rename = "durationSec")]
     pub duration_sec: u64,
 }
