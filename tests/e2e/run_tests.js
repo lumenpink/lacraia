@@ -917,6 +917,50 @@ async function main() {
       await context2.close();
     });
 
+    // -------------------------------------------------------------
+    // Test 16: Playback History Recording & Deck 03 Replay
+    // -------------------------------------------------------------
+    await test('Playback History : Track plays record to /api/history and render with replay action', async () => {
+      const cabinId = `hist_e2e_${Date.now()}`;
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page = await context.newPage();
+      await page.goto(`${BASE_URL}/app?cabin=${cabinId}&user=TestPassenger&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(800);
+
+      // Play Now a track (Kraftwerk)
+      const input = page.locator('#enqueue-input');
+      await input.fill('Kraftwerk');
+      const dropdown = page.locator('#search-dropdown');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const row = dropdown.locator('.search-item').first();
+      await row.locator('button[data-action="play_now"]').click();
+      await page.waitForTimeout(1000);
+
+      // Verify /api/history API returns the recorded track
+      const historyRes = await page.request.get(`${BASE_URL}/api/history?cabin=${cabinId}`);
+      assert(historyRes.ok(), `/api/history endpoint must return 200 OK`);
+      const historyData = await historyRes.json();
+      assert(Array.isArray(historyData) && historyData.length > 0, `History array must have at least 1 entry`);
+      assert(historyData[0].cabin_id === cabinId, `History entry cabin_id must match '${cabinId}'`);
+
+      // Verify Deck 03 renders history container and items
+      const historyContainer = page.locator('#history-list-container');
+      await historyContainer.waitFor({ state: 'visible', timeout: 5000 });
+      await page.waitForFunction(() => {
+        const items = document.querySelectorAll('.history-item-row');
+        return items.length > 0;
+      }, { timeout: 5000 });
+
+      const replayBtn = page.locator('.history-item-row button[data-action="replay"]').first();
+      assert(await replayBtn.count() > 0, 'History item must feature a quick-replay action button');
+
+      // Click replay to re-enqueue
+      await replayBtn.click();
+      await page.waitForTimeout(800);
+
+      await context.close();
+    });
+
   } finally {
     await browser.close();
     if (spawnedServer) {
