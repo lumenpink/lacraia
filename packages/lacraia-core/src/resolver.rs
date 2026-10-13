@@ -707,5 +707,36 @@ mod tests {
         assert_eq!(MediaResolver::ffmpeg_audio_codec_args(true), vec!["-c:a", "copy"]);
         assert_eq!(MediaResolver::ffmpeg_audio_codec_args(false), vec!["-c:a", "libopus", "-b:a", "128k"]);
     }
+
+    #[tokio::test]
+    async fn test_ffmpeg_direct_stream_copy_execution() {
+        let tmp_dir = std::env::temp_dir().join(format!("lacraia_remux_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+
+        let src_file = tmp_dir.join("src.opus");
+        let dst_file = tmp_dir.join("dst.opus");
+
+        let gen = TokioCommand::new("ffmpeg")
+            .args(["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.2", "-c:a", "libopus", src_file.to_str().unwrap()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .await;
+        if let Ok(st) = gen {
+            if st.success() {
+                let codec_args = MediaResolver::ffmpeg_audio_codec_args(true);
+                let mut cmd = TokioCommand::new("ffmpeg");
+                cmd.args(["-y", "-i", src_file.to_str().unwrap()]);
+                cmd.args(&codec_args);
+                cmd.arg(dst_file.to_str().unwrap());
+                let res = cmd.status().await.unwrap();
+                assert!(res.success());
+                assert!(dst_file.exists());
+                assert!(std::fs::metadata(&dst_file).unwrap().len() > 0);
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+    }
 }
 
