@@ -217,6 +217,7 @@ impl PlaybackHub {
                 if self.current_track.lock().await.is_none() {
                     if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
                         if let Some((entry, record)) = queue.into_iter().next() {
+                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -243,6 +244,7 @@ impl PlaybackHub {
                 match self.db.advance_queue_for_cabin(cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -272,6 +274,7 @@ impl PlaybackHub {
                 match self.db.jump_queue_for_cabin(queue_id, cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -305,6 +308,7 @@ impl PlaybackHub {
                 match self.db.play_now_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
                     Ok(entry) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -327,6 +331,7 @@ impl PlaybackHub {
                 match self.db.start_radio_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
                     Ok(entry) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -942,4 +947,42 @@ mod tests {
             _ => panic!("Expected StateUpdate on resumed cabin"),
         }
     }
+
+    #[tokio::test]
+    async fn test_playback_hub_records_history() {
+        let db = Database::open_in_memory().unwrap();
+        let track = TrackRecord {
+            id: "trk_hist_1".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 180,
+            cached_path: Some("/cache/vai_lacraia.opus".into()),
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track).unwrap();
+
+        let (tx, _rx) = broadcast::channel(100);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+
+        // Pilot plays track
+        hub.dispatch_command_with_role(
+            CommandAction::PlayNow {
+                track_id: "trk_hist_1".into(),
+                requested_by: Some("PASSENGER_ALEX".into()),
+            },
+            "cab_history_test",
+            Some(Role::Pilot),
+        )
+        .await
+        .unwrap();
+
+        let history = db.get_playback_history(Some("cab_history_test"), None, 10).unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].track_id, "trk_hist_1");
+        assert_eq!(history[0].passenger_name.as_deref(), Some("PASSENGER_ALEX"));
+        assert_eq!(history[0].cabin_id, "cab_history_test");
+        assert_eq!(history[0].duration_sec, 180);
+    }
 }
+
