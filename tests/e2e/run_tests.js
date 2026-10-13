@@ -518,13 +518,13 @@ async function main() {
       await input.fill('Kraftwerk');
       const dropdown = page.locator('#search-dropdown');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
-      await dropdown.locator('.search-item button, .search-item').first().click();
+      await dropdown.locator('.search-item button[data-action="enqueue"]').first().click();
       await page.waitForTimeout(600);
 
       // Add Track 2 (Chico)
       await input.fill('Chico');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
-      await dropdown.locator('.search-item button, .search-item').first().click();
+      await dropdown.locator('.search-item button[data-action="enqueue"]').first().click();
       await page.waitForTimeout(600);
 
       const initialCount = await page.locator('.queue-item-row').count();
@@ -675,11 +675,11 @@ async function main() {
       const createBox = page.locator('#master-create-cabin-box');
       assert(await createBox.isVisible(), 'Master create cabin box must be visible for MASTER role');
 
-      const uniqueCabinId = `pw-${Date.now().toString().slice(-4)}`;
+      const uniqueCabinId = `pw-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
       await page.fill('#new-cabin-name', 'Cabine Experimental');
       await page.fill('#new-cabin-id', uniqueCabinId);
       await page.click('#btn-create-cabin-submit');
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(800);
 
       // Cabin creation automatically switches cabin and closes the modal
       assert(!(await cabinModal.evaluate((el) => el.classList.contains('active'))), '#cabin-modal must auto-close upon cabin creation');
@@ -767,7 +767,7 @@ async function main() {
       await input.fill('Chico');
       const dropdown = page.locator('#search-dropdown');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
-      const addFirstBtn = dropdown.locator('.search-item button, .search-item').first();
+      const addFirstBtn = dropdown.locator('.search-item button[data-action="enqueue"]').first();
       await addFirstBtn.click();
       await page.waitForTimeout(800);
 
@@ -808,7 +808,7 @@ async function main() {
       // Step 5: Enqueue Track 2 (Daft Punk - One More Time)
       await input.fill('One More Time');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
-      const addSecondBtn = dropdown.locator('.search-item button, .search-item').first();
+      const addSecondBtn = dropdown.locator('.search-item button[data-action="enqueue"]').first();
       await addSecondBtn.click();
       await page.waitForTimeout(800);
 
@@ -837,7 +837,7 @@ async function main() {
       // Step 7: Enqueue Track 3 (Serginho / Vai Lacraia)
       await input.fill('Vai Lacraia');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
-      const addThirdBtn = dropdown.locator('.search-item button, .search-item').first();
+      const addThirdBtn = dropdown.locator('.search-item button[data-action="enqueue"]').first();
       await addThirdBtn.click();
       await page.waitForTimeout(800);
 
@@ -860,6 +860,61 @@ async function main() {
       );
 
       await context.close();
+    });
+
+    // -------------------------------------------------------------
+    // Test 15: Cabin State Persistence Across Sessions & Reloads
+    // -------------------------------------------------------------
+    await test('Cabin State Persistence : Reloading cockpit resumes last track & position across sessions', async () => {
+      const cabinId = `persist_${Date.now()}`;
+      const context1 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page1 = await context1.newPage();
+      await page1.goto(`${BASE_URL}/app?cabin=${cabinId}&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+      await page1.waitForTimeout(800);
+
+      // Search and Play Now a specific track
+      const input = page1.locator('#enqueue-input');
+      await input.fill('Kraftwerk');
+      const dropdown = page1.locator('#search-dropdown');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const row = dropdown.locator('.search-item').first();
+      await row.locator('button[data-action="play_now"]').click();
+      await page1.waitForTimeout(1000);
+
+      // Seek to 42 seconds
+      await page1.evaluate(() => {
+        if (typeof window.sendWsCommand === 'function') {
+          window.sendWsCommand({ action: 'SEEK', positionMs: 42000 });
+        }
+      });
+      await page1.waitForTimeout(1200);
+
+      // Close first context completely
+      await context1.close();
+
+      // Open new independent browser context for the same cabin
+      const context2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page2 = await context2.newPage();
+      await page2.goto(`${BASE_URL}/app?cabin=${cabinId}`, { waitUntil: 'domcontentloaded' });
+
+      await page2.waitForFunction(() => {
+        const titleEl = document.getElementById('track-title');
+        return titleEl && (titleEl.textContent.includes('Autobahn') || titleEl.textContent.includes('Kraftwerk'));
+      }, { timeout: 10000 });
+
+      const restoredTitle = await page2.locator('#track-title').textContent();
+      assert(
+        restoredTitle.includes('Autobahn') || restoredTitle.includes('Kraftwerk'),
+        `Restored cabin track must be Kraftwerk/Autobahn, got '${restoredTitle}'`
+      );
+
+      const timeText = await page2.locator('#time-current').textContent();
+      assert(
+        timeText === '00:42' || timeText.startsWith('00:4'),
+        `Restored cabin playback time must reflect persisted position ~42s, got '${timeText}'`
+      );
+
+      await context2.close();
     });
 
   } finally {
