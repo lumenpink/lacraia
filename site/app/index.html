@@ -1781,9 +1781,19 @@
           crewList.appendChild(item);
         });
 
-        // Queue Deck Rendering
+        // Queue Deck Rendering (Upcoming items only: playing track belongs to player deck)
         if (queueListContainer && queueCountBadge) {
-          const qLen = state.queue.length;
+          const upcomingQueue = (state.queue || []).filter(item => {
+            const isPlayingState = (item.state || '').toLowerCase() === 'playing';
+            const matchesCurrent = state.currentTrack && (
+              (item.id && item.id === state.currentTrack.id) ||
+              (item.track_id && item.track_id === (state.currentTrack.track_id || state.currentTrack.id)) ||
+              (item.trackId && item.trackId === (state.currentTrack.trackId || state.currentTrack.id)) ||
+              (item.title && state.currentTrack.title && item.title.trim().toLowerCase() === state.currentTrack.title.trim().toLowerCase())
+            );
+            return !isPlayingState && !matchesCurrent;
+          });
+          const qLen = upcomingQueue.length;
           queueCountBadge.textContent = `${qLen} ${qLen === 1 ? 'FAIXA NA FILA' : 'FAIXAS NA FILA'}`;
           queueListContainer.innerHTML = "";
           if (qLen === 0) {
@@ -1792,7 +1802,7 @@
             emptyDiv.textContent = "[ FILA LIVRE :: O GRAFO DE AFINIDADE ALIMENTARÁ A PRÓXIMA FAIXA ]";
             queueListContainer.appendChild(emptyDiv);
           } else {
-            state.queue.forEach((item, idx) => {
+            upcomingQueue.forEach((item, idx) => {
               const row = document.createElement("div");
               row.className = "queue-item-row";
               row.style.cursor = "pointer";
