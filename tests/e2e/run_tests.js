@@ -156,6 +156,18 @@ async function main() {
       assert((await page.$('#cassette-container')) !== null, '#cassette-container must exist');
       assert((await page.$('#audio-engine')) !== null, '#audio-engine element must exist');
 
+      // Initial factory seed zero must be MC Serginho - Vai Lacraia
+      const initialTitle = await page.locator('#track-title').textContent();
+      const initialArtist = await page.locator('#track-artist').textContent();
+      assert(
+        initialTitle.toUpperCase().includes('VAI LACRAIA'),
+        `Default zero seed track title must be VAI LACRAIA, got '${initialTitle}'`
+      );
+      assert(
+        initialArtist.toUpperCase().includes('SERGINHO'),
+        `Default zero seed artist must be MC SERGINHO, got '${initialArtist}'`
+      );
+
       await context.close();
     });
 
