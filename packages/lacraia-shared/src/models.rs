@@ -46,19 +46,14 @@ pub struct CabinInfo {
     pub passengers: Vec<PassengerInfo>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlaybackState {
     Playing,
     Paused,
+    #[default]
     Stopped,
     Buffering,
-}
-
-impl Default for PlaybackState {
-    fn default() -> Self {
-        Self::Stopped
-    }
 }
 
 /// Entry representing a song playback record for telemetry, history, and quick replay.

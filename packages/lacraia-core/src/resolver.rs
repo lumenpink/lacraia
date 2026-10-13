@@ -74,7 +74,7 @@ impl MediaResolver {
     ) -> bool {
         // If expected duration is the generic placeholder (210s), allow standard musical range (30s - 30min)
         if expected_duration_sec == 210 {
-            if candidate_duration_sec < 30 || candidate_duration_sec > 1800 {
+            if !(30..=1800).contains(&candidate_duration_sec) {
                 return false;
             }
         } else if !is_valid_duration_delta(expected_duration_sec, candidate_duration_sec) {
@@ -167,7 +167,7 @@ impl MediaResolver {
 
         // Transcode stream directly to target Opus file using ffmpeg with browser User-Agent and headers
         let child = TokioCommand::new("ffmpeg")
-            .args(&[
+            .args([
                 "-y",
                 "-headers", "Referer: https://music.youtube.com/\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36\r\n",
                 "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
@@ -218,7 +218,7 @@ impl MediaResolver {
             .collect::<String>();
         let search_query = format!("ytsearch5:{} {} audio", clean_artist.trim(), clean_title.trim());
         let output = TokioCommand::new(&self.ytdlp_bin)
-            .args(&[
+            .args([
                 &search_query,
                 "--dump-json",
                 "--default-search",
@@ -272,7 +272,7 @@ impl MediaResolver {
         info!("Extracting audio via yt-dlp from {} to {}", video_url, target_path_str);
 
         let dl_output = TokioCommand::new(&self.ytdlp_bin)
-            .args(&[
+            .args([
                 "-x",
                 "--audio-format",
                 "opus",
@@ -329,9 +329,7 @@ impl MediaResolver {
         if let Some(ref existing) = db_existing {
             if let Some(ref path) = existing.cached_path {
                 let p = Path::new(path);
-                let hit_path = if p.is_absolute() && p.exists() {
-                    Some(p.to_path_buf())
-                } else if p.exists() {
+                let hit_path = if p.exists() {
                     Some(p.to_path_buf())
                 } else if let Some(fname) = p.file_name() {
                     let in_cache = self.cache_dir.join(fname);

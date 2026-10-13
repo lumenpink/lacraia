@@ -70,8 +70,24 @@ impl QueueState {
             Self::Failed => "failed",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Self {
+impl std::str::FromStr for QueueState {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "cached" => Self::Cached,
+            "playing" => Self::Playing,
+            "played" => Self::Played,
+            "failed" => Self::Failed,
+            _ => Self::Pending,
+        })
+    }
+}
+
+impl From<&str> for QueueState {
+    fn from(s: &str) -> Self {
         match s {
             "cached" => Self::Cached,
             "playing" => Self::Playing,
@@ -377,7 +393,7 @@ impl Database {
         }
 
         if trimmed.is_empty() {
-            tracks.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+            tracks.sort_by_key(|a| a.title.to_lowercase());
             tracks.truncate(limit);
             return Ok(tracks);
         }
@@ -967,7 +983,7 @@ impl Database {
                 id: row.get(0)?,
                 track_id: row.get(1)?,
                 position: row.get(2)?,
-                state: QueueState::from_str(&row.get::<_, String>(3)?),
+                state: QueueState::from(row.get::<_, String>(3)?.as_str()),
                 created_at: row.get(4)?,
                 cabin_id: row.get(5)?,
                 requested_by: row.get(6)?,
@@ -1038,7 +1054,7 @@ impl Database {
                     id: row.get(0)?,
                     track_id: track_id.clone(),
                     position: row.get(2)?,
-                    state: QueueState::from_str(&state_str),
+                    state: QueueState::from(state_str.as_str()),
                     created_at: row.get(4)?,
                     cabin_id: row.get(5)?,
                     requested_by: row.get(6)?,
@@ -1098,7 +1114,7 @@ impl Database {
                         id: row.get(0)?,
                         track_id: row.get(1)?,
                         position: row.get(2)?,
-                        state: QueueState::from_str(&state_str),
+                        state: QueueState::from(state_str.as_str()),
                         created_at: row.get(4)?,
                         cabin_id: row.get(5)?,
                         requested_by: row.get(6)?,
@@ -1145,7 +1161,7 @@ impl Database {
                     id: row.get(0)?,
                     track_id: row.get(1)?,
                     position: row.get(2)?,
-                    state: QueueState::from_str(&state_str),
+                    state: QueueState::from(state_str.as_str()),
                     created_at: row.get(4)?,
                     cabin_id: row.get(5)?,
                     requested_by: row.get(6)?,
