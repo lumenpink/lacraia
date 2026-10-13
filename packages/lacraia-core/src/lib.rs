@@ -622,6 +622,27 @@ pub async fn handle_queue_append(
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct HistoryQuery {
+    pub cabin: Option<String>,
+    pub user: Option<String>,
+    pub limit: Option<usize>,
+}
+
+pub async fn handle_history(
+    State(state): State<AppState>,
+    Query(params): Query<HistoryQuery>,
+) -> Result<Json<Vec<lacraia_shared::PlaybackHistoryEntry>>, (StatusCode, String)> {
+    let limit = params.limit.unwrap_or(20).clamp(1, 100);
+    match state.db.get_playback_history(params.cabin.as_deref(), params.user.as_deref(), limit) {
+        Ok(entries) => Ok(Json(entries)),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to retrieve playback history: {}", e),
+        )),
+    }
+}
+
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     Query(params): Query<ws::WsParams>,
@@ -643,6 +664,7 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
         .route("/api/queue", get(handle_queue).post(handle_queue_append))
+        .route("/api/history", get(handle_history))
         .route("/api/cabins", get(handle_list_cabins))
         .route("/api/cabin/create", post(handle_cabin_create))
         .route("/api/cabin/rotate-key", post(handle_cabin_rotate_key))
