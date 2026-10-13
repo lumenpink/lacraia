@@ -268,11 +268,11 @@ To validate real-world cockpit operation and browser-daemon interoperability wit
 
 ## 13. Sliding Lookahead Window & Multi-Seed Non-Stop Autopilot
 
-To guarantee continuous playback and zero dead-air buffer starvation across any environment (soundwalls, vehicles, parties), `QueueDaemon` and `CompositeSimilarityEngine` operate a dynamic sliding lookahead window:
+To guarantee continuous playback and zero dead-air buffer starvation across any environment (soundwalls, vehicles, parties, and severe highway coverage blackouts), `QueueDaemon` and `CompositeSimilarityEngine` operate a dynamic cumulative temporal lookahead window:
 
-1. **Sliding Window Thresholds:**
-   * **Local Cache Window (5 Cantigas):** Ensures at least 5 upcoming tracks ahead of active playback are fully resolved and stored on disk as Opus files (`cached_path.is_some()`).
-   * **Remote Queue Window (10 Cantigas):** Ensures at least 10 upcoming tracks ahead of active playback are populated in the SQLite queue buffer.
+1. **Cumulative Temporal Window Thresholds (3600s / 1 Hour):**
+   * **Local Cache Horizon ($\sum \text{duration\_sec} \ge 3600\text{ s}$):** Ensures at least 1 hour (3600 seconds) of upcoming audio ahead of active playback is fully resolved and stored on disk as Opus files (`cached_path.is_some()`), consuming ~57 MB in local storage and shielding playback across severe cellular coverage blackouts ($P_{99}$).
+   * **Remote Queue Horizon ($\sum \text{duration\_sec} \ge 3600\text{ s}$):** Ensures at least 1 hour of upcoming tracks ahead of active playback are populated in the SQLite queue buffer.
 2. **Multi-Seed Recommendation Graph:**
    * Instead of relying on a single seed track, `maintain_autopilot_queue_sliding` collects up to 5 multi-seeds from recent playback history and currently playing tracks.
    * `find_similar_multi` and `get_recommendations_for_multi_seeds` traverse similarity graph edges, accumulating affinity weights and granting multi-seed connection bonuses while stripping diacritics (`strip_accents`) to avoid duplicate recommendations.

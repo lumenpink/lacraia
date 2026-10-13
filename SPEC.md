@@ -18,7 +18,7 @@ This specification defines the system architecture, API contracts, data models, 
 
 ### Core Tenets
 1. **Acoustic Sovereignty:** Total rejection of ad-saturated commercial streaming platforms, closed algorithmic recommendation traps, and telemetry surveillance. The audio pipeline operates autonomously using local caches, peer stations, and sanitized public endpoints.
-2. **Continuous Flow (Zero Dead Air):** An automated lookahead queue daemon continuously resolves, pre-caches, and buffers forthcoming tracks in high-fidelity Opus format, eliminating gap delays between songs.
+2. **Continuous Flow (Zero Dead Air):** An automated lookahead queue daemon continuously resolves, pre-caches, and buffers forthcoming tracks in high-fidelity Opus format across a 3600-second (1-hour) cumulative temporal window, eliminating gap delays between songs and shielding playback across severe highway coverage blackouts ($P_{99}$).
 3. **Tactile & Brutalist Visibility:** High-contrast mechanical interfaces inspired by Latin American street sound systems (*paredões de som*), workshop machinery, and the subversive stage performances of funk icon Lacraia. Interfaces prioritize oversized controls, direct responsiveness, and zero corporate aesthetic blandness.
 4. **Symbiotic Multiplatform Integration:** Unified backend core serving native Linux desktops, mobile web PWAs, and an Android floating companion (*Simbiótyka*) that renders line-by-line synchronized lyrics and guitar chords over third-party applications without stealing window focus.
 
@@ -65,18 +65,19 @@ The workspace is organized into modular Rust crates and an Android Kotlin multi-
 ### 3.1 `packages/lacraia-shared` (Rust Crate)
 - **Role:** Pure data contracts, protocol serialization, and shared domain algorithms.
 - **Components:**
-  - `protocol`: WebSocket message envelopes (`WsMessage`, `Command`, `StateUpdate`, `CrewUpdate`, `EjectedNotification`).
+  - `protocol`: WebSocket message envelopes (`WsMessage`, `Command`, `StateUpdate`, `CrewUpdate`, `EjectedNotification`, `CacheAlertInfo`).
   - `lrc`: Timestamped lyrics parser supporting synchronized line-by-line karaoke rendering.
   - `fuzzy`: Diacritic stripping, fuzzy title matching, and duration delta tolerance filters.
+  - `models`: Shared entity definitions, playback state, cache inventory, and resolution attempt metrics.
 
 ### 3.2 `packages/lacraia-core` (Rust Crate)
 - **Role:** Central daemon and audio streaming engine running on Linux host machines.
 - **Components:**
-  - `db`: SQLite persistence (`lacraia.sqlite`) managing known tracks, adjacency similarity graphs, cabins, passengers, and lookahead queues.
-  - `resolver`: Three-tier audio extraction engine pairing Last.fm metadata, LRCLIB lyrics, and yt-dlp media extraction with Android client spoofing.
-  - `queue_daemon`: Autonomous background lookahead worker maintaining a constant 5-track cache buffer.
-  - `ws`: Real-time WebSocket telemetry hub dispatching playback state and RBAC commands.
-  - `api`: Axum HTTP REST routing (`/api/radio`, `/api/resolve`, `/api/search`, `/api/cabin/*`, `/cache/*`).
+  - `db`: SQLite persistence (`lacraia.sqlite`) managing known tracks, adjacency similarity graphs, cabins, passengers, playback history, state persistence, cache inventory, and attempt telemetry.
+  - `resolver`: Multi-tier audio extraction engine pairing Last.fm metadata, LRCLIB lyrics, native RustyPipe streaming, and yt-dlp media extraction with Android client spoofing.
+  - `queue_daemon`: Autonomous background lookahead worker maintaining a continuous 3600-second (1-hour) cumulative cache and queue horizon.
+  - `ws`: Real-time WebSocket telemetry hub dispatching playback state, starvation alerts, and RBAC commands.
+  - `api`: Axum HTTP REST routing (`/api/radio`, `/api/resolve`, `/api/search`, `/api/history`, `/api/cabin/*`, `/cache/*`).
 
 ### 3.3 `packages/lacraia-app` (Rust / Dioxus Crate)
 - **Role:** Soundwall console player supporting native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets.
@@ -97,11 +98,15 @@ The workspace is organized into modular Rust crates and an Android Kotlin multi-
 `lacraia-core` maintains an internal SQLite database (`lacraia.sqlite`) governing offline resilience, catalog indexing, and track affinity traversal:
 
 * **`tracks`:** Catalog metadata (`id`, `artist`, `title`, `duration_sec`, `cached_path`, `genres`, `last_played_at`).
-* **`similarity_edges`:** Directed weighted adjacency graph storing transition affinities (`source_track_id`, `target_track_id`, `weight`).
+* **`similarity_edges`:** Directed weighted adjacency graph storing transition affinities (`source_track_id`, `target_track_id`, `weight`, `provider`).
 * **`stations`:** Seed definitions and acoustic profiles (e.g., MPB & Samba, Synthwave Drive, Rock Clássico, Lo-Fi Road Trip, Paredão Autônomo).
 * **`cabins`:** Multi-tenant cabin namespaces with security tokens (`id`, `name`, `master_key`, `pilot_token`, `passenger_key`, `is_locked`).
 * **`passengers`:** Connected passenger registry with session identifiers, nicknames, and device signatures.
-* **`queue`:** Active cabin queues storing track references, requester attribution (`requested_by`), cache state (`Pending`, `Cached`, `Playing`, `Failed`), and playback order.
+* **`queue`:** Active cabin queues storing track references, requester attribution (`requested_by`), cache state (`pending`, `cached`, `playing`, `played`, `failed`), and playback order.
+* **`cabin_playback_state`:** Persistent cabin playback coordinate (`cabin_id`, `track_id`, `position_ms`, `playback_state`, `updated_at`).
+* **`playback_history`:** Historical playback records with cabin and passenger attribution (`id`, `cabin_id`, `track_id`, `passenger_name`, `played_at`, `duration_sec`).
+* **`cache_entries`:** Physical cache artifact inventory (`track_id`, `file_path`, `file_size_bytes`, `duration_sec`, `audio_codec`, `hit_count`, `last_served_at`, `created_at`).
+* **`cache_resolution_attempts`:** Granular tier attempt and diagnostic logs (`track_id`, `attempt_number`, `tier`, `method`, `command_line`, `success`, `exit_code`, `error_code`, `error_output`, `duration_ms`, `bytes_received`, `validation_status`, `cabin_id`, `created_at`).
 
 ---
 
@@ -124,7 +129,7 @@ Audio streaming employs a resilient, three-tier hybrid resolution architecture:
                    │ (New Download)
                    ▼
        ┌───────────────────────┐
-       │ Tier 3: Remote Resolver│ ──► yt-dlp (android client) + ffmpeg transcode
+       │ Tier 3: Remote Resolver│ ──► RustyPipe native / yt-dlp android + remux copy
        └───────────────────────┘
                    │
                    ▼
@@ -133,10 +138,10 @@ Audio streaming employs a resilient, three-tier hybrid resolution architecture:
 
 1. **Tier 1 (Instant Local Cache):** If `<id>.opus` exists in `LACRAIA_CACHE_DIR`, audio is served immediately via RFC 7233 HTTP Range requests with zero network latency.
 2. **Tier 2 (In-Flight Mutex Deduplication):** Concurrent requests for the same track ID share an active Tokio `broadcast` channel, avoiding duplicate downloads.
-3. **Tier 3 (Sanitized Media Extraction):** yt-dlp extracts raw audio streams using `--extractor-args "youtube:player_client=android"` (mitigating HTTP 403 Forbidden restrictions) and transcodes to 48kHz Opus via `ffmpeg`.
-4. **Autonomous Lookahead Daemon (`QueueDaemon`):**
-   - Polls every 3 seconds to inspect active cabin queues.
-   - Guarantees an active lookahead horizon of 5 cached tracks ahead of the currently playing song.
+3. **Tier 3 (Sanitized Media Extraction):** Primary resolution queries native YouTube Music streams via RustyPipe with zero transcode overhead; fallback triggers yt-dlp with `--extractor-args "youtube:player_client=android"` and fast stream copy remuxing (`-c:a copy`), preserving battery and minimizing latency.
+4. **Autonomous Lookahead Daemon (`QueueDaemon`) & 3600s (1h) Temporal Horizon:**
+   - Evaluates active cabin queues against a cumulative temporal horizon: $\sum \text{duration\_sec(cache)} \ge 3600\text{ s}$ (1 hour) and $\sum \text{duration\_sec(queue)} \ge 3600\text{ s}$ (1 hour).
+   - Ingests candidates via multi-seed affinity graph traversal (`find_similar_multi`) whenever upcoming playtime falls below 3600s, guaranteeing uncompressed offline playback headroom covering severe highway coverage blackouts ($P_{99}$), consuming only ~57 MB of disk.
    - Automatically skips and marks unresolvable items as `Failed`, preventing infinite download loops.
 
 ---
@@ -179,17 +184,17 @@ In accordance with Section 6 of the GOST standard, La Craia enforces a multi-tie
 
 ```
                   ┌────────────────────────┐
-                  │ E2E Playwright Tests   │  7 Scenarios (Headless Chrome)
+                  │ E2E Playwright Tests   │  18 Scenarios (Headless Chrome)
                   ├────────────────────────┤
                   │ Integration Tests      │  5 Tests (Axum API + SQLite + yt-dlp)
                   ├────────────────────────┤
-                  │ Unit Tests (Rust)      │  32 Tests (Shared, Core, App)
+                  │ Unit Tests (Rust)      │  47 Tests (Shared, Core, App)
                   └────────────────────────┘
 ```
 
-1. **Unit Tests (32 tests):**
-   - `lacraia-shared` (9 tests): LRC parser edge cases, diacritic stripping, fuzzy title matching, and protocol serialization.
-   - `lacraia-core` (14 tests): SQLite schema migrations, similarity graph queries, RBAC dispatch, and lookahead window selection.
+1. **Unit Tests (47 tests):**
+   - `lacraia-shared` (12 tests): LRC parser, diacritic stripping, fuzzy title matching, command deserialization, non-stop mode serialization, starvation alert emit, and cache inventory models.
+   - `lacraia-core` (26 tests): SQLite schema migrations, similarity graph queries, multi-seed graph traversal, RBAC dispatch, cabin persistence, playback history, starvation evaluation, cache inventory & attempt diagnostics, and lookahead daemon.
    - `lacraia-app` (9 tests): Audio engine lifecycle, gain slider normalization to 11, time formatting, and `VisualizerState` lifecycle.
 2. **Integration Tests (5 tests):**
    - End-to-end Axum API resolution and static Opus cache delivery (`/cache/`).
@@ -197,15 +202,26 @@ In accordance with Section 6 of the GOST standard, La Craia enforces a multi-tie
    - Autopilot infinite lookahead queue maintenance.
    - Queue daemon failure isolation (`QueueState::Failed`).
    - Real resolver download with Android client parameters.
-3. **Automated End-to-End Playwright Suite (`tests/e2e/run_tests.js`):**
+3. **Automated End-to-End Playwright Suite (`tests/e2e/run_tests.js` - 18 Scenarios):**
    - Executed against headless Google Chrome in an ephemeral incognito context.
-   - **Test 1:** Desktop Console load, title validation, and 3-deck architecture layout.
-   - **Test 2:** Jukebox catalog search, debounced autocomplete dropdown, and track queuing.
-   - **Test 3:** Audio engine transport controls, gain slider scaling to 11, and time displays.
-   - **Test 4:** Mobile viewport responsiveness (375×667), sticky miniplayer, and bottom navigation tabs.
-   - **Test 5:** Autopilot lookahead buffer validation (5 tracks maintained continuously).
-   - **Test 6:** Vector favicon branding and biomechanical antennae kinematics.
-   - **Test 7:** WebAudio spectrum visualizer canvas, 32 metameric legs, and ON/OFF toggle switch.
+   - **Test 1:** Portal (`/`): Favicon SVG, OG metadata, kinematics, and cockpit link.
+   - **Test 2:** Cockpit Web (`/app`): Desktop 3-deck architecture and telemetry layout.
+   - **Test 3:** Mobile Viewport (375×667): Bottom navigation tabs and sticky miniplayer.
+   - **Test 4:** Security & Roles: Passenger restrictions, auth modal triggers, and master key login.
+   - **Test 5:** Audio Engine & Sound Output: Playback, currentTime advancement, volume to 11, and visualizer.
+   - **Test 6:** Station Dials: Graph dialect switching across all 5 preset stations.
+   - **Test 7:** Jukebox & Search: Debounced autocomplete, candidate selection, and form submission.
+   - **Test 8:** Autopilot Lookahead: Adding a track triggers automatic population of upcoming slots.
+   - **Test 9:** Queue Management: Direct play from queue and individual item removal.
+   - **Test 10:** Cabin Lock & Doors: Toggle lock and verify passenger enqueuing is strictly blocked.
+   - **Test 11:** Crew & Ejection: Verify crew list, mass ejection signal, and glitch lockout overlay.
+   - **Test 12:** Modals System: QR code canvas, key rotation, ESC closing, and cabin creation.
+   - **Test 13:** Shortcuts & Sticky Miniplayer: Space, Arrows, transport buttons, and input isolation.
+   - **Test 14:** Clean-Slate Lifecycle: Zerada -> Enqueue 1 -> Play -> Pause -> Enqueue 2 -> Jump -> Enqueue 3 -> Next.
+   - **Test 15:** Cabin State Persistence: Reloading cockpit resumes last track & position across sessions.
+   - **Test 16:** Playback History: Track plays record to `/api/history` and render with replay action.
+   - **Test 17:** Buffer Starvation HUD: Displays alert banner overlay distinguishing local vs remote starvation.
+   - **Test 18:** Lookahead Sliding Window & Non-Stop Mode: 3600s temporal headroom with non-stop toggle.
 
 ---
 

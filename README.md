@@ -85,7 +85,7 @@ cargo test --workspace
 # Lint Rust crates
 cargo clippy --workspace
 
-# Run exhaustive Playwright E2E suite (13 comprehensive UI, audio, and autopilot scenarios)
+# Run exhaustive Playwright E2E suite (18 comprehensive UI, audio, lookahead, and non-stop scenarios)
 node tests/e2e/run_tests.js
 ```
 
@@ -119,4 +119,5 @@ Documentation and static assets are automatically published to Cloudflare Worker
 
 ## License
 
-MIT © [Lumen Pink](https://codeberg.org/lumenpink)
+GNU General Public License v3.0 (GPL-3.0) — Strategic Copyleft Safeguard © [Lumen Pink](https://codeberg.org/lumenpink).  
+See [LICENSE](LICENSE) and [SPEC-01 §2.1](SPEC.md#21-licensing-exception-justification) for terms and anti-corporate copyleft rationale.
