@@ -35,6 +35,14 @@ pub struct PlaybackHub {
     pub cabin_id: Arc<Mutex<String>>,
 }
 
+fn clean_stream_url(path: &str) -> String {
+    let filename = std::path::Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(path);
+    format!("/cache/{}", filename)
+}
+
 impl PlaybackHub {
     pub fn new(db: Database, tx: broadcast::Sender<WsMessage>) -> Self {
         Self {
@@ -49,12 +57,35 @@ impl PlaybackHub {
 
     /// Builds a snapshot `STATE_UPDATE` message with the current playback status for a specific cabin.
     pub async fn build_state_update_for_cabin(&self, cabin_id: &str) -> WsMessage {
-        let track = self.current_track.lock().await.clone();
-        let state = *self.playback_state.lock().await;
+        let queue_entries = self.db.get_queue_for_cabin(cabin_id).unwrap_or_default();
+        let playing_track = queue_entries.iter().find(|(q, _)| q.state == crate::db::QueueState::Playing).map(|(q, t)| Track {
+            id: t.id.clone(),
+            title: t.title.clone(),
+            artist: t.artist.clone(),
+            album: None,
+            duration_ms: t.duration_sec * 1000,
+            cover_url: None,
+            stream_url: t.cached_path.as_deref().map(clean_stream_url),
+            requested_by: q.requested_by.clone(),
+        });
+
+        let track = if playing_track.is_some() {
+            playing_track
+        } else if cabin_id == "default" {
+            self.current_track.lock().await.clone()
+        } else {
+            None
+        };
+
+        let state = if track.is_some() {
+            *self.playback_state.lock().await
+        } else {
+            PlaybackState::Stopped
+        };
+
         let pos = *self.position_ms.lock().await;
         let is_locked = self.db.is_cabin_locked(cabin_id).unwrap_or(false);
 
-        let queue_entries = self.db.get_queue_for_cabin(cabin_id).unwrap_or_default();
         let queue: Vec<lacraia_shared::QueueItem> = queue_entries
             .into_iter()
             .map(|(q, t)| lacraia_shared::QueueItem {
@@ -144,6 +175,23 @@ impl PlaybackHub {
         match action {
             CommandAction::Play => {
                 *self.playback_state.lock().await = PlaybackState::Playing;
+                if self.current_track.lock().await.is_none() {
+                    if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
+                        if let Some((entry, record)) = queue.into_iter().next() {
+                            let track = Track {
+                                id: record.id.clone(),
+                                title: record.title,
+                                artist: record.artist,
+                                album: None,
+                                duration_ms: record.duration_sec * 1000,
+                                cover_url: None,
+                                stream_url: record.cached_path.as_deref().map(clean_stream_url),
+                                requested_by: entry.requested_by,
+                            };
+                            *self.current_track.lock().await = Some(track);
+                        }
+                    }
+                }
             }
             CommandAction::Pause => {
                 *self.playback_state.lock().await = PlaybackState::Paused;
@@ -163,7 +211,7 @@ impl PlaybackHub {
                                 album: None,
                                 duration_ms: record.duration_sec * 1000,
                                 cover_url: None,
-                                stream_url: record.cached_path.map(|p| format!("/cache/{}", p)),
+                                stream_url: record.cached_path.as_deref().map(clean_stream_url),
                                 requested_by: entry.requested_by,
                             };
                             *self.current_track.lock().await = Some(track);
@@ -179,6 +227,29 @@ impl PlaybackHub {
             }
             CommandAction::Previous => {
                 *self.position_ms.lock().await = 0;
+            }
+            CommandAction::Jump { queue_id } => {
+                *self.position_ms.lock().await = 0;
+                match self.db.jump_queue_for_cabin(queue_id, cabin_id) {
+                    Ok(Some(entry)) => {
+                        if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            let track = Track {
+                                id: record.id.clone(),
+                                title: record.title,
+                                artist: record.artist,
+                                album: None,
+                                duration_ms: record.duration_sec * 1000,
+                                cover_url: None,
+                                stream_url: record.cached_path.as_deref().map(clean_stream_url),
+                                requested_by: entry.requested_by,
+                            };
+                            *self.current_track.lock().await = Some(track);
+                            *self.playback_state.lock().await = PlaybackState::Playing;
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(e) => return Err(format!("Database queue jump failed: {}", e)),
+                }
             }
             CommandAction::QueueAppend { track_id, requested_by } => {
                 if let Err(e) = self.db.enqueue_track_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
@@ -440,6 +511,29 @@ mod tests {
                 assert_eq!(u.payload.track.unwrap().title, "Heroes");
             }
             _ => panic!("Expected StateUpdate"),
+        }
+
+        // 4. Jump Command
+        let track2 = TrackRecord {
+            id: "trk_beta".into(),
+            artist: "Daft Punk".into(),
+            title: "One More Time".into(),
+            duration_sec: 320,
+            cached_path: Some("/cache/daft_punk_one_more_time.opus".into()),
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track2).unwrap();
+        let q_id = db.enqueue_track("trk_beta").unwrap();
+        hub.dispatch_command(CommandAction::Jump { queue_id: q_id }).await.unwrap();
+        let received4 = rx.recv().await.unwrap();
+        match received4 {
+            WsMessage::StateUpdate(u) => {
+                assert_eq!(u.payload.playback.state, PlaybackState::Playing);
+                assert!(u.payload.track.is_some());
+                assert_eq!(u.payload.track.unwrap().title, "One More Time");
+            }
+            _ => panic!("Expected StateUpdate for Jump"),
         }
     }
 

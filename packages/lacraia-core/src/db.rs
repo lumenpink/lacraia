@@ -732,6 +732,50 @@ impl Database {
         }
     }
 
+    pub fn jump_queue_for_cabin(&self, queue_id: i64, cabin_id: &str) -> Result<Option<QueueEntry>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM queue WHERE id = ?1 AND cabin_id = ?2",
+                params![queue_id, cabin_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)
+            .unwrap_or(false);
+
+        if !exists {
+            return Ok(None);
+        }
+
+        conn.execute(
+            "UPDATE queue SET state = 'played' WHERE state = 'playing' AND cabin_id = ?1",
+            params![cabin_id],
+        )?;
+
+        conn.execute(
+            "UPDATE queue SET state = 'playing' WHERE id = ?1 AND cabin_id = ?2",
+            params![queue_id, cabin_id],
+        )?;
+
+        let entry = conn.query_row(
+            "SELECT id, track_id, position, state, created_at, cabin_id, requested_by FROM queue WHERE id = ?1",
+            params![queue_id],
+            |row| {
+                let state_str: String = row.get(3)?;
+                Ok(QueueEntry {
+                    id: row.get(0)?,
+                    track_id: row.get(1)?,
+                    position: row.get(2)?,
+                    state: QueueState::from_str(&state_str),
+                    created_at: row.get(4)?,
+                    cabin_id: row.get(5)?,
+                    requested_by: row.get(6)?,
+                })
+            },
+        )?;
+        Ok(Some(entry))
+    }
+
     pub fn mark_cached(&self, track_id: &str, cached_path: &str) -> Result<(), DbError> {
         let conn = self.conn.lock().unwrap();
         conn.execute(

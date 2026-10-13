@@ -1448,12 +1448,45 @@
     (function() {
       // Configuration & Initial State
       const DEMO_PLAYLIST = [
-        { id: "trk_1", title: "Construção", artist: "Chico Buarque", duration_ms: 258000, requested_by: "PILOTO" },
-        { id: "trk_2", title: "Águas de Março", artist: "Elis Regina & Tom Jobim", duration_ms: 212000, requested_by: "@Mari" },
-        { id: "trk_3", title: "Chega de Saudade", artist: "João Gilberto", duration_ms: 121000, requested_by: "@Davi" },
-        { id: "trk_4", title: "One More Time", artist: "Daft Punk", duration_ms: 320000, requested_by: "SISTEMA" },
-        { id: "trk_5", title: "Autobahn", artist: "Kraftwerk", duration_ms: 1360000, requested_by: "PILOTO" }
+        { id: "trk_1", title: "Construção", artist: "Chico Buarque", duration_ms: 258000, requested_by: "PILOTO", stream_url: "/cache/chico_buarque_construcao.opus" },
+        { id: "trk_2", title: "One More Time", artist: "Daft Punk", duration_ms: 320000, requested_by: "@Mari", stream_url: "/cache/daft_punk_one_more_time.opus" },
+        { id: "trk_3", title: "Vai Lacraia", artist: "MC Serginho", duration_ms: 240000, requested_by: "@Davi", stream_url: "/cache/serginho_vai_lacraia.opus" },
+        { id: "trk_4", title: "Tempo Perdido", artist: "Legião Urbana", duration_ms: 300000, requested_by: "SISTEMA", stream_url: "/cache/legiao_urbana_tempo_perdido.opus" },
+        { id: "trk_5", title: "Autobahn", artist: "Kraftwerk", duration_ms: 1360000, requested_by: "PILOTO", stream_url: "/cache/joe_bartel_kraftwerk.opus" }
       ];
+
+      // In-memory map: trackId → stream_url and artist+title → stream_url
+      // Enriches queue items that arrive from DB without stream_url
+      const trackStreamCache = new Map();
+      function normalizeStr(s) {
+        return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      }
+      function cacheTrackStreamUrl(track) {
+        if (!track) return;
+        const sUrl = track.stream_url || track.streamUrl;
+        if (!sUrl) return;
+        track.stream_url = sUrl;
+        if (track.id) trackStreamCache.set(String(track.id), sUrl);
+        if (track.track_id) trackStreamCache.set(String(track.track_id), sUrl);
+        if (track.trackId) trackStreamCache.set(String(track.trackId), sUrl);
+        const key = `${normalizeStr(track.artist)}|||${normalizeStr(track.title)}`;
+        trackStreamCache.set(key, sUrl);
+      }
+      function enrichTrackStreamUrl(track) {
+        if (!track) return track;
+        if (track.stream_url) return track;
+        const tid = track.track_id || track.trackId || track.id;
+        if (tid && trackStreamCache.has(String(tid))) {
+          track.stream_url = trackStreamCache.get(String(tid));
+          return track;
+        }
+        const key = `${normalizeStr(track.artist)}|||${normalizeStr(track.title)}`;
+        const byKey = trackStreamCache.get(key);
+        if (byKey) { track.stream_url = byKey; return track; }
+        return track;
+      }
+      // Seed from DEMO_PLAYLIST
+      DEMO_PLAYLIST.forEach(cacheTrackStreamUrl);
 
       // URL parameters & Active Cabin
       const urlParams = new URLSearchParams(window.location.search);
@@ -1638,16 +1671,16 @@
 
       // UI Render Sync
       function renderState() {
-        const trk = DEMO_PLAYLIST[state.currentIndex];
-        trackTitle.textContent = trk.title;
-        trackArtist.textContent = trk.artist;
-        trackRequester.textContent = `[ ${trk.requested_by || 'PILOTO'} ]`;
-        state.durationMs = trk.duration_ms;
+        const trk = state.currentTrack || DEMO_PLAYLIST[state.currentIndex];
+        trackTitle.textContent = trk ? trk.title : "--";
+        trackArtist.textContent = trk ? trk.artist : "--";
+        trackRequester.textContent = trk ? `[ ${trk.requested_by || trk.requestedBy || 'PILOTO'} ]` : "[ VAZIO ]";
+        state.durationMs = trk ? (trk.duration_ms || trk.durationMs || 210000) : 210000;
 
         timeCurrent.textContent = formatTime(state.positionMs);
         timeTotal.textContent = formatTime(state.durationMs);
 
-        const pct = (state.positionMs / state.durationMs) * 100;
+        const pct = state.durationMs > 0 ? (state.positionMs / state.durationMs) * 100 : 0;
         progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
 
         if (state.isPlaying) {
@@ -1661,8 +1694,8 @@
         }
 
         // Miniplayers Update (Deck 02, Deck 03 e Sticky Dock Mobile)
-        const currentTitle = trk.title.toUpperCase();
-        const currentArtist = trk.artist.toUpperCase();
+        const currentTitle = trk ? trk.title.toUpperCase() : "--";
+        const currentArtist = trk ? trk.artist.toUpperCase() : "--";
         const miniTimeStr = `${formatTime(state.positionMs)} / ${formatTime(state.durationMs)}`;
         const playIconChar = state.isPlaying ? "⏸" : "▶";
 
@@ -1782,6 +1815,9 @@
             state.queue.forEach((item, idx) => {
               const row = document.createElement("div");
               row.className = "queue-item-row";
+              row.style.cursor = "pointer";
+              row.title = `Tocar ${item.title} agora`;
+              row.onclick = () => jumpToQueueItem(item);
 
               const posSpan = document.createElement("span");
               posSpan.className = "queue-item-pos";
@@ -1826,12 +1862,9 @@
                 playBtn.style.cssText = "padding: 2px 7px; font-size: 11px; line-height: 1; margin-right: 4px;";
                 playBtn.textContent = "▶";
                 playBtn.title = `Tocar ${item.title} agora`;
-                playBtn.onclick = () => {
-                  state.currentTrack = item;
-                  state.isPlaying = true;
-                  syncAudioEngineWithTrack(item);
-                  sendWsCommand({ action: "PLAY" });
-                  renderState();
+                playBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  jumpToQueueItem(item);
                 };
                 row.appendChild(playBtn);
 
@@ -1840,7 +1873,10 @@
                 removeBtn.style.cssText = "padding: 2px 7px; font-size: 11px; line-height: 1;";
                 removeBtn.textContent = "✕";
                 removeBtn.title = `Remover ${item.title} da fila`;
-                removeBtn.onclick = () => removeQueueItem(item.id);
+                removeBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  removeQueueItem(item.id);
+                };
                 row.appendChild(removeBtn);
               }
 
@@ -1850,7 +1886,7 @@
         }
 
         // MediaSession support for hardware/lockscreen controls & external HUD
-        if ("mediaSession" in navigator) {
+        if (trk && "mediaSession" in navigator) {
           navigator.mediaSession.metadata = new MediaMetadata({
             title: trk.title,
             artist: trk.artist,
@@ -1859,6 +1895,20 @@
           });
           navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused";
         }
+      }
+
+      function jumpToQueueItem(item) {
+        if (!requirePilot()) return;
+        enrichTrackStreamUrl(item);  // resolve stream_url from local cache if missing
+        state.currentTrack = item;
+        state.isPlaying = true;
+        initAudioContext();
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+        syncAudioEngineWithTrack(item);
+        sendWsCommand({ action: "JUMP", queueId: item.id });
+        renderState();
       }
 
       // Playback loop
@@ -1898,8 +1948,12 @@
 
         let streamUrl = trk.stream_url || trk.streamUrl;
         if (streamUrl) {
+          if (!streamUrl.startsWith("http")) {
+            const filename = streamUrl.split("/").pop();
+            streamUrl = `/cache/${filename}`;
+          }
           const fullUrl = streamUrl.startsWith("http") ? streamUrl : `${targetHttpUrl}${streamUrl}`;
-          if (audio.src !== fullUrl) {
+          if (decodeURI(audio.src) !== decodeURI(fullUrl)) {
             audio.src = fullUrl;
             audio.load();
             if (state.positionMs > 0 && !isNaN(audio.duration) && audio.duration > 0) {
@@ -1921,9 +1975,10 @@
               const resData = await resp.json();
               const sUrl = resData.streamUrl || resData.stream_url;
               if (sUrl) {
-                trk.stream_url = sUrl;
-                trk.streamUrl = sUrl;
-                const fullUrl = sUrl.startsWith("http") ? sUrl : `${targetHttpUrl}${sUrl}`;
+                const sClean = sUrl.startsWith("http") ? sUrl : `/cache/${sUrl.split("/").pop()}`;
+                trk.stream_url = sClean;
+                trk.streamUrl = sClean;
+                const fullUrl = sClean.startsWith("http") ? sClean : `${targetHttpUrl}${sClean}`;
                 audio.src = fullUrl;
                 audio.load();
                 if (state.isPlaying) {
@@ -1942,11 +1997,21 @@
       }
 
       function togglePlayPause() {
+        const hasQueue = state.queue && state.queue.length > 0;
+        const currentInQueue = state.currentTrack && hasQueue && state.queue.some(q => (q.track_id || q.trackId) === (state.currentTrack.id || state.currentTrack.track_id));
+        if (!state.isPlaying && hasQueue && (!state.currentTrack || !currentInQueue)) {
+          jumpToQueueItem(state.queue[0]);
+          return;
+        }
         state.isPlaying = !state.isPlaying;
+        initAudioContext();
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
         renderState();
         sendWsCommand({ action: state.isPlaying ? "PLAY" : "PAUSE" });
 
-        const trk = state.currentTrack || DEMO_PLAYLIST[state.currentIndex];
+        const trk = state.currentTrack || (state.queue && state.queue[0]) || DEMO_PLAYLIST[state.currentIndex];
         if (state.isPlaying) {
           if (!audio.src || audio.src === "" || audio.src === window.location.href) {
             syncAudioEngineWithTrack(trk);
@@ -2001,6 +2066,12 @@
       audio.addEventListener("ended", () => {
         if (isPilotOrMaster()) {
           nextTrack();
+        }
+      });
+
+      audio.addEventListener("canplay", () => {
+        if (state.isPlaying && audio.paused) {
+          audio.play().catch(e => console.warn("Audio canplay auto-play prevented:", e));
         }
       });
 
@@ -2163,45 +2234,28 @@
       }
 
       function enqueueCandidate(candidate) {
-        const reqUser = state.role === "PILOTO" ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
+        cacheTrackStreamUrl(candidate);
+        const reqUser = (state.role === "PILOTO" || state.role === "MASTER") ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
 
-        // Dispatch QUEUE_APPEND via WebSocket
-        sendWsCommand({
-          action: "QUEUE_APPEND",
-          trackId: candidate.id,
-          requestedBy: reqUser
-        });
-
-        // Dual delivery: HTTP REST queue append to ensure instant database consistency
-        fetch(`${targetHttpUrl}/api/queue`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          sendWsCommand({
+            action: "QUEUE_APPEND",
             trackId: candidate.id,
-            requestedBy: reqUser,
-            cabinId: state.cabinId || "default"
-          })
-        }).then(r => r.json()).then(() => {
-          syncQueue();
-        }).catch(() => {});
-
-        // Optimistic local update / standalone demo fallback
-        const existingIdx = state.queue.findIndex(item => (item.track_id || item.trackId) === candidate.id);
-        if (existingIdx === -1) {
-          state.queue.push({
-            id: Date.now(),
-            track_id: candidate.id,
-            trackId: candidate.id,
-            title: candidate.title,
-            artist: candidate.artist,
-            durationMs: (candidate.durationSec || 210) * 1000,
-            duration_ms: (candidate.durationSec || 210) * 1000,
-            position: state.queue.length + 1,
-            state: candidate.cached ? "cached" : "pending",
-            requested_by: reqUser,
             requestedBy: reqUser
           });
-          renderState();
+        } else {
+          // Fallback when WebSocket is offline: HTTP REST queue append
+          fetch(`${targetHttpUrl}/api/queue`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              trackId: candidate.id,
+              requestedBy: reqUser,
+              cabinId: state.cabinId || "default"
+            })
+          }).then(r => r.json()).then(() => {
+            syncQueue();
+          }).catch(() => {});
         }
 
         showToast(`✔ "${candidate.title.toUpperCase()}" ENFILEIRADA!`);
@@ -2278,6 +2332,9 @@
 
       function renderSearchResults(results, currentQuery) {
         searchDropdown.innerHTML = "";
+        if (Array.isArray(results)) {
+          results.forEach(cacheTrackStreamUrl);
+        }
         if (!results || results.length === 0) {
           const emptyRow = document.createElement("div");
           emptyRow.className = "search-item";
@@ -3044,8 +3101,12 @@
                       audio.currentTime = state.positionMs / 1000;
                     }
                   }
-                  if (state.isPlaying && audio.paused && audio.src && audio.src !== window.location.href) {
-                    audio.play().catch(() => {});
+                  if (state.isPlaying && audio.paused) {
+                    if (audio.src && audio.src !== window.location.href) {
+                      audio.play().catch(() => {});
+                    } else if (state.currentTrack) {
+                      syncAudioEngineWithTrack(state.currentTrack);
+                    }
                   } else if (!state.isPlaying && !audio.paused) {
                     audio.pause();
                   }
@@ -3054,7 +3115,7 @@
                   state.isLocked = msg.payload.isLocked;
                 }
                 if (msg.payload.queue && Array.isArray(msg.payload.queue)) {
-                  state.queue = msg.payload.queue;
+                  state.queue = msg.payload.queue.map(enrichTrackStreamUrl);
                 }
                 renderState();
               } else if (type === "CREW_UPDATE") {

@@ -310,9 +310,10 @@ impl MediaResolver {
         title: &str,
         expected_duration_sec: u64,
     ) -> Result<TrackResolution, ResolverError> {
-        let clean_artist = strip_accents(artist);
-        let clean_title = strip_accents(title);
+        let clean_artist = strip_accents(artist).to_lowercase();
+        let clean_title = strip_accents(title).to_lowercase();
         let track_id = format!("{}:{}", clean_artist.trim(), clean_title.trim());
+        let raw_track_id = format!("{}:{}", artist.to_lowercase().trim(), title.to_lowercase().trim());
         let safe_filename = format!(
             "{}.opus",
             track_id.replace(|c: char| !c.is_alphanumeric(), "_")
@@ -320,38 +321,86 @@ impl MediaResolver {
         let target_path = self.cache_dir.join(&safe_filename);
         let target_path_str = target_path.to_string_lossy().to_string();
 
-        // Tier 1: Check local cache hit in SQLite and filesystem
-        if target_path.exists() {
-            info!("Tier 1 Filesystem Cache hit for track '{}' at {}", track_id, target_path_str);
-            let (tit, art, dur) = if let Ok(Some(existing)) = self.db.get_track(&track_id) {
+        // 1. Check if DB already knows a cached_path for this track (either track_id or raw_track_id)
+        let db_existing = self.db.get_track(&track_id).ok().flatten()
+            .or_else(|| self.db.get_track(&raw_track_id).ok().flatten());
+
+        if let Some(ref existing) = db_existing {
+            if let Some(ref path) = existing.cached_path {
+                let p = Path::new(path);
+                let hit_path = if p.is_absolute() && p.exists() {
+                    Some(p.to_path_buf())
+                } else if p.exists() {
+                    Some(p.to_path_buf())
+                } else if let Some(fname) = p.file_name() {
+                    let in_cache = self.cache_dir.join(fname);
+                    if in_cache.exists() {
+                        Some(in_cache)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(hit) = hit_path {
+                    let hit_file = hit.file_name().and_then(|n| n.to_str()).unwrap_or(&safe_filename).to_string();
+                    let hit_path_str = hit.to_string_lossy().to_string();
+                    info!("Tier 1 Cache hit for track '{}' from DB record at {}", track_id, hit_path_str);
+                    return Ok(TrackResolution {
+                        track_id: existing.id.clone(),
+                        title: existing.title.clone(),
+                        artist: existing.artist.clone(),
+                        duration_sec: existing.duration_sec,
+                        stream_url: format!("/cache/{}", hit_file),
+                        cache_path: hit_path_str,
+                    });
+                }
+            }
+        }
+
+        // 2. Check local cache hit in filesystem
+        let found_path = if target_path.exists() {
+            Some((safe_filename.clone(), target_path.clone()))
+        } else {
+            let lower_target = safe_filename.to_lowercase();
+            let alt_path = self.cache_dir.join(&lower_target);
+            if alt_path.exists() {
+                Some((lower_target, alt_path))
+            } else {
+                // Fuzzy check in cache_dir: ignore accents & case in filenames
+                let mut matched = None;
+                if let Ok(entries) = std::fs::read_dir(&self.cache_dir) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if strip_accents(&name).to_lowercase() == safe_filename {
+                            matched = Some((name, entry.path()));
+                            break;
+                        }
+                    }
+                }
+                matched
+            }
+        };
+
+        if let Some((hit_file, hit_path)) = found_path {
+            let hit_path_str = hit_path.to_string_lossy().to_string();
+            info!("Tier 1 Filesystem Cache hit for track '{}' at {}", track_id, hit_path_str);
+            let (tit, art, dur) = if let Some(existing) = db_existing {
                 (existing.title, existing.artist, existing.duration_sec)
             } else {
                 (title.to_string(), artist.to_string(), expected_duration_sec)
             };
+            let _ = self.db.mark_cached(&track_id, &hit_file);
+            let _ = self.db.mark_cached(&raw_track_id, &hit_file);
             return Ok(TrackResolution {
                 track_id,
                 title: tit,
                 artist: art,
                 duration_sec: dur,
-                stream_url: format!("/cache/{}", safe_filename),
-                cache_path: target_path_str,
+                stream_url: format!("/cache/{}", hit_file),
+                cache_path: hit_path_str,
             });
-        }
-
-        if let Ok(Some(existing)) = self.db.get_track(&track_id) {
-            if let Some(ref path) = existing.cached_path {
-                if Path::new(path).exists() {
-                    info!("Tier 1 Cache hit for track '{}' at {}", track_id, path);
-                    return Ok(TrackResolution {
-                        track_id,
-                        title: existing.title,
-                        artist: existing.artist,
-                        duration_sec: existing.duration_sec,
-                        stream_url: format!("/cache/{}", safe_filename),
-                        cache_path: path.clone(),
-                    });
-                }
-            }
         }
 
         // Tier 2: Try native Rust crate (RustyPipe)

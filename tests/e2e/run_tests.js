@@ -51,7 +51,7 @@ async function ensureBackendReady() {
     cwd: REPO_ROOT,
     env: {
       ...process.env,
-      PORT: '2011',
+      PORT: process.env.PORT || (new URL(BASE_URL).port || '2011'),
       LACRAIA_MASTER_KEY: 'lacraia_master_2011',
       LACRAIA_SITE_DIR: path.resolve(REPO_ROOT, 'site'),
       LACRAIA_DB_PATH: path.resolve(REPO_ROOT, 'lacraia.sqlite'),
@@ -684,6 +684,116 @@ async function main() {
       // Playback text state should remain unchanged while typing inside input
       const stateWhileTyping = await page.locator('#play-text').textContent();
       assert(stateWhileTyping === playStateBeforeTyping, 'Typing inside input must not trigger transport controls');
+
+      await context.close();
+    });
+
+    // -------------------------------------------------------------
+    // Test 14: Complete Clean-Slate Lifecycle: Enqueue 1 -> Play -> Pause -> Enqueue 2 -> Jump to 2 -> Enqueue 3 -> Next
+    // -------------------------------------------------------------
+    await test('Clean-Slate Lifecycle : Zerada -> Enqueue 1 -> Play -> Pause -> Enqueue 2 -> Jump to 2 -> Enqueue 3 -> Next', async () => {
+      const cleanCabin = `e2e_clean_${Date.now()}`;
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page = await context.newPage();
+
+      // Step 1: Tela zerada (isolated clean cabin with master key)
+      await page.goto(`${BASE_URL}/app?cabin=${cleanCabin}&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(600);
+
+      // Verify clean/empty queue initially
+      const initialQueueText = await page.locator('#queue-list-container').textContent();
+      assert(
+        initialQueueText.includes('FILA LIVRE') || initialQueueText.includes('NENHUMA') || (await page.locator('.queue-item-row').count()) === 0,
+        `Queue must start completely clean, got: ${initialQueueText}`
+      );
+
+      // Step 2: Enqueue Track 1 (Chico - Construção)
+      const input = page.locator('#enqueue-input');
+      await input.fill('Chico');
+      const dropdown = page.locator('#search-dropdown');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const addFirstBtn = dropdown.locator('.search-item button, .search-item').first();
+      await addFirstBtn.click();
+      await page.waitForTimeout(800);
+
+      // Verify exactly ONE item was added (not twice!)
+      const queueCountAfter1 = await page.locator('.queue-item-row').count();
+      assert(queueCountAfter1 === 1, `Queue must have exactly 1 item after first enqueue, got ${queueCountAfter1}`);
+
+      // Step 3: Click Play -> audio must start playing and currentTime advance
+      await page.click('#btn-play-pause');
+      await page.waitForFunction(() => {
+        const a = document.getElementById('audio-engine');
+        return a && !a.paused && a.src && a.src.length > 0;
+      }, { timeout: 10000 });
+
+      const isPlaying = await page.evaluate(() => !document.getElementById('audio-engine').paused);
+      assert(isPlaying, 'Audio element must be playing after clicking play');
+
+      const t0 = await page.evaluate(() => document.getElementById('audio-engine').currentTime);
+      await page.waitForTimeout(1000);
+      const t1 = await page.evaluate(() => document.getElementById('audio-engine').currentTime);
+      assert(t1 >= t0, `Audio currentTime must advance during playback: t0=${t0}, t1=${t1}`);
+
+      // Step 4: Click Pause -> audio must pause
+      await page.click('#btn-play-pause');
+      await page.waitForTimeout(400);
+      const isPaused = await page.evaluate(() => document.getElementById('audio-engine').paused);
+      assert(isPaused, 'Audio element must be paused after clicking pause');
+
+      // Step 5: Enqueue Track 2 (Daft Punk - One More Time)
+      await input.fill('One More Time');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const addSecondBtn = dropdown.locator('.search-item button, .search-item').first();
+      await addSecondBtn.click();
+      await page.waitForTimeout(800);
+
+      // Verify queue has exactly 2 items now (Track 1 and Track 2)
+      const queueCountAfter2 = await page.locator('.queue-item-row').count();
+      assert(queueCountAfter2 === 2, `Queue must have exactly 2 items after second enqueue, got ${queueCountAfter2}`);
+
+      // Step 6: Muda pra ela (Click on Track 2 row to jump directly to it)
+      const secondTrackRow = page.locator('.queue-item-row').nth(1);
+      await secondTrackRow.click();
+      await page.waitForTimeout(800);
+
+      // Verify player switched to Track 2 and resumed playback
+      await page.waitForFunction(() => {
+        const a = document.getElementById('audio-engine');
+        const tit = document.getElementById('track-title');
+        return a && !a.paused && tit && (tit.textContent.includes('One More Time') || tit.textContent.includes('Aerodynamic') || tit.textContent.includes('Daft'));
+      }, { timeout: 10000 });
+
+      const trackTitleNow = await page.locator('#track-title').textContent();
+      assert(
+        trackTitleNow.includes('One More Time') || trackTitleNow.includes('Aerodynamic') || trackTitleNow.includes('Daft'),
+        `Track title must update to Track 2 after clicking it, got '${trackTitleNow}'`
+      );
+
+      // Step 7: Enqueue Track 3 (Serginho / Vai Lacraia)
+      await input.fill('Vai Lacraia');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const addThirdBtn = dropdown.locator('.search-item button, .search-item').first();
+      await addThirdBtn.click();
+      await page.waitForTimeout(800);
+
+      const queueCountAfter3 = await page.locator('.queue-item-row').count();
+      assert(queueCountAfter3 >= 2, `Queue must register the 3rd track, got ${queueCountAfter3} rows`);
+
+      // Step 8: Click Next -> transitions to Track 3
+      await page.click('#btn-next');
+      await page.waitForTimeout(800);
+
+      await page.waitForFunction(() => {
+        const tit = document.getElementById('track-title');
+        return tit && (tit.textContent.includes('Vai Lacraia') || tit.textContent.includes('Lacraia') || tit.textContent.includes('Serginho'));
+      }, { timeout: 10000 });
+
+      const titleAfterNext = await page.locator('#track-title').textContent();
+      assert(
+        titleAfterNext.includes('Vai Lacraia') || titleAfterNext.includes('Lacraia') || titleAfterNext.includes('Serginho'),
+        `Track title after Next must advance to Track 3, got '${titleAfterNext}'`
+      );
 
       await context.close();
     });

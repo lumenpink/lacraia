@@ -108,6 +108,10 @@ pub enum CommandAction {
         #[serde(rename = "queueId")]
         queue_id: i64,
     },
+    Jump {
+        #[serde(rename = "queueId")]
+        queue_id: i64,
+    },
     LockCabin {
         locked: bool,
     },

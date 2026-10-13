@@ -50,6 +50,8 @@ pub struct TrackSearchResult {
     #[serde(rename = "durationSec")]
     pub duration_sec: u64,
     pub cached: bool,
+    #[serde(rename = "streamUrl", alias = "stream_url", skip_serializing_if = "Option::is_none")]
+    pub stream_url: Option<String>,
     pub genres: Option<String>,
 }
 
@@ -454,13 +456,23 @@ pub async fn handle_search(
 
     let results: Vec<TrackSearchResult> = tracks
         .into_iter()
-        .map(|t| TrackSearchResult {
-            id: t.id,
-            artist: t.artist,
-            title: t.title,
-            duration_sec: t.duration_sec,
-            cached: t.cached_path.is_some(),
-            genres: t.genres,
+        .map(|t| {
+            let stream_url = t.cached_path.as_deref().map(|p| {
+                let filename = std::path::Path::new(p)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(p);
+                format!("/cache/{}", filename)
+            });
+            TrackSearchResult {
+                id: t.id,
+                artist: t.artist,
+                title: t.title,
+                duration_sec: t.duration_sec,
+                cached: t.cached_path.is_some(),
+                stream_url,
+                genres: t.genres,
+            }
         })
         .collect();
 
