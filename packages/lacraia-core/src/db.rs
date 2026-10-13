@@ -118,6 +118,26 @@ pub struct CabinPlaybackState {
     pub updated_at: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SystemSettings {
+    #[serde(rename = "targetQueueDurationSec")]
+    pub target_queue_duration_sec: u64,
+    #[serde(rename = "targetCacheDurationSec")]
+    pub target_cache_duration_sec: u64,
+    #[serde(rename = "maxDiskCacheMb")]
+    pub max_disk_cache_mb: u64,
+}
+
+impl Default for SystemSettings {
+    fn default() -> Self {
+        Self {
+            target_queue_duration_sec: 7200,
+            target_cache_duration_sec: 3600,
+            max_disk_cache_mb: 1024,
+        }
+    }
+}
+
 pub fn strip_accents(input: &str) -> String {
     input
         .chars()
@@ -1873,6 +1893,20 @@ impl Database {
 
         Ok(None)
     }
+
+    pub fn get_system_settings(&self) -> Result<SystemSettings, DbError> {
+        // Stub for RED test: returns 3600 instead of default 7200
+        Ok(SystemSettings {
+            target_queue_duration_sec: 3600,
+            target_cache_duration_sec: 3600,
+            max_disk_cache_mb: 500,
+        })
+    }
+
+    pub fn update_system_settings(&self, _settings: &SystemSettings) -> Result<(), DbError> {
+        // Stub for RED test: no-op
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -2527,6 +2561,28 @@ mod tests {
         assert!(!top_errors.is_empty(), "Must list top resolution errors");
         assert_eq!(top_errors[0].error_code, "HTTP_403");
         assert_eq!(top_errors[0].count, 2, "HTTP_403 occurred twice in Tier 1");
+    }
+
+    #[test]
+    fn test_system_settings_defaults_and_updates() {
+        let db = Database::open_in_memory().unwrap();
+
+        // 1. Default settings: 7200s (2h queue, Issue #25), 3600s cache, 1024MB disk
+        let defaults = db.get_system_settings().unwrap();
+        assert_eq!(defaults.target_queue_duration_sec, 7200, "Default queue duration must be 2 hours (7200s)");
+        assert_eq!(defaults.target_cache_duration_sec, 3600, "Default cache duration must be 1 hour (3600s)");
+        assert_eq!(defaults.max_disk_cache_mb, 1024, "Default disk cache budget must be 1024 MB");
+
+        // 2. Update settings and verify persistence (Issue #26)
+        let updated = SystemSettings {
+            target_queue_duration_sec: 10800,
+            target_cache_duration_sec: 5400,
+            max_disk_cache_mb: 2048,
+        };
+        db.update_system_settings(&updated).unwrap();
+
+        let loaded = db.get_system_settings().unwrap();
+        assert_eq!(loaded, updated, "Settings must persist across database calls");
     }
 }
 

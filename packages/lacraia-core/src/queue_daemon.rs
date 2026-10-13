@@ -98,6 +98,18 @@ impl QueueDaemon {
         }
     }
 
+    pub fn target_queue_duration_sec(&self) -> u64 {
+        self.target_queue_duration_sec
+    }
+
+    pub fn target_cache_duration_sec(&self) -> u64 {
+        self.target_cache_duration_sec
+    }
+
+    pub fn set_temporal_window(&self, _cache_sec: u64, _queue_sec: u64) {
+        // Stub for RED test
+    }
+
     pub fn find_prefetch_targets_for_window(
         &self,
         queue: &[(QueueEntry, TrackRecord)],
@@ -848,6 +860,33 @@ mod tests {
             .map(|(_, t)| t.duration_sec)
             .sum();
         assert!(upcoming_duration >= 1200, "Total upcoming queue duration must be at least 1200s");
+    }
+
+    #[tokio::test]
+    async fn test_queue_daemon_default_horizon_and_dynamic_update() {
+        let db = Database::open_in_memory().unwrap();
+        let (tx, _rx) = tokio::sync::broadcast::channel(100);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+        let resolver = Arc::new(crate::resolver::MediaResolver::new(std::path::PathBuf::from("/tmp/cache"), db.clone()));
+        let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+
+        let daemon = QueueDaemon::new(
+            db.clone(),
+            resolver,
+            similarity,
+            hub.clone(),
+            5,
+            Duration::from_millis(50),
+        );
+
+        // Issue #25: Default queue duration must be 7200s (2 hours)
+        assert_eq!(daemon.target_queue_duration_sec(), 7200, "Default daemon queue duration must be 7200s (2 hours)");
+        assert_eq!(daemon.target_cache_duration_sec(), 3600, "Default daemon cache duration must be 3600s (1 hour)");
+
+        // Issue #26: Dynamic update of lookahead windows
+        daemon.set_temporal_window(1800, 10800);
+        assert_eq!(daemon.target_cache_duration_sec(), 1800);
+        assert_eq!(daemon.target_queue_duration_sec(), 10800);
     }
 }
 
