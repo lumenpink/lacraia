@@ -1258,8 +1258,13 @@ impl Database {
             let id: i64 = row.get(0)?;
             let cabin_id: String = row.get(1)?;
             let track_id: String = row.get(2)?;
-            let title: String = row.get::<_, Option<String>>(3)?.unwrap_or_else(|| track_id.clone());
-            let artist: String = row.get::<_, Option<String>>(4)?.unwrap_or_else(|| "Desconhecido".into());
+            let (fallback_artist, fallback_title) = if let Some((a, t)) = track_id.split_once(':') {
+                (a.to_string(), t.to_string())
+            } else {
+                ("Desconhecido".to_string(), track_id.clone())
+            };
+            let title: String = row.get::<_, Option<String>>(3)?.unwrap_or(fallback_title);
+            let artist: String = row.get::<_, Option<String>>(4)?.unwrap_or(fallback_artist);
             let passenger_name: Option<String> = row.get(5)?;
             let played_at: i64 = row.get(6)?;
             let duration_sec: u64 = row.get::<_, Option<u64>>(7)?.unwrap_or(210);
