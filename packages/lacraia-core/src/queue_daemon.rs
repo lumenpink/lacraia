@@ -22,6 +22,8 @@ pub struct QueueDaemon {
     similarity: Arc<CompositeSimilarityEngine>,
     hub: Arc<PlaybackHub>,
     lookahead_window: usize,
+    local_window: usize,
+    remote_window: usize,
     poll_interval: Duration,
 }
 
@@ -40,8 +42,47 @@ impl QueueDaemon {
             similarity,
             hub,
             lookahead_window,
+            local_window: 5,
+            remote_window: 10,
             poll_interval,
         }
+    }
+
+    pub fn new_with_sliding_window(
+        db: Database,
+        resolver: Arc<MediaResolver>,
+        similarity: Arc<CompositeSimilarityEngine>,
+        hub: Arc<PlaybackHub>,
+        local_window: usize,
+        remote_window: usize,
+        poll_interval: Duration,
+    ) -> Self {
+        Self {
+            db,
+            resolver,
+            similarity,
+            hub,
+            lookahead_window: local_window,
+            local_window,
+            remote_window,
+            poll_interval,
+        }
+    }
+
+    pub fn find_prefetch_targets_for_window(
+        &self,
+        _queue: &[(QueueEntry, TrackRecord)],
+    ) -> Vec<TrackRecord> {
+        // Red test stub
+        vec![]
+    }
+
+    pub async fn maintain_autopilot_queue_sliding(
+        &self,
+        _cabin_id: &str,
+    ) -> Result<usize, QueueDaemonError> {
+        // Red test stub
+        Ok(0)
     }
 
     /// Identifies pending tracks within the lookahead window ahead of active playback.
@@ -403,6 +444,58 @@ mod tests {
         let targets = QueueDaemon::find_prefetch_targets(&queue, 2);
         assert_eq!(targets.len(), 1);
         assert_eq!(targets[0].id, "trk_3");
+    }
+
+    #[tokio::test]
+    async fn test_5_local_and_10_remote_lookahead_sliding_window() {
+        let db = Database::open_in_memory().unwrap();
+        let (tx, _rx) = tokio::sync::broadcast::channel(100);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+        let resolver = Arc::new(crate::resolver::MediaResolver::new(std::path::PathBuf::from("/tmp/cache"), db.clone()));
+        let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+
+        // Default lookahead: 5 local, 10 remote
+        let daemon = QueueDaemon::new_with_sliding_window(
+            db.clone(),
+            resolver,
+            similarity,
+            hub.clone(),
+            5,  // local cached window
+            10, // remote queue window
+            Duration::from_millis(50),
+        );
+
+        // 1. Initial cabin playing a seed
+        let seed = TrackRecord {
+            id: "seed_1".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 240,
+            cached_path: Some("/cache/vai_lacraia.opus".into()),
+            genres: Some("funk".into()),
+            last_played_at: None,
+        };
+        db.upsert_track(&seed).unwrap();
+        db.enqueue_track_with_meta("seed_1", Some("PILOTO"), "cab_lookahead").unwrap();
+        let _ = hub.dispatch_command_with_role(lacraia_shared::CommandAction::Play, "cab_lookahead", Some(lacraia_shared::Role::Pilot)).await;
+
+        // 2. Maintain autopilot with non-stop enabled -> must populate until 10 upcoming tracks
+        let enqueued = daemon.maintain_autopilot_queue_sliding("cab_lookahead").await.unwrap();
+        assert_eq!(enqueued, 10, "Autopilot must enqueue 10 remote upcoming tracks");
+
+        let queue = db.get_queue_for_cabin("cab_lookahead").unwrap();
+        let upcoming: Vec<_> = queue.iter().filter(|(e, _)| e.state != QueueState::Playing).collect();
+        assert_eq!(upcoming.len(), 10, "Queue must contain 10 upcoming remote tracks");
+
+        // 3. Find prefetch targets -> must target exactly 5 local tracks
+        let all_queues = db.get_queue_for_cabin("cab_lookahead").unwrap();
+        let prefetch_targets = daemon.find_prefetch_targets_for_window(&all_queues);
+        assert_eq!(prefetch_targets.len(), 5, "Daemon must prefetch exactly 5 local cached tracks");
+
+        // 4. When non-stop is disabled for this cabin, maintain_autopilot does not add more
+        hub.set_cabin_non_stop("cab_lookahead", false).await;
+        let enqueued_disabled = daemon.maintain_autopilot_queue_sliding("cab_lookahead").await.unwrap();
+        assert_eq!(enqueued_disabled, 0, "When non-stop is disabled, autopilot must not auto-populate");
     }
 }
 
