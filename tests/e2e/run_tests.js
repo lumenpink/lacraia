@@ -419,8 +419,20 @@ async function main() {
       const dropdown = page.locator('#search-dropdown');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
 
+      // Assert all 4 action buttons exist in candidate row
+      const candidateRow = dropdown.locator('.search-item').first();
+      const playNowBtn = candidateRow.locator('button[data-action="play_now"]');
+      const playNextBtn = candidateRow.locator('button[data-action="play_next"]');
+      const enqueueBtn = candidateRow.locator('button[data-action="enqueue"]');
+      const startRadioBtn = candidateRow.locator('button[data-action="start_radio"]');
+
+      assert(await playNowBtn.count() > 0, 'Candidate row must have "Tocar agora" (play_now) button');
+      assert(await playNextBtn.count() > 0, 'Candidate row must have "Tocar na sequência" (play_next) button');
+      assert(await enqueueBtn.count() > 0, 'Candidate row must have "Adicionar à fila" (enqueue) button');
+      assert(await startRadioBtn.count() > 0, 'Candidate row must have "Iniciar rádio" (start_radio) button');
+
       // Click the "+ FILA" button inside the first candidate row
-      const firstCandidateBtn = dropdown.locator('.search-item button, .search-item').first();
+      const firstCandidateBtn = candidateRow.locator('button[data-action="enqueue"], button').first();
       await firstCandidateBtn.click();
       await page.waitForTimeout(800);
 
