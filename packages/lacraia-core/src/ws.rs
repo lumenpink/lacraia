@@ -209,6 +209,8 @@ impl PlaybackHub {
             }
         }
 
+        let is_seek = matches!(action, CommandAction::Seek { .. });
+
         match action {
             CommandAction::Play => {
                 *self.playback_state.lock().await = PlaybackState::Playing;
@@ -356,8 +358,8 @@ impl PlaybackHub {
                     passengers,
                 }));
             }
-            CommandAction::EjectPassenger { passenger_id } => {
-                let _ = self.db.eject_passenger(&passenger_id);
+            CommandAction::EjectPassenger { ref passenger_id } => {
+                let _ = self.db.eject_passenger(passenger_id);
                 let _ = self.tx.send(WsMessage::Ejected(EjectedNotification {
                     cabin_id: cabin_id.to_string(),
                     reason: "Chute da cabine pelo piloto".into(),
@@ -387,8 +389,20 @@ impl PlaybackHub {
 
         // Persist cabin playback state to SQLite
         {
-            let curr_t = self.current_track.lock().await;
-            let tid = curr_t.as_ref().map(|t| t.id.as_str());
+            let cabin_playing_tid = self.db.get_queue_for_cabin(cabin_id).ok().and_then(|q| {
+                q.into_iter()
+                    .find(|(entry, _)| entry.state == crate::db::QueueState::Playing)
+                    .map(|(entry, _)| entry.track_id)
+            });
+
+            let tid_opt = if cabin_playing_tid.is_some() {
+                cabin_playing_tid
+            } else if cabin_id == "default" {
+                self.current_track.lock().await.as_ref().map(|t| t.id.clone())
+            } else {
+                None
+            };
+
             let pos = *self.position_ms.lock().await;
             let st = match *self.playback_state.lock().await {
                 PlaybackState::Playing => "playing",
@@ -396,7 +410,14 @@ impl PlaybackHub {
                 PlaybackState::Buffering => "buffering",
                 PlaybackState::Stopped => "stopped",
             };
-            let _ = self.db.save_cabin_state(cabin_id, tid, pos, st);
+
+            if let Some(ref tid) = tid_opt {
+                let _ = self.db.save_cabin_state(cabin_id, Some(tid), pos, st);
+            } else if is_seek {
+                if let Ok(Some(existing)) = self.db.get_cabin_state(cabin_id) {
+                    let _ = self.db.save_cabin_state(cabin_id, existing.track_id.as_deref(), pos, &existing.playback_state);
+                }
+            }
         }
 
         let update = self.build_state_update_for_cabin(cabin_id).await;
