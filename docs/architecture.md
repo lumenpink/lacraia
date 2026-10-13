@@ -316,3 +316,22 @@ To support burst prefetching during transient connectivity windows without satur
 3. **Graceful Fallback Transcode:**
    * Non-Opus streams fall back to software encoding (`-c:a libopus -b:a 128k`) ensuring universal playback compatibility.
 
+---
+
+## 16. Dynamic System Configuration & 2-Hour Queue Horizon
+
+To accommodate varying journey lengths, device memory limits, and user preferences, `lacraia-core` enables real-time tuning of cache and queue horizons:
+
+1. **Default 2-Hour Autonomous Queue (`target_queue_duration_sec = 7200`):**
+   * By default, the Autopilot expands the remote queue up to 7,200 seconds (2 full hours) of continuous music, guaranteeing deep blackout resilience ($P_{99+}$).
+   * The default local lookahead cache remains set to 3,600 seconds (1 hour, ~57 MB).
+2. **Persistent System Settings (`system_settings` Table):**
+   * Key-value persistence in SQLite stores `target_queue_duration_sec`, `target_cache_duration_sec`, and `max_disk_cache_mb`.
+3. **RESTful Management (`/api/config`):**
+   * `GET /api/config`: Inquires current temporal horizons and cache capacity limits.
+   * `POST /api/config`: Validates and writes updated parameters, dynamically updating `QueueDaemon` in-flight without interrupting playback.
+4. **Cockpit Settings Modal:**
+   * Interactive dialog providing ergonomic unit switches (`[Hours, Minutes]` and `[MB, GB]`) with defensive bounds checking.
+
+
+

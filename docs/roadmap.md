@@ -383,4 +383,27 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
   - Compatibilidade retroativa mantida para janelas cardinais (`target = 0`).
   - Cobertura de testes unitários validando preenchimento com cantigas de durações variadas.
 
+---
+
+### Issue #25: Aumento do Padrão da Fila Remota para 2 Horas (7.200s)
+* **Package:** `packages/lacraia-core`
+* **Goal:** Elevar a janela padrão de fila remota do Autopilot para 2 horas (7.200 segundos), assegurando que o sistema inicialize por padrão com margem expandida de continuidade sonora ($P_{99+}$).
+* **Acceptance Criteria:**
+  - `QueueDaemon::new` inicializando com `target_queue_duration_sec = 7200` (2 horas).
+  - Tabela `system_settings` inicializando com padrão `target_queue_duration_sec = 7200`.
+  - Cobertura de testes unitários garantindo valor padrão de 7.200s.
+
+---
+
+### Issue #26: Controles de Interface e Ajuste Dinâmico de Cache e Fila no App
+* **Package:** `packages/lacraia-core`, `packages/lacraia-shared`, `site/app/index.html`
+* **Goal:** Disponibilizar no cockpit web controles visuais para personalizar cota de disco, janela de cache local e fila do Autopilot com alternância de unidades (MB/GB, min/h), persistência em SQLite e aplicação dinâmica no QueueDaemon.
+* **Acceptance Criteria:**
+  - Tabela SQLite `system_settings` com chaves `target_queue_duration_sec`, `target_cache_duration_sec` e `max_disk_cache_mb`.
+  - Rotas REST `GET /api/config` e `POST /api/config` com validação de limites (minutos/horas e MB/GB).
+  - Atualização dinâmica em tempo de execução no `QueueDaemon` sem necessidade de reinicialização.
+  - Modal `#settings-modal` no app web com seletores de unidade, validação tátil e persistência.
+  - Cobertura com testes unitários, testes de conversão e teste Playwright E2E.
+
+
 
