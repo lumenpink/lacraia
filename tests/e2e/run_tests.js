@@ -132,9 +132,10 @@ async function main() {
     // Test 2: Cockpit Desktop Architecture & Layout (/app)
     // -------------------------------------------------------------
     await test('Cockpit Web (/app) : Desktop 3-deck architecture and telemetry layout', async () => {
+      const cleanCabin = `e2e_deck_${Date.now()}`;
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await context.newPage();
-      await page.goto(`${BASE_URL}/app`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${BASE_URL}/app?cabin=${cleanCabin}`, { waitUntil: 'domcontentloaded' });
 
       const title = await page.title();
       assert(title.includes('LA CRAIA') || title.includes('CONSOLE'), `Title '${title}' must mention LA CRAIA or CONSOLE`);
@@ -194,7 +195,8 @@ async function main() {
       await page.waitForTimeout(300);
       assert(await page.locator('#deck-02').isVisible(), 'Deck 02 must be visible when FILA is selected');
       assert(!(await page.locator('#deck-01').isVisible()), 'Deck 01 must be hidden when FILA is active');
-      assert(await page.locator('#deck-02-miniplayer').isVisible(), 'Persistent miniplayer in Deck 02 must be visible');
+      assert((await page.$('#deck-02-miniplayer')) === null, 'Deck 02 must not contain redundant miniplayer');
+      assert(await page.locator('#sticky-miniplayer').isVisible(), 'Sticky dock miniplayer must be visible when Deck 02 is active');
 
       // Click CABINE Tab (Deck 03)
       await page.click('#tab-btn-deck-03');
@@ -476,22 +478,29 @@ async function main() {
     // Test 9: Queue Manipulation (Direct Play & Item Removal)
     // -------------------------------------------------------------
     await test('Queue Management : Direct play from queue and individual item removal', async () => {
+      const queueCabin = `e2e_queue_${Date.now()}`;
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await context.newPage();
-      await page.goto(`${BASE_URL}/app?master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${BASE_URL}/app?cabin=${queueCabin}&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
 
-      // Ensure at least 1 item exists in queue
-      await page.locator('#enqueue-input').fill('Chico');
+      // Add Track 1 (Kraftwerk)
+      const input = page.locator('#enqueue-input');
+      await input.fill('Kraftwerk');
       const dropdown = page.locator('#search-dropdown');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
-      const firstCandidateBtn = dropdown.locator('.search-item button, .search-item').first();
-      await firstCandidateBtn.click();
-      await page.waitForTimeout(1000);
+      await dropdown.locator('.search-item button, .search-item').first().click();
+      await page.waitForTimeout(600);
+
+      // Add Track 2 (Chico)
+      await input.fill('Chico');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      await dropdown.locator('.search-item button, .search-item').first().click();
+      await page.waitForTimeout(600);
 
       const initialCount = await page.locator('.queue-item-row').count();
-      assert(initialCount >= 1, 'Queue must have at least 1 item for manipulation test');
+      assert(initialCount === 2, `Queue must have 2 upcoming items, got ${initialCount}`);
 
-      // Test Direct Play button in queue row
+      // Test Direct Play button in queue row (first item plays, so it exits the upcoming queue)
       const firstPlayBtn = page.locator('.queue-item-row button:has-text("▶")').first();
       if (await firstPlayBtn.isVisible()) {
         await firstPlayBtn.click();
@@ -500,13 +509,13 @@ async function main() {
         assert(title.length > 0, 'Clicking direct play on queue item must update active track');
       }
 
-      // Test Remove button in queue row
+      // Test Remove button on remaining queue item
       const firstRemoveBtn = page.locator('.queue-item-row button:has-text("✕")').first();
       if (await firstRemoveBtn.isVisible()) {
         await firstRemoveBtn.click();
         await page.waitForTimeout(600);
         const newCount = await page.locator('.queue-item-row').count();
-        assert(newCount <= initialCount, 'Queue item count must decrease after removal');
+        assert(newCount === 0, `Queue item count must be 0 after removal, got ${newCount}`);
       }
 
       await context.close();
