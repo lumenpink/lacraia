@@ -331,10 +331,12 @@ async function main() {
       assert(!isPaused, 'Audio element must be playing (!paused)');
 
       // SOUND VERIFICATION 2: Real-time clock advance (sound is actively streaming)
-      const t0 = await page.evaluate(() => document.getElementById('audio-engine').currentTime);
-      await page.waitForTimeout(1000);
+      await page.waitForFunction(() => {
+        const a = document.getElementById('audio-engine');
+        return a && a.currentTime > 0.05;
+      }, { timeout: 8000 });
       const t1 = await page.evaluate(() => document.getElementById('audio-engine').currentTime);
-      assert(t1 >= t0, `Audio currentTime must advance or match active stream: t0=${t0}, t1=${t1}`);
+      assert(t1 > 0, `Audio currentTime must be positive and advancing: t1=${t1}`);
 
       // SOUND VERIFICATION 3: Canvas visualizer has non-blank pixel rendering
       const hasVisualizerEnergy = await page.evaluate(() => {
@@ -686,7 +688,10 @@ async function main() {
       await page.fill('#new-cabin-name', 'Cabine Experimental');
       await page.fill('#new-cabin-id', uniqueCabinId);
       await page.click('#btn-create-cabin-submit');
-      await page.waitForTimeout(800);
+      await page.waitForFunction(() => {
+        const modal = document.getElementById('cabin-modal');
+        return modal && !modal.classList.contains('active');
+      }, { timeout: 8000 });
 
       // Cabin creation automatically switches cabin and closes the modal
       assert(!(await cabinModal.evaluate((el) => el.classList.contains('active'))), '#cabin-modal must auto-close upon cabin creation');
@@ -1046,6 +1051,42 @@ async function main() {
       await page.waitForTimeout(300);
 
       assert(!(await hud.isVisible()), '#player-starvation-hud must be hidden once starvation condition resolves');
+
+      // 4. Mutation Test: Alert for a different cabin must NOT trigger HUD on this cabin
+      await page.evaluate(() => {
+        if (typeof window.handleWsMessage === 'function') {
+          window.handleWsMessage({
+            type: 'CACHE_ALERT',
+            payload: {
+              cabinId: 'other_cabin_xyz_99',
+              starvationType: 'local_cache_missing',
+              message: 'CACHE DA OUTRA CABINE',
+              active: true,
+            }
+          });
+        }
+      });
+      await page.waitForTimeout(200);
+      assert(!(await hud.isVisible()), '#player-starvation-hud must remain hidden when alert belongs to a different cabin');
+
+      // 5. Mutation Test: Native audio element 'waiting' and 'playing' events trigger & clear HUD
+      await page.evaluate(() => {
+        const audio = document.getElementById('audio-engine');
+        if (audio) {
+          audio.dispatchEvent(new Event('waiting'));
+        }
+      });
+      await page.waitForTimeout(200);
+      assert(await hud.isVisible(), '#player-starvation-hud must display upon native audio waiting event');
+
+      await page.evaluate(() => {
+        const audio = document.getElementById('audio-engine');
+        if (audio) {
+          audio.dispatchEvent(new Event('playing'));
+        }
+      });
+      await page.waitForTimeout(200);
+      assert(!(await hud.isVisible()), '#player-starvation-hud must hide upon native audio playing event');
 
       await context.close();
     });

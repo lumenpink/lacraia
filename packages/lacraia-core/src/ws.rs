@@ -1113,6 +1113,30 @@ mod tests {
             }
             _ => panic!("Expected WsMessage::CacheAlert"),
         }
+
+        // 4. Nonexistent/Uncataloged track edge case
+        let alert_unknown = hub.evaluate_cache_status("trk_nonexistent");
+        assert!(alert_unknown.is_some(), "Uncataloged track must yield starvation alert");
+        assert!(alert_unknown.unwrap().message.contains("NÃO CATALOGADA"));
+
+        // 5. Emit clear alert (active: false)
+        hub.emit_cache_alert(
+            "cab_starve",
+            CacheStarvationType::RemoteBufferStarved,
+            "",
+            None,
+            false,
+        )
+        .await;
+
+        let received_clear = rx.recv().await.unwrap();
+        match received_clear {
+            WsMessage::CacheAlert(a) => {
+                assert_eq!(a.cabin_id, "cab_starve");
+                assert!(!a.active);
+            }
+            _ => panic!("Expected WsMessage::CacheAlert with active=false"),
+        }
     }
 }
 
