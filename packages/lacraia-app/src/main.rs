@@ -419,12 +419,12 @@ fn App() -> Element {
         if qc.queue().is_empty() {
             qc.add_track(Track {
                 id: "track-1".into(),
-                title: "Construção".into(),
-                artist: "Chico Buarque".into(),
-                album: Some("Construção (1971)".into()),
-                duration_ms: 258000,
+                title: "Vai Lacraia".into(),
+                artist: "MC Serginho".into(),
+                album: Some("Vai Lacraia (2001)".into()),
+                duration_ms: 240000,
                 cover_url: None,
-                stream_url: Some("/stream/track-1.opus".into()),
+                stream_url: Some("/cache/serginho_vai_lacraia.opus".into()),
                 requested_by: Some("PILOTO".into()),
             });
             qc.add_track(Track {

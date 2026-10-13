@@ -352,6 +352,7 @@ impl Database {
         }
 
         let seeds = [
+            ("mc serginho:vai lacraia", "MC Serginho", "Vai Lacraia", 240, "funk carioca, proibidão, paredão"),
             ("chico buarque:construcao", "Chico Buarque", "Construção", 258, "mpb, samba"),
             ("elis regina & tom jobim:aguas de marco", "Elis Regina & Tom Jobim", "Águas de Março", 212, "bossa nova, mpb"),
             ("joao gilberto:chega de saudade", "João Gilberto", "Chega de Saudade", 121, "bossa nova, samba"),
@@ -1217,6 +1218,12 @@ mod tests {
     fn test_search_tracks_and_seeding() {
         let db = Database::open_in_memory().unwrap();
         db.seed_defaults_if_empty().unwrap();
+
+        // 0. Search by seed zero (Vai Lacraia)
+        let results = db.search_tracks("lacraia", 5).unwrap();
+        assert!(!results.is_empty());
+        assert_eq!(results[0].artist, "MC Serginho");
+        assert_eq!(results[0].title, "Vai Lacraia");
 
         // 1. Search by artist substring
         let results = db.search_tracks("buarque", 5).unwrap();
