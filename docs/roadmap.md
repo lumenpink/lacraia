@@ -335,6 +335,18 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
   - Alinhamento de referências e badges no `README.md`.
   - Harmonização de `docs/architecture.md` em paridade conceitual estrita com o `SPEC.md`.
 
+---
+
+### Issue #21: Janela Deslizante Lookahead (5 Locais, 10 Remotas) e Modo Non-Stop Multi-Seed
+* **Package:** `packages/lacraia-core`, `packages/lacraia-shared`, `site/app/index.html`, `tests/e2e/run_tests.js`
+* **Goal:** Implementar garantia algorítmica de fluxo contínuo ininterrupto mantendo sempre 5 cantigas cacheadas localmente e 10 cantigas enfileiradas remotamente via janela deslizante, com recomendação multi-semente baseada no histórico recente e modo non-stop acionável.
+* **Acceptance Criteria:**
+  - Janela local com pre-cache antecipado de 5 faixas (`local_window = 5`) no `QueueDaemon`.
+  - Janela remota mantendo 10 faixas futuras (`remote_window = 10`) a partir de recomendações no grafo.
+  - Motor de similaridade multi-semente (`find_similar_multi` e `get_recommendations_for_multi_seeds`) agregando até 5 sementes de histórico e fila.
+  - Ação WebSocket `TOGGLE_NON_STOP` e botão tátil `#btn-toggle-nonstop` com estados ativo (`🔁 NON-STOP: ON`) e inativo (`⏸ NON-STOP: OFF`).
+  - Suíte de testes unitários e teste Playwright E2E 18 validando transições e isolamento por cabine.
+
 
 
 

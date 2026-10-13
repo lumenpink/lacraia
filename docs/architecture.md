@@ -263,7 +263,23 @@ To validate real-world cockpit operation and browser-daemon interoperability wit
    * **Mobile Viewport (< 860px):** Emulates mobile devices (375x667), verifying sticky bottom navigation tabs (`#mobile-tabs`) and persistent synchronized miniplayers.
 3. **Audio Stream URL Parity:**
    * Normalizes camelCase (`streamUrl`) and snake_case (`stream_url`) payload serialization across Rust backend models and frontend JavaScript consumers.
-   * Ensures instant Tier 1 cache hits with diacritic stripping (`strip_accents`) when requesting regional music tracks (e.g. *"Construção"* -> `chico_buarque_construcao.opus`).
+
+---
+
+## 13. Sliding Lookahead Window & Multi-Seed Non-Stop Autopilot
+
+To guarantee continuous playback and zero dead-air buffer starvation across any environment (soundwalls, vehicles, parties), `QueueDaemon` and `CompositeSimilarityEngine` operate a dynamic sliding lookahead window:
+
+1. **Sliding Window Thresholds:**
+   * **Local Cache Window (5 Cantigas):** Ensures at least 5 upcoming tracks ahead of active playback are fully resolved and stored on disk as Opus files (`cached_path.is_some()`).
+   * **Remote Queue Window (10 Cantigas):** Ensures at least 10 upcoming tracks ahead of active playback are populated in the SQLite queue buffer.
+2. **Multi-Seed Recommendation Graph:**
+   * Instead of relying on a single seed track, `maintain_autopilot_queue_sliding` collects up to 5 multi-seeds from recent playback history and currently playing tracks.
+   * `find_similar_multi` and `get_recommendations_for_multi_seeds` traverse similarity graph edges, accumulating affinity weights and granting multi-seed connection bonuses while stripping diacritics (`strip_accents`) to avoid duplicate recommendations.
+3. **Non-Stop Mode & Cabin Control:**
+   * Each cabin maintains an independent `non_stop: bool` state, toggleable via WebSocket action (`TOGGLE_NON_STOP` / `SET_NON_STOP`).
+   * The cockpit UI provides a high-contrast neon switch (`#btn-toggle-nonstop`) displaying `🔁 NON-STOP: ON` or `⏸ NON-STOP: OFF`.
+   * When enabled, the daemon automatically replenishes upcoming slots as playback advances. When disabled, playback ceases once user-enqueued tracks exhaust.
 
 
 
