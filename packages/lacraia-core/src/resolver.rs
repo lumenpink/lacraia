@@ -1,6 +1,7 @@
 use crate::db::{Database, TrackRecord};
 use lacraia_shared::{
     is_title_clean, is_title_matching, is_valid_duration_delta, strip_accents,
+    CacheEntry, CacheResolutionAttempt,
 };
 use rustypipe::client::RustyPipe;
 use rustypipe::model::{AudioCodec, TrackItem};
@@ -346,7 +347,37 @@ impl MediaResolver {
                 if let Some(hit) = hit_path {
                     let hit_file = hit.file_name().and_then(|n| n.to_str()).unwrap_or(&safe_filename).to_string();
                     let hit_path_str = hit.to_string_lossy().to_string();
-                    info!("Tier 1 Cache hit for track '{}' from DB record at {}", track_id, hit_path_str);
+                    info!("Tier 0 Cache hit for track '{}' from DB record at {}", track_id, hit_path_str);
+                    let file_size_bytes = std::fs::metadata(&hit).map(|m| m.len()).unwrap_or(0);
+                    let now = chrono::Utc::now().timestamp();
+                    let _ = self.db.upsert_cache_entry(&CacheEntry {
+                        id: 0,
+                        track_id: existing.id.clone(),
+                        file_path: hit_path_str.clone(),
+                        file_size_bytes,
+                        duration_sec: existing.duration_sec,
+                        audio_codec: "opus".to_string(),
+                        hit_count: 1,
+                        last_served_at: now,
+                        created_at: now,
+                    });
+                    let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
+                        id: 0,
+                        track_id: existing.id.clone(),
+                        attempt_number: 1,
+                        tier: "tier_0_local".to_string(),
+                        method: "db_cache".to_string(),
+                        command_line: None,
+                        success: true,
+                        exit_code: Some(0),
+                        error_code: None,
+                        error_output: None,
+                        duration_ms: 0,
+                        bytes_received: file_size_bytes,
+                        validation_status: "valid".to_string(),
+                        cabin_id: None,
+                        created_at: now,
+                    });
                     return Ok(TrackResolution {
                         track_id: existing.id.clone(),
                         title: existing.title.clone(),
@@ -385,7 +416,7 @@ impl MediaResolver {
 
         if let Some((hit_file, hit_path)) = found_path {
             let hit_path_str = hit_path.to_string_lossy().to_string();
-            info!("Tier 1 Filesystem Cache hit for track '{}' at {}", track_id, hit_path_str);
+            info!("Tier 0 Filesystem Cache hit for track '{}' at {}", track_id, hit_path_str);
             let (tit, art, dur) = if let Some(existing) = db_existing {
                 (existing.title, existing.artist, existing.duration_sec)
             } else {
@@ -393,6 +424,36 @@ impl MediaResolver {
             };
             let _ = self.db.mark_cached(&track_id, &hit_file);
             let _ = self.db.mark_cached(&raw_track_id, &hit_file);
+            let file_size_bytes = std::fs::metadata(&hit_path).map(|m| m.len()).unwrap_or(0);
+            let now = chrono::Utc::now().timestamp();
+            let _ = self.db.upsert_cache_entry(&CacheEntry {
+                id: 0,
+                track_id: track_id.clone(),
+                file_path: hit_path_str.clone(),
+                file_size_bytes,
+                duration_sec: dur,
+                audio_codec: "opus".to_string(),
+                hit_count: 1,
+                last_served_at: now,
+                created_at: now,
+            });
+            let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
+                id: 0,
+                track_id: track_id.clone(),
+                attempt_number: 1,
+                tier: "tier_0_local".to_string(),
+                method: "filesystem_cache".to_string(),
+                command_line: None,
+                success: true,
+                exit_code: Some(0),
+                error_code: None,
+                error_output: None,
+                duration_ms: 0,
+                bytes_received: file_size_bytes,
+                validation_status: "valid".to_string(),
+                cabin_id: None,
+                created_at: now,
+            });
             return Ok(TrackResolution {
                 track_id,
                 title: tit,
@@ -403,19 +464,113 @@ impl MediaResolver {
             });
         }
 
-        // Tier 2: Try native Rust crate (RustyPipe)
-        let resolved_duration = match self
+        // Tier 1: Try native Rust crate (RustyPipe)
+        let mut attempt_num = 1;
+        let t0 = std::time::Instant::now();
+        let rp_res = self
             .resolve_via_rustypipe(artist, title, expected_duration_sec, &target_path)
-            .await
-        {
-            Ok(duration) => duration,
+            .await;
+        let rp_duration_ms = t0.elapsed().as_millis() as u64;
+
+        let resolved_duration = match rp_res {
+            Ok(duration) => {
+                let file_size_bytes = std::fs::metadata(&target_path).map(|m| m.len()).unwrap_or(0);
+                let now = chrono::Utc::now().timestamp();
+                let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
+                    id: 0,
+                    track_id: track_id.clone(),
+                    attempt_number: attempt_num,
+                    tier: "tier_1_direct".to_string(),
+                    method: "rustypipe_music_search".to_string(),
+                    command_line: None,
+                    success: true,
+                    exit_code: Some(0),
+                    error_code: None,
+                    error_output: None,
+                    duration_ms: rp_duration_ms,
+                    bytes_received: file_size_bytes,
+                    validation_status: "valid".to_string(),
+                    cabin_id: None,
+                    created_at: now,
+                });
+                duration
+            }
             Err(rp_err) => {
+                let now = chrono::Utc::now().timestamp();
+                let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
+                    id: 0,
+                    track_id: track_id.clone(),
+                    attempt_number: attempt_num,
+                    tier: "tier_1_direct".to_string(),
+                    method: "rustypipe_music_search".to_string(),
+                    command_line: None,
+                    success: false,
+                    exit_code: Some(1),
+                    error_code: Some("RUSTYPIPE_FAILED".to_string()),
+                    error_output: Some(rp_err.clone()),
+                    duration_ms: rp_duration_ms,
+                    bytes_received: 0,
+                    validation_status: "network_error".to_string(),
+                    cabin_id: None,
+                    created_at: now,
+                });
+                attempt_num += 1;
+
                 warn!(
-                    "MediaResolver: Tier 2 (RustyPipe) failed: {}. Activating Tier 3 (yt-dlp fallback)...",
+                    "MediaResolver: Tier 1 (RustyPipe) failed: {}. Activating Tier 3 (yt-dlp fallback)...",
                     rp_err
                 );
-                self.resolve_via_ytdlp(artist, title, expected_duration_sec, &target_path_str)
-                    .await?
+                let t1 = std::time::Instant::now();
+                let ytdlp_res = self
+                    .resolve_via_ytdlp(artist, title, expected_duration_sec, &target_path_str)
+                    .await;
+                let ytdlp_duration_ms = t1.elapsed().as_millis() as u64;
+                let now = chrono::Utc::now().timestamp();
+
+                match ytdlp_res {
+                    Ok(dur) => {
+                        let file_size_bytes = std::fs::metadata(&target_path).map(|m| m.len()).unwrap_or(0);
+                        let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
+                            id: 0,
+                            track_id: track_id.clone(),
+                            attempt_number: attempt_num,
+                            tier: "tier_3_ytdlp_android".to_string(),
+                            method: "ytdlp_android_client".to_string(),
+                            command_line: Some(format!("{} ytsearch5:...", self.ytdlp_bin)),
+                            success: true,
+                            exit_code: Some(0),
+                            error_code: None,
+                            error_output: None,
+                            duration_ms: ytdlp_duration_ms,
+                            bytes_received: file_size_bytes,
+                            validation_status: "valid".to_string(),
+                            cabin_id: None,
+                            created_at: now,
+                        });
+                        dur
+                    }
+                    Err(e) => {
+                        let err_msg = e.to_string();
+                        let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
+                            id: 0,
+                            track_id: track_id.clone(),
+                            attempt_number: attempt_num,
+                            tier: "tier_3_ytdlp_android".to_string(),
+                            method: "ytdlp_android_client".to_string(),
+                            command_line: Some(format!("{} ytsearch5:...", self.ytdlp_bin)),
+                            success: false,
+                            exit_code: Some(1),
+                            error_code: Some("YTDLP_FAILED".to_string()),
+                            error_output: Some(err_msg),
+                            duration_ms: ytdlp_duration_ms,
+                            bytes_received: 0,
+                            validation_status: "empty_file".to_string(),
+                            cabin_id: None,
+                            created_at: now,
+                        });
+                        return Err(e);
+                    }
+                }
             }
         };
 
@@ -431,6 +586,20 @@ impl MediaResolver {
         };
         self.db.upsert_track(&record)?;
         self.db.mark_cached(&track_id, &target_path_str)?;
+
+        let file_size_bytes = std::fs::metadata(&target_path).map(|m| m.len()).unwrap_or(0);
+        let now = chrono::Utc::now().timestamp();
+        let _ = self.db.upsert_cache_entry(&CacheEntry {
+            id: 0,
+            track_id: track_id.clone(),
+            file_path: target_path_str.clone(),
+            file_size_bytes,
+            duration_sec: resolved_duration,
+            audio_codec: "opus".to_string(),
+            hit_count: 1,
+            last_served_at: now,
+            created_at: now,
+        });
 
         Ok(TrackResolution {
             track_id,
