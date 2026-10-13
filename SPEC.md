@@ -88,8 +88,8 @@ The workspace is organized into modular Rust crates and an Android Kotlin multi-
 ### 3.4 `packages/lacraia-android` (Kotlin Android Multi-Module)
 - **Role:** Native Android applications derived from the `lacraia.2lp.in` domain.
 - **Modules:**
-  - `:app` (`in._2lp.lacraia.app`): Full-screen tactile console and crew jukebox (`lacraia-app.apk`).
-  - `:simbiotyka` (`in._2lp.lacraia.simbiotyka`): Floating lyric HUD overlay companion running as a Foreground Service (`simbiotyka.apk`).
+  - `:app` (`in.twolp.lacraia.app`): Full-screen tactile console and crew jukebox (`lacraia-app.apk`).
+  - `:simbiotyka` (`in.twolp.lacraia.simbiotyka`): Floating lyric HUD overlay companion running as a Foreground Service (`simbiotyka.apk`).
 
 ---
 
@@ -272,3 +272,31 @@ To prevent mobile chat truncation and aggressive 1:1 cropping across WhatsApp, T
 * **Metadata Length Bounds:**
   - `<meta property="og:title">`: 50 to 65 characters (maximum 70).
   - `<meta property="og:description">`: 120 to 155 characters (maximum 160).
+
+---
+
+## 13. Sovereign Android Distribution and Obtainium Ingestion
+
+To ensure autonomous and self-updating delivery across smartphones and vehicular soundwalls without gatekeeping by Google Play Store:
+1. **Canonical Package Identifiers:**
+   - Console & Jukebox: `in.twolp.lacraia.app` (`lacraia-app.apk`)
+   - Symbiotic Lyric HUD: `in.twolp.lacraia.simbiotyka` (`simbiotyka.apk`)
+2. **Sovereign Signing:**
+   - Production and continuous APKs are signed using the official key (`in_twolp`) backed by `~/.android/in_twolp_release.keystore` and verified via `apksigner`.
+3. **Distribution Endpoint & Headers (`https://lacraia.2lp.in`):**
+   - APK files are hosted directly at root: `https://lacraia.2lp.in/lacraia-app.apk` and `https://lacraia.2lp.in/simbiotyka.apk`.
+   - MIME type headers configured via `site/_headers`:
+     ```http
+     /*.apk
+       Content-Type: application/vnd.android.package-archive
+       Access-Control-Allow-Origin: *
+       Cache-Control: public, max-age=300, must-revalidate
+
+     /version.json
+       Content-Type: application/json; charset=utf-8
+       Access-Control-Allow-Origin: *
+       Cache-Control: public, max-age=300, must-revalidate
+     ```
+4. **Obtainium Autodiscovery:**
+   - The landing page (`site/index.html`) exposes an HTML scraping target containing direct links to both APKs and metadata cards indicating source URL (`https://lacraia.2lp.in`) and respective Package IDs.
+   - Version manifests (`site/version.json` and `site/version-nightly.json`) expose SemVer tags, published timestamps, and direct APK download targets.
