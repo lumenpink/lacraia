@@ -488,5 +488,36 @@ mod tests {
             258
         ));
     }
+
+    #[tokio::test]
+    async fn test_media_resolver_attempts_logging_and_cache_inventory() {
+        let tmp_dir = std::env::temp_dir().join(format!("lacraia_test_cache_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+
+        let db = Database::open_in_memory().unwrap();
+        let resolver = MediaResolver::new(tmp_dir.clone(), db.clone());
+
+        // 1. Simulate an existing file in cache (Tier 0 local cache hit)
+        let safe_filename = "chico_buarque_construcao.opus";
+        let file_path = tmp_dir.join(safe_filename);
+        std::fs::write(&file_path, b"FAKE_OPUS_AUDIO_BYTES_TEST").unwrap();
+
+        let res = resolver.resolve_and_cache("Chico Buarque", "Construção", 258).await.unwrap();
+        assert_eq!(res.track_id, "chico buarque:construcao");
+
+        // Must create/update cache_entries
+        let entry = db.get_cache_entry("chico buarque:construcao").unwrap().expect("Cache entry must be recorded in DB");
+        assert_eq!(entry.file_path, file_path.to_string_lossy().to_string());
+        assert_eq!(entry.file_size_bytes, 26);
+        assert!(entry.hit_count >= 1);
+
+        // Must record a Tier 0 success attempt
+        let attempts = db.get_resolution_attempts_for_track("chico buarque:construcao").unwrap();
+        assert!(!attempts.is_empty(), "Resolution attempts must record Tier 0 local cache hit");
+        assert!(attempts.iter().any(|a| a.tier == "tier_0_local" && a.success));
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+    }
 }
 
