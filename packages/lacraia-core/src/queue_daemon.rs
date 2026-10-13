@@ -71,18 +71,183 @@ impl QueueDaemon {
 
     pub fn find_prefetch_targets_for_window(
         &self,
-        _queue: &[(QueueEntry, TrackRecord)],
+        queue: &[(QueueEntry, TrackRecord)],
     ) -> Vec<TrackRecord> {
-        // Red test stub
-        vec![]
+        let mut playing_index = None;
+        for (i, (entry, _)) in queue.iter().enumerate() {
+            if entry.state == QueueState::Playing {
+                playing_index = Some(i);
+                break;
+            }
+        }
+
+        let start_index = match playing_index {
+            Some(idx) => idx + 1,
+            None => 0,
+        };
+
+        let mut cached_count = 0;
+        let mut uncached_candidates = Vec::new();
+
+        for (_, (entry, track)) in queue.iter().enumerate().skip(start_index) {
+            if entry.state == QueueState::Failed {
+                continue;
+            }
+            if track.cached_path.is_some() || entry.state == QueueState::Cached {
+                cached_count += 1;
+            } else if entry.state == QueueState::Pending {
+                uncached_candidates.push(track.clone());
+            }
+        }
+
+        if cached_count >= self.local_window {
+            return vec![];
+        }
+
+        let needed = self.local_window - cached_count;
+        uncached_candidates.into_iter().take(needed).collect()
     }
 
     pub async fn maintain_autopilot_queue_sliding(
         &self,
-        _cabin_id: &str,
+        cabin_id: &str,
     ) -> Result<usize, QueueDaemonError> {
-        // Red test stub
-        Ok(0)
+        if !self.hub.is_cabin_non_stop(cabin_id).await {
+            return Ok(0);
+        }
+
+        let queue = self.db.get_queue_for_cabin(cabin_id)?;
+
+        let mut playing_index = None;
+        let mut upcoming_count = 0;
+        let mut exclude_ids = Vec::new();
+
+        for (i, (entry, track)) in queue.iter().enumerate() {
+            exclude_ids.push(track.id.clone());
+            if entry.state == QueueState::Playing {
+                playing_index = Some(i);
+            }
+        }
+
+        let start_index = match playing_index {
+            Some(idx) => idx + 1,
+            None => 0,
+        };
+
+        for (_, (entry, _)) in queue.iter().enumerate().skip(start_index) {
+            if entry.state == QueueState::Pending || entry.state == QueueState::Cached {
+                upcoming_count += 1;
+            }
+        }
+
+        let is_playing_in_hub = self.hub.is_cabin_playing(cabin_id).await;
+        let has_playing_in_queue = queue.iter().any(|(e, _)| e.state == QueueState::Playing);
+        if !is_playing_in_hub && !has_playing_in_queue {
+            return Ok(0);
+        }
+
+        if upcoming_count >= self.remote_window {
+            return Ok(0);
+        }
+
+        let deficit = self.remote_window - upcoming_count;
+
+        // Multi-seed collection across recent history and active queue
+        let mut seeds: Vec<(String, String, String)> = Vec::new();
+        let mut seed_ids: Vec<String> = Vec::new();
+
+        // 1. Recent playback history from SQLite (up to 5 recent tracks)
+        if let Ok(history) = self.db.get_playback_history(Some(cabin_id), None, 5) {
+            for h in history {
+                if !seed_ids.contains(&h.track_id) {
+                    seeds.push((h.artist, h.title, h.track_id.clone()));
+                    seed_ids.push(h.track_id);
+                }
+            }
+        }
+
+        // 2. Currently playing / queued tracks
+        if let Some(current) = self.hub.get_current_track_for_cabin(cabin_id).await {
+            if !seed_ids.contains(&current.id) {
+                seeds.push((current.artist, current.title, current.id.clone()));
+                seed_ids.push(current.id);
+            }
+        }
+        for (_, t) in queue.iter().rev() {
+            if !seed_ids.contains(&t.id) {
+                seeds.push((t.artist.clone(), t.title.clone(), t.id.clone()));
+                seed_ids.push(t.id.clone());
+            }
+            if seeds.len() >= 5 {
+                break;
+            }
+        }
+
+        if seeds.is_empty() {
+            return Ok(0);
+        }
+
+        info!(
+            "Autopilot Sliding: Cabin '{}' has {} upcoming (target: {}). Multi-seed count: {} (deficit: {})",
+            cabin_id, upcoming_count, self.remote_window, seeds.len(), deficit
+        );
+
+        let mut candidates_to_add: Vec<(String, String, String, u64)> = Vec::new();
+
+        // Query multi-seed similarity engine
+        if let Ok(sim_results) = self.similarity.find_similar_multi(&seeds, deficit * 2).await {
+            for c in sim_results {
+                if !exclude_ids.contains(&c.id)
+                    && !candidates_to_add.iter().any(|(id, ..)| id == &c.id)
+                {
+                    candidates_to_add.push((c.id, c.artist, c.title, c.duration_sec.unwrap_or(210)));
+                    if candidates_to_add.len() >= deficit {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if candidates_to_add.len() < deficit {
+            let mut local_exclude = exclude_ids.clone();
+            for (id, ..) in &candidates_to_add {
+                local_exclude.push(id.clone());
+            }
+            if let Ok(local_recs) = self.db.get_recommendations_for_multi_seeds(&seed_ids, &local_exclude, deficit - candidates_to_add.len()) {
+                for r in local_recs {
+                    if !candidates_to_add.iter().any(|(id, ..)| id == &r.id) {
+                        candidates_to_add.push((r.id, r.artist, r.title, r.duration_sec));
+                        if candidates_to_add.len() >= deficit {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut enqueued = 0;
+        for (id, artist, title, dur) in candidates_to_add {
+            let record = TrackRecord {
+                id: id.clone(),
+                artist,
+                title,
+                duration_sec: dur,
+                cached_path: None,
+                genres: None,
+                last_played_at: None,
+            };
+            let _ = self.db.upsert_track(&record);
+            if let Ok(_) = self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id) {
+                enqueued += 1;
+            }
+        }
+
+        if enqueued > 0 {
+            info!("Autopilot Sliding: Enqueued {} tracks for cabin '{}'", enqueued, cabin_id);
+            self.hub.broadcast_state_for_cabin(cabin_id).await;
+        }
+
+        Ok(enqueued)
     }
 
     /// Identifies pending tracks within the lookahead window ahead of active playback.
@@ -250,7 +415,7 @@ impl QueueDaemon {
         }
 
         for cid in &cabin_ids {
-            let _ = self.maintain_autopilot_queue(cid, self.lookahead_window).await;
+            let _ = self.maintain_autopilot_queue_sliding(cid).await;
         }
 
         let mut all_queues = Vec::new();
@@ -260,7 +425,7 @@ impl QueueDaemon {
             }
         }
 
-        let targets = Self::find_prefetch_targets(&all_queues, self.lookahead_window);
+        let targets = self.find_prefetch_targets_for_window(&all_queues);
 
         let mut processed = 0;
         for track in targets {
@@ -476,7 +641,20 @@ mod tests {
             last_played_at: None,
         };
         db.upsert_track(&seed).unwrap();
-        db.enqueue_track_with_meta("seed_1", Some("PILOTO"), "cab_lookahead").unwrap();
+        for i in 1..=15 {
+            let trk = TrackRecord {
+                id: format!("cand_{}", i),
+                artist: "MC Serginho".into(),
+                title: format!("Funk Track {}", i),
+                duration_sec: 180 + i as u64,
+                cached_path: None,
+                genres: Some("funk".into()),
+                last_played_at: None,
+            };
+            db.upsert_track(&trk).unwrap();
+            db.insert_edge("seed_1", &format!("cand_{}", i), 0.95 - (i as f64 * 0.02), "test").unwrap();
+        }
+        db.play_now_with_meta("seed_1", Some("PILOTO"), "cab_lookahead").unwrap();
         let _ = hub.dispatch_command_with_role(lacraia_shared::CommandAction::Play, "cab_lookahead", Some(lacraia_shared::Role::Pilot)).await;
 
         // 2. Maintain autopilot with non-stop enabled -> must populate until 10 upcoming tracks
