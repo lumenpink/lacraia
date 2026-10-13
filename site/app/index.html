@@ -1372,6 +1372,13 @@
           </button>
         </div>
 
+        <!-- Non-Stop Autopilot Mode Toggle -->
+        <div style="display: flex; justify-content: center; margin-top: 8px;">
+          <button class="btn" id="btn-toggle-nonstop" data-active="true" title="Modo Contínuo Non-Stop (Autopilot Multi-Seed)" style="font-size: 11px; padding: 6px 14px; border: 1px solid var(--veneno-eletrico, #00ff66); background: rgba(0, 255, 102, 0.12); color: var(--veneno-eletrico, #00ff66); font-weight: 800; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
+            <span id="nonstop-icon">🔁</span> <span id="nonstop-label">NON-STOP: ON</span>
+          </button>
+        </div>
+
         <!-- Volume / Gain to 11 -->
         <div class="gain-strip">
           <span class="gain-label">POTÊNCIA (0..11)</span>
@@ -1720,6 +1727,7 @@
         crew: [],
         queue: [],
         station: "MPB & Samba",
+        nonStop: true,
         wsConnected: false
       };
 
@@ -1811,6 +1819,7 @@
       const playText = document.getElementById("play-text");
       const btnPrev = document.getElementById("btn-prev");
       const btnNext = document.getElementById("btn-next");
+      const btnToggleNonStop = document.getElementById("btn-toggle-nonstop");
       const progressTrack = document.getElementById("progress-track");
       const progressFill = document.getElementById("progress-fill");
       const timeCurrent = document.getElementById("time-current");
@@ -1970,6 +1979,25 @@
           doorBadge.className = "badge badge-live";
           doorBtnIcon.textContent = "🔒";
           doorBtnText.textContent = "TRANCAR CABINE";
+        }
+
+        // Non-Stop Autopilot Mode
+        if (btnToggleNonStop) {
+          if (state.nonStop) {
+            btnToggleNonStop.setAttribute("data-active", "true");
+            btnToggleNonStop.classList.add("active");
+            btnToggleNonStop.innerHTML = '<span id="nonstop-icon">🔁</span> <span id="nonstop-label">NON-STOP: ON</span>';
+            btnToggleNonStop.style.borderColor = "var(--veneno-eletrico, #00ff66)";
+            btnToggleNonStop.style.color = "var(--veneno-eletrico, #00ff66)";
+            btnToggleNonStop.style.background = "rgba(0, 255, 102, 0.12)";
+          } else {
+            btnToggleNonStop.setAttribute("data-active", "false");
+            btnToggleNonStop.classList.remove("active");
+            btnToggleNonStop.innerHTML = '<span id="nonstop-icon">⏸</span> <span id="nonstop-label">NON-STOP: OFF</span>';
+            btnToggleNonStop.style.borderColor = "var(--chumbo, #666)";
+            btnToggleNonStop.style.color = "var(--chumbo, #888)";
+            btnToggleNonStop.style.background = "rgba(255, 255, 255, 0.05)";
+          }
         }
 
         // Crew
@@ -2341,6 +2369,13 @@
       btnPrev.addEventListener("click", () => requirePilot(prevTrack));
       btnToggleDoor.addEventListener("click", () => requirePilot(toggleDoors));
       btnEjectAll.addEventListener("click", () => requirePilot(ejectAll));
+      if (btnToggleNonStop) {
+        btnToggleNonStop.addEventListener("click", () => {
+          state.nonStop = !state.nonStop;
+          renderState();
+          sendWsCommand({ action: "TOGGLE_NON_STOP" });
+        });
+      }
 
       gainSlider.addEventListener("input", (e) => {
         setGain(parseInt(e.target.value, 10));
@@ -3486,6 +3521,9 @@
           }
           if (msg.payload.isLocked !== undefined) {
             state.isLocked = msg.payload.isLocked;
+          }
+          if (msg.payload.nonStop !== undefined) {
+            state.nonStop = msg.payload.nonStop;
           }
           if (msg.payload.queue && Array.isArray(msg.payload.queue)) {
             state.queue = msg.payload.queue.map(enrichTrackStreamUrl);
