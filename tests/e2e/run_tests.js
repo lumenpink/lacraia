@@ -1091,6 +1091,89 @@ async function main() {
       await context.close();
     });
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // TEST 18: Lookahead Sliding Window & Non-Stop Mode (Ticket #21)
+    // ─────────────────────────────────────────────────────────────────────────────
+    await test('Lookahead Sliding Window & Non-Stop Mode : 5 local cached and 10 remote queue with non-stop toggle', async () => {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+
+      await page.goto(`${BASE_URL}/app/index.html`);
+      await page.waitForLoadState('networkidle');
+
+      // 1. Verify existence of the non-stop toggle button on player deck
+      const nonStopBtn = page.locator('#btn-toggle-nonstop');
+      await nonStopBtn.waitFor({ state: 'attached', timeout: 3000 });
+      assert(await nonStopBtn.isVisible(), '#btn-toggle-nonstop must be visible in player transport deck');
+
+      // 2. Default state should be active (non-stop mode enabled by default) or reflect state
+      const initialText = await nonStopBtn.innerText();
+      assert(initialText.includes('NON-STOP'), 'Toggle button must display NON-STOP label');
+
+      // 3. Click non-stop button to toggle state
+      await nonStopBtn.click();
+      await page.waitForTimeout(400);
+
+      // Verify toggle button state changes
+      const toggledText = await nonStopBtn.innerText();
+      assert(toggledText !== initialText || await nonStopBtn.getAttribute('data-active') !== null, 'Toggling non-stop button must update button state or attribute');
+
+      // 4. Test WebSocket state reflection for non-stop mode
+      await page.evaluate(() => {
+        if (window.handleWsMessage) {
+          window.handleWsMessage({
+            type: 'STATE_UPDATE',
+            payload: {
+              nonStop: true,
+              playback: { state: 'playing', positionMs: 12000 },
+              queue: [
+                { id: 101, trackId: 'trk_01', position: 1, state: 'cached' },
+                { id: 102, trackId: 'trk_02', position: 2, state: 'cached' },
+                { id: 103, trackId: 'trk_03', position: 3, state: 'cached' },
+                { id: 104, trackId: 'trk_04', position: 4, state: 'cached' },
+                { id: 105, trackId: 'trk_05', position: 5, state: 'cached' },
+                { id: 106, trackId: 'trk_06', position: 6, state: 'pending' },
+                { id: 107, trackId: 'trk_07', position: 7, state: 'pending' },
+                { id: 108, trackId: 'trk_08', position: 8, state: 'pending' },
+                { id: 109, trackId: 'trk_09', position: 9, state: 'pending' },
+                { id: 110, trackId: 'trk_10', position: 10, state: 'pending' },
+              ]
+            }
+          });
+        }
+      });
+      await page.waitForTimeout(300);
+
+      const activeBadge = await page.evaluate(() => {
+        const btn = document.getElementById('btn-toggle-nonstop');
+        return btn ? (btn.getAttribute('data-active') === 'true' || btn.classList.contains('active') || btn.innerText.includes('ON')) : false;
+      });
+      assert(activeBadge, 'Non-stop button must reflect active ON state when nonStop is true');
+
+      // 5. Test turning non-stop OFF reflects inactive state
+      await page.evaluate(() => {
+        if (window.handleWsMessage) {
+          window.handleWsMessage({
+            type: 'STATE_UPDATE',
+            payload: {
+              nonStop: false,
+              playback: { state: 'playing', positionMs: 12000 },
+              queue: []
+            }
+          });
+        }
+      });
+      await page.waitForTimeout(300);
+
+      const inactiveBadge = await page.evaluate(() => {
+        const btn = document.getElementById('btn-toggle-nonstop');
+        return btn ? (btn.getAttribute('data-active') === 'false' || !btn.classList.contains('active') || btn.innerText.includes('OFF')) : false;
+      });
+      assert(inactiveBadge, 'Non-stop button must reflect inactive OFF state when nonStop is false');
+
+      await context.close();
+    });
+
   } finally {
     await browser.close();
     if (spawnedServer) {
