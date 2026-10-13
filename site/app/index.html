@@ -736,8 +736,48 @@
     .search-item-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       flex-shrink: 0;
+    }
+
+    .btn-action-icon {
+      padding: 3px 6px;
+      font-size: 11px;
+      line-height: 1;
+      border-radius: 2px;
+      border: 1px solid var(--chumbo);
+      background: var(--asfalto-molhado);
+      color: var(--branco-osso);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-action-icon:hover {
+      transform: scale(1.1);
+    }
+
+    .btn-action-icon[data-action="play_now"]:hover {
+      border-color: var(--veneno-eletrico);
+      color: var(--veneno-eletrico);
+      box-shadow: 0 0 6px rgba(57, 255, 20, 0.4);
+    }
+
+    .btn-action-icon[data-action="play_next"]:hover {
+      border-color: var(--alerta-solavanco);
+      color: var(--alerta-solavanco);
+      box-shadow: 0 0 6px rgba(255, 170, 0, 0.4);
+    }
+
+    .btn-action-icon[data-action="enqueue"]:hover {
+      border-color: var(--branco-osso);
+      color: var(--branco-osso);
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-action-icon[data-action="start_radio"]:hover {
+      border-color: var(--rosa-choque-estroboscopico);
+      color: var(--rosa-choque-estroboscopico);
+      box-shadow: 0 0 6px rgba(255, 0, 127, 0.4);
     }
 
     .pill-cloud {
@@ -2223,13 +2263,29 @@
         } catch (_) {}
       }
 
-      function enqueueCandidate(candidate) {
+      function enqueueCandidate(candidate, actionType = "enqueue") {
         cacheTrackStreamUrl(candidate);
         const reqUser = (state.role === "PILOTO" || state.role === "MASTER") ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
 
+        let actionCmd = "QUEUE_APPEND";
+        let toastMsg = `➕ "${candidate.title.toUpperCase()}" ADICIONADA À FILA!`;
+
+        if (actionType === "play_now") {
+          actionCmd = "PLAY_NOW";
+          toastMsg = `▶ TOCANDO "${candidate.title.toUpperCase()}" AGORA!`;
+          syncAudioEngineWithTrack(candidate);
+        } else if (actionType === "play_next") {
+          actionCmd = "QUEUE_NEXT";
+          toastMsg = `⏭ "${candidate.title.toUpperCase()}" NA SEQUÊNCIA!`;
+        } else if (actionType === "start_radio") {
+          actionCmd = "START_RADIO";
+          toastMsg = `📻 RÁDIO INICIADA: "${candidate.title.toUpperCase()}"!`;
+          syncAudioEngineWithTrack(candidate);
+        }
+
         if (ws && ws.readyState === WebSocket.OPEN) {
           sendWsCommand({
-            action: "QUEUE_APPEND",
+            action: actionCmd,
             trackId: candidate.id,
             requestedBy: reqUser
           });
@@ -2239,6 +2295,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              action: actionCmd,
               trackId: candidate.id,
               requestedBy: reqUser,
               cabinId: state.cabinId || "default"
@@ -2248,7 +2305,7 @@
           }).catch(() => {});
         }
 
-        showToast(`✔ "${candidate.title.toUpperCase()}" ENFILEIRADA!`);
+        showToast(toastMsg);
         searchDropdown.style.display = "none";
         searchDropdown.innerHTML = "";
         enqueueInput.value = "";
@@ -2361,21 +2418,62 @@
           pill.textContent = item.cached ? "⚡ CACHED" : "☁ NUVEM";
           actionsDiv.appendChild(pill);
 
-          const addBtn = document.createElement("button");
-          addBtn.type = "button";
-          addBtn.className = "btn btn-main";
-          addBtn.style.cssText = "padding: 3px 8px; font-size: 10px;";
-          addBtn.textContent = "➕ FILA";
-          addBtn.onclick = (e) => {
+          // 1. Tocar Agora (Play Now)
+          const playNowBtn = document.createElement("button");
+          playNowBtn.type = "button";
+          playNowBtn.className = "btn btn-action-icon";
+          playNowBtn.dataset.action = "play_now";
+          playNowBtn.title = "Tocar Agora (interrompe e toca imediatamente)";
+          playNowBtn.textContent = "▶";
+          playNowBtn.onclick = (e) => {
             e.stopPropagation();
-            enqueueCandidate(item);
+            enqueueCandidate(item, "play_now");
           };
-          actionsDiv.appendChild(addBtn);
+          actionsDiv.appendChild(playNowBtn);
+
+          // 2. Tocar na Sequência (Play Next)
+          const playNextBtn = document.createElement("button");
+          playNextBtn.type = "button";
+          playNextBtn.className = "btn btn-action-icon";
+          playNextBtn.dataset.action = "play_next";
+          playNextBtn.title = "Tocar na Sequência (próxima da fila)";
+          playNextBtn.textContent = "⏭";
+          playNextBtn.onclick = (e) => {
+            e.stopPropagation();
+            enqueueCandidate(item, "play_next");
+          };
+          actionsDiv.appendChild(playNextBtn);
+
+          // 3. Adicionar à Fila (Enqueue)
+          const enqueueBtn = document.createElement("button");
+          enqueueBtn.type = "button";
+          enqueueBtn.className = "btn btn-action-icon";
+          enqueueBtn.dataset.action = "enqueue";
+          enqueueBtn.title = "Adicionar à Fila (fim da fila)";
+          enqueueBtn.textContent = "➕";
+          enqueueBtn.onclick = (e) => {
+            e.stopPropagation();
+            enqueueCandidate(item, "enqueue");
+          };
+          actionsDiv.appendChild(enqueueBtn);
+
+          // 4. Iniciar Rádio a partir da Música (Start Radio)
+          const startRadioBtn = document.createElement("button");
+          startRadioBtn.type = "button";
+          startRadioBtn.className = "btn btn-action-icon";
+          startRadioBtn.dataset.action = "start_radio";
+          startRadioBtn.title = "Iniciar Rádio a partir desta cantiga";
+          startRadioBtn.textContent = "📻";
+          startRadioBtn.onclick = (e) => {
+            e.stopPropagation();
+            enqueueCandidate(item, "start_radio");
+          };
+          actionsDiv.appendChild(startRadioBtn);
 
           row.appendChild(infoDiv);
           row.appendChild(actionsDiv);
 
-          row.onclick = () => enqueueCandidate(item);
+          row.onclick = () => enqueueCandidate(item, "enqueue");
           searchDropdown.appendChild(row);
         });
 
