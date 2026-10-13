@@ -371,3 +371,16 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
   - Redução de tempo de processamento de áudio para < 300ms por faixa.
   - Cobertura de testes unitários e de integração de remux direto com FFmpeg.
 
+---
+
+### Issue #27: Horizonte Temporal Acumulado de 3600s para Fila Remota e Cache Local
+* **Package:** `packages/lacraia-core`
+* **Goal:** Substituir o dimensionamento estritamente cardinal de faixas por horizonte temporal contínuo de 3600 segundos (1 hora cheia, ~57 MB em disco a 128 kbps), blindando a reprodução contra apagões e zonas cegas rodoviárias severas ($P_{99}$).
+* **Acceptance Criteria:**
+  - `QueueDaemon::new_with_temporal_window` e construtor padrão com `target_cache_duration_sec = 3600` e `target_queue_duration_sec = 3600`.
+  - `find_prefetch_targets_for_window` acumulando duração de cantigas uncached até atingir o horizonte temporal de cache.
+  - `maintain_autopilot_queue_sliding` calculando déficit temporal em segundos e enfileirando candidatos via grafo de similaridade multi-semente até cobrir a duração alvo.
+  - Compatibilidade retroativa mantida para janelas cardinais (`target = 0`).
+  - Cobertura de testes unitários validando preenchimento com cantigas de durações variadas.
+
+
