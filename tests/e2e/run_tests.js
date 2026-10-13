@@ -968,6 +968,88 @@ async function main() {
       await context.close();
     });
 
+    // -------------------------------------------------------------
+    // Test 17: Buffer Starvation HUD Banner Overlay
+    // -------------------------------------------------------------
+    await test('Buffer Starvation HUD : Displays alert banner overlay distinguishing local vs remote starvation', async () => {
+      const cabinId = `starve_e2e_${Date.now()}`;
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page = await context.newPage();
+      await page.goto(`${BASE_URL}/app?cabin=${cabinId}&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(600);
+
+      // Verify #player-starvation-hud exists and is initially hidden
+      const hud = page.locator('#player-starvation-hud');
+      await hud.waitFor({ state: 'attached', timeout: 5000 });
+      const initialVisible = await hud.isVisible();
+      assert(!initialVisible, '#player-starvation-hud must be hidden when playback is normal');
+
+      // 1. Simulate Local Cache Missing alert
+      await page.evaluate((cid) => {
+        if (typeof window.handleWsMessage === 'function') {
+          window.handleWsMessage({
+            type: 'CACHE_ALERT',
+            payload: {
+              cabinId: cid,
+              starvationType: 'local_cache_missing',
+              message: 'CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM',
+              active: true,
+            }
+          });
+        }
+      }, cabinId);
+      await page.waitForTimeout(300);
+
+      assert(await hud.isVisible(), '#player-starvation-hud must be visible when local cache alert is active');
+      const localText = await hud.textContent();
+      assert(
+        localText.toUpperCase().includes('LOCAL') || localText.toUpperCase().includes('FALTA'),
+        `HUD banner must explicitly indicate local cache missing, got '${localText}'`
+      );
+
+      // 2. Simulate Remote Buffer Starved alert
+      await page.evaluate((cid) => {
+        if (typeof window.handleWsMessage === 'function') {
+          window.handleWsMessage({
+            type: 'CACHE_ALERT',
+            payload: {
+              cabinId: cid,
+              starvationType: 'remote_buffer_starved',
+              message: 'BUFFER REMOTO ESGOTADO :: AGUARDANDO FLUXO',
+              active: true,
+            }
+          });
+        }
+      }, cabinId);
+      await page.waitForTimeout(300);
+
+      const remoteText = await hud.textContent();
+      assert(
+        remoteText.toUpperCase().includes('REMOTO') || remoteText.toUpperCase().includes('BUFFER'),
+        `HUD banner must explicitly indicate remote buffer starvation, got '${remoteText}'`
+      );
+
+      // 3. Clear alert (active: false or audio playing)
+      await page.evaluate((cid) => {
+        if (typeof window.handleWsMessage === 'function') {
+          window.handleWsMessage({
+            type: 'CACHE_ALERT',
+            payload: {
+              cabinId: cid,
+              starvationType: 'remote_buffer_starved',
+              message: '',
+              active: false,
+            }
+          });
+        }
+      }, cabinId);
+      await page.waitForTimeout(300);
+
+      assert(!(await hud.isVisible()), '#player-starvation-hud must be hidden once starvation condition resolves');
+
+      await context.close();
+    });
+
   } finally {
     await browser.close();
     if (spawnedServer) {
