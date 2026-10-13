@@ -445,9 +445,27 @@ async function main() {
       // Verify dropdown closes on click outside
       await input.fill('Tom');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
-      await page.click('header');
+      await page.click('.brand-title');
       await page.waitForTimeout(200);
       assert(!(await dropdown.isVisible()), 'Dropdown must close when clicking outside');
+
+      // Test Play Now action button on candidate
+      await input.fill('Kraftwerk');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const kwRow = dropdown.locator('.search-item').first();
+      await kwRow.locator('button[data-action="play_now"]').click();
+      await page.waitForTimeout(800);
+      const titleAfterPlayNow = await page.locator('#track-title').textContent();
+      assert(titleAfterPlayNow.includes('Autobahn') || titleAfterPlayNow.includes('Kraftwerk'), 'Play Now button must immediately switch active track');
+
+      // Test Play Next action button on candidate
+      await input.fill('Daft');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const daftRow = dropdown.locator('.search-item').first();
+      await daftRow.locator('button[data-action="play_next"]').click();
+      await page.waitForTimeout(800);
+      const firstUpcomingTitle = await page.locator('.queue-item-row .queue-item-title').first().textContent();
+      assert(firstUpcomingTitle.includes('One More Time') || firstUpcomingTitle.includes('Daft') || firstUpcomingTitle.includes('Aerodynamic'), 'Play Next button must insert track at head of upcoming queue');
 
       await context.close();
     });
