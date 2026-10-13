@@ -405,5 +405,16 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
   - Modal `#settings-modal` no app web com seletores de unidade, validação tátil e persistência.
   - Cobertura com testes unitários, testes de conversão e teste Playwright E2E.
 
+---
 
-
+### Issue #28: Separação da Suíte E2E em Regressão Rápida e Modo Exaustivo Sob Demanda
+* **Package:** `tests/e2e`, `.forgejo/workflows`
+* **Goal:** Desacoplar os testes automatizados com navegador Playwright do caminho crítico de commit/push, criando modos de execução (`--smoke`, regressão padrão, e `--exhaustive`), com cenários aprofundados de estresse e workflow sob demanda no Codeberg.
+* **Acceptance Criteria:**
+  - `run_tests.js` suportando flags `--smoke` e `--exhaustive`.
+  - Suíte `--smoke` executando em < 5s com verificações vitais.
+  - Suíte padrão mantendo os 19 cenários canônicos.
+  - Suíte `--exhaustive` adicionando: Fuzzing de busca, estresse concorrente multi-cabine e soak test de lookahead contínuo.
+  - `tests/e2e/package.json` expondo `test:smoke`, `test` e `test:exhaustive`.
+  - Workflow dedicado `.forgejo/workflows/e2e-exhaustive.yml` disparável via `workflow_dispatch` e tags de release.
+  - Fluxo principal `ci.yml` preservado exclusivamente no Fast Gate Rust (`cargo test --workspace`).

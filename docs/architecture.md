@@ -333,5 +333,28 @@ To accommodate varying journey lengths, device memory limits, and user preferenc
 4. **Cockpit Settings Modal:**
    * Interactive dialog providing ergonomic unit switches (`[Hours, Minutes]` and `[MB, GB]`) with defensive bounds checking.
 
+---
 
+## 17. Multi-Tiered Testing Pyramid & E2E Execution Modes
 
+To guarantee high velocity in development while maintaining complete systemic resilience, testing is strictly decoupled into distinct operational tiers:
+
+1. **Tier 1 — Fast Gate (Rust Workspace, Commit & PR Mandatory):**
+   * Commands: `cargo test --workspace` & `cargo clippy --workspace`.
+   * Scope: In-memory SQLite state, audio math, protocol serde, sliding window calculation, and mock daemon lifecycle.
+   * Latency: Sub-15 seconds. Runs on every commit and pre-push hook without graphical browser or container overhead.
+
+2. **Tier 2 — Smoke E2E (`node run_tests.js --smoke`):**
+   * Scope: Fast sanity verification (< 5s). Tests portal loading, cockpit navigation telemetry, and audio engine initialization.
+   * Execution: Rapid local check before feature testing.
+
+3. **Tier 3 — Canonical Regression E2E (`node run_tests.js`):**
+   * Scope: 19 core end-to-end scenarios covering security/roles, WebSocket protocols, station dials, cabin locks, and sliding lookahead.
+   * Execution: Local integration validation during GOST Phase 8 Quality Gate.
+
+4. **Tier 4 — Exhaustive Deep Suite (`node run_tests.js --exhaustive`):**
+   * Scope: Heavy automated stress testing:
+     * **Jukebox Input Fuzzing:** Automated injection of extreme Unicode, XSS/SQL escape attempts, and long payloads.
+     * **Concurrent Multi-Cabin Stress:** Simultaneous multi-passenger contention across isolated cabins (`cab-alpha`, `cab-beta`, `cab-gamma`).
+     * **Autopilot Endurance / Soak Simulation:** Long-running simulated playback across dozens of consecutive tracks verifying sliding window lookahead memory stability.
+   * Execution: On-demand via `.forgejo/workflows/e2e-exhaustive.yml` (`workflow_dispatch`), nightly schedules, or release tags (`v*`). Decoupled from fast push pipelines.
