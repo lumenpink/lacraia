@@ -85,3 +85,24 @@ pub struct PlaybackHistoryEntry {
     pub duration_sec: u64,
 }
 
+/// Starvation or cache absence alert classification.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CacheStarvationType {
+    /// Track has no local file in /cache/ and requires remote cloud fetching.
+    LocalCacheMissing,
+    /// Remote network stream exhausted / buffer underrun during active playback.
+    RemoteBufferStarved,
+}
+
+/// Alert notification payload describing buffer starvation or cache absence over the player deck.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CacheAlertInfo {
+    #[serde(rename = "starvationType")]
+    pub starvation_type: CacheStarvationType,
+    pub message: String,
+    #[serde(rename = "trackId", default)]
+    pub track_id: Option<String>,
+}
+
+

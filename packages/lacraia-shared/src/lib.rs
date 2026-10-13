@@ -5,8 +5,11 @@ pub mod protocol;
 
 pub use fuzzy::{is_title_clean, is_title_matching, is_valid_duration_delta, strip_accents};
 pub use lrc::{parse_lrc, LyricLine};
-pub use models::{CabinInfo, PassengerInfo, PlaybackHistoryEntry, PlaybackState, Role, Track};
+pub use models::{
+    CabinInfo, CacheAlertInfo, CacheStarvationType, PassengerInfo, PlaybackHistoryEntry,
+    PlaybackState, Role, Track,
+};
 pub use protocol::{
-    CabinLockedNotification, Command, CommandAction, CrewUpdate, EjectedNotification,
-    PlaybackDetails, QueueItem, StatePayload, StateUpdate, WsMessage,
+    CabinLockedNotification, CacheAlertNotification, Command, CommandAction, CrewUpdate,
+    EjectedNotification, PlaybackDetails, QueueItem, StatePayload, StateUpdate, WsMessage,
 };

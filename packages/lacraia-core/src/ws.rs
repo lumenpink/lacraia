@@ -545,6 +545,7 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
                 WsMessage::CrewUpdate(c) => c.cabin_id == cabin_id_for_send,
                 WsMessage::Ejected(e) => e.cabin_id == cabin_id_for_send,
                 WsMessage::CabinLocked(l) => l.cabin_id == cabin_id_for_send,
+                WsMessage::CacheAlert(a) => a.cabin_id == cabin_id_for_send,
                 WsMessage::Command(_) => false,
             };
 

@@ -14,6 +14,20 @@ pub enum WsMessage {
     Ejected(EjectedNotification),
     #[serde(rename = "CABIN_LOCKED")]
     CabinLocked(CabinLockedNotification),
+    #[serde(rename = "CACHE_ALERT")]
+    CacheAlert(CacheAlertNotification),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CacheAlertNotification {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    #[serde(rename = "starvationType")]
+    pub starvation_type: crate::models::CacheStarvationType,
+    pub message: String,
+    #[serde(rename = "trackId", default)]
+    pub track_id: Option<String>,
+    pub active: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -296,6 +310,24 @@ mod tests {
         let json_ejected = serde_json::to_string(&ejected_msg).unwrap();
         assert!(json_ejected.contains("EJECTED"));
         assert!(json_ejected.contains("Chute da cabine"));
+    }
+
+    #[test]
+    fn test_serialize_cache_alert_notification() {
+        let alert = WsMessage::CacheAlert(CacheAlertNotification {
+            cabin_id: "cabin_test".into(),
+            starvation_type: crate::models::CacheStarvationType::LocalCacheMissing,
+            message: "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM".into(),
+            track_id: Some("trk_starved_1".into()),
+            active: true,
+        });
+        let json_alert = serde_json::to_string(&alert).unwrap();
+        assert!(json_alert.contains("CACHE_ALERT"));
+        assert!(json_alert.contains("LOCAL_CACHE_MISSING"));
+        assert!(json_alert.contains("trk_starved_1"));
+
+        let deserialized: WsMessage = serde_json::from_str(&json_alert).unwrap();
+        assert_eq!(deserialized, alert);
     }
 }
 
