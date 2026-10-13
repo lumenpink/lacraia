@@ -280,6 +280,84 @@
       font-weight: bold;
     }
 
+    /* Buffer Starvation / Cache Missing HUD Overlay */
+    .player-starvation-hud {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      margin-bottom: 6px;
+      background: rgba(20, 10, 0, 0.92);
+      border: 2px solid var(--alerta-solavanco, #ffaa00);
+      box-shadow: 0 0 16px rgba(255, 170, 0, 0.4), inset 0 0 10px rgba(255, 170, 0, 0.2);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      animation: starvation-pulse 1.4s ease-in-out infinite alternate;
+      z-index: 10;
+    }
+
+    .player-starvation-hud.starvation-remote {
+      border-color: var(--curto-circuito, #ff0055);
+      box-shadow: 0 0 16px rgba(255, 0, 85, 0.5), inset 0 0 10px rgba(255, 0, 85, 0.25);
+    }
+
+    .player-starvation-hud.starvation-remote .starvation-hud-badge {
+      background: var(--curto-circuito, #ff0055);
+      color: #000000;
+    }
+
+    .starvation-hud-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .starvation-hud-text-container {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .starvation-hud-title {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      color: var(--alerta-solavanco, #ffaa00);
+      text-transform: uppercase;
+    }
+
+    .player-starvation-hud.starvation-remote .starvation-hud-title {
+      color: var(--curto-circuito, #ff0055);
+    }
+
+    .starvation-hud-detail {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .starvation-hud-badge {
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      padding: 3px 6px;
+      border-radius: 2px;
+      background: var(--alerta-solavanco, #ffaa00);
+      color: #000000;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    @keyframes starvation-pulse {
+      from { box-shadow: 0 0 8px rgba(255, 170, 0, 0.3); }
+      to { box-shadow: 0 0 20px rgba(255, 170, 0, 0.7); }
+    }
+
     /* Waveform visualizer canvas */
     .visualizer-header {
       display: flex;
@@ -1225,6 +1303,16 @@
       </div>
 
       <div class="panel-body">
+        <!-- Buffer Starvation / Cache Absence HUD Banner Overlay -->
+        <div id="player-starvation-hud" class="player-starvation-hud" role="alert" aria-live="polite" style="display: none;">
+          <span class="starvation-hud-icon">⚠️</span>
+          <div class="starvation-hud-text-container">
+            <span class="starvation-hud-title" id="starvation-hud-title">INTERRUPÇÃO DE FLUXO :: CACHE EM FALTA</span>
+            <span class="starvation-hud-detail" id="starvation-hud-detail">CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM</span>
+          </div>
+          <span class="starvation-hud-badge" id="starvation-hud-badge">CACHE LOCAL</span>
+        </div>
+
         <!-- Deck Top: Cover + Track Info -->
         <div class="deck-top">
           <div class="cassette-box" id="cassette-container">
@@ -1746,6 +1834,33 @@
       const historyListContainer = document.getElementById("history-list-container");
       const historyCountEl = document.getElementById("history-count");
 
+      // Starvation HUD Banner Elements
+      const playerStarvationHud = document.getElementById("player-starvation-hud");
+      const starvationHudTitle = document.getElementById("starvation-hud-title");
+      const starvationHudDetail = document.getElementById("starvation-hud-detail");
+      const starvationHudBadge = document.getElementById("starvation-hud-badge");
+
+      function showStarvationHud(type, message) {
+        if (!playerStarvationHud) return;
+        const isRemote = type === "remote_buffer_starved" || (type || "").toUpperCase().includes("REMOTE");
+        playerStarvationHud.classList.toggle("starvation-remote", isRemote);
+        playerStarvationHud.classList.toggle("starvation-local", !isRemote);
+        if (isRemote) {
+          if (starvationHudTitle) starvationHudTitle.textContent = "ESTRANGULAMENTO :: BUFFER REMOTO ESGOTADO";
+          if (starvationHudDetail) starvationHudDetail.textContent = message || "BUFFER REMOTO ESGOTADO :: AGUARDANDO FLUXO";
+          if (starvationHudBadge) starvationHudBadge.textContent = "BUFFER REMOTO";
+        } else {
+          if (starvationHudTitle) starvationHudTitle.textContent = "INTERRUPÇÃO DE FLUXO :: CACHE LOCAL EM FALTA";
+          if (starvationHudDetail) starvationHudDetail.textContent = message || "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM";
+          if (starvationHudBadge) starvationHudBadge.textContent = "CACHE LOCAL";
+        }
+        playerStarvationHud.style.display = "flex";
+      }
+
+      function hideStarvationHud() {
+        if (!playerStarvationHud) return;
+        playerStarvationHud.style.display = "none";
+      }
 
       // Time formatter
       function formatTime(ms) {
@@ -2166,9 +2281,22 @@
       });
 
       audio.addEventListener("canplay", () => {
+        hideStarvationHud();
         if (state.isPlaying && audio.paused) {
           audio.play().catch(e => console.warn("Audio canplay auto-play prevented:", e));
         }
+      });
+
+      audio.addEventListener("playing", () => {
+        hideStarvationHud();
+      });
+
+      audio.addEventListener("waiting", () => {
+        showStarvationHud("remote_buffer_starved", "BUFFER REMOTO ESGOTADO :: AGUARDANDO FLUXO");
+      });
+
+      audio.addEventListener("stalled", () => {
+        showStarvationHud("remote_buffer_starved", "BUFFER REMOTO ESGOTADO :: FLUXO INTERROMPIDO");
       });
 
       function toggleDoors() {
@@ -3300,6 +3428,77 @@
         connectWs();
       }
 
+      function handleWsMessage(msg) {
+        if (!msg) return;
+        const type = (msg.type || "").toUpperCase();
+        if (type === "CACHE_ALERT") {
+          const alertData = msg.payload || msg;
+          if (alertData.cabinId && state.cabinId && alertData.cabinId !== state.cabinId) {
+            return;
+          }
+          if (alertData.active) {
+            const sType = alertData.starvationType || alertData.starvation_type || "local_cache_missing";
+            showStarvationHud(sType, alertData.message);
+          } else {
+            hideStarvationHud();
+          }
+          return;
+        }
+        if (type === "STATE_UPDATE" && msg.payload) {
+          // Ignore state updates belonging to another cabin
+          if (msg.payload.cabinId && state.cabinId && msg.payload.cabinId !== state.cabinId) {
+            return;
+          }
+          if (msg.payload.track) {
+            DEMO_PLAYLIST[state.currentIndex] = msg.payload.track;
+            state.currentTrack = msg.payload.track;
+            syncAudioEngineWithTrack(msg.payload.track);
+          }
+          if (msg.payload.playback) {
+            state.isPlaying = (msg.payload.playback.state || "").toUpperCase() === "PLAYING";
+            if (msg.payload.playback.positionMs !== undefined && Math.abs((state.positionMs || 0) - msg.payload.playback.positionMs) > 2500) {
+              state.positionMs = msg.payload.playback.positionMs;
+              if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+                audio.currentTime = state.positionMs / 1000;
+              }
+            }
+            if (state.isPlaying && audio.paused) {
+              if (audio.src && audio.src !== window.location.href) {
+                audio.play().catch(() => {});
+              } else if (state.currentTrack) {
+                syncAudioEngineWithTrack(state.currentTrack);
+              }
+            } else if (!state.isPlaying && !audio.paused) {
+              audio.pause();
+            }
+          }
+          if (msg.payload.isLocked !== undefined) {
+            state.isLocked = msg.payload.isLocked;
+          }
+          if (msg.payload.queue && Array.isArray(msg.payload.queue)) {
+            state.queue = msg.payload.queue.map(enrichTrackStreamUrl);
+          }
+          renderState();
+          fetchCabinHistory();
+        } else if (type === "CREW_UPDATE") {
+          state.crew = msg.passengers || state.crew;
+          if (msg.isLocked !== undefined) state.isLocked = msg.isLocked;
+          renderState();
+        } else if (type === "EJECTED") {
+          ejectionScreen.classList.add("active");
+        } else if (type === "CABIN_LOCKED") {
+          state.isLocked = true;
+          renderState();
+        } else if (type === "UNAUTHORIZED") {
+          showToast("⚠️ Comando não autorizado: privilégios de Piloto necessários");
+          openAuthModal();
+        } else if (type === "RELOAD" || type === "DEV_RELOAD") {
+          console.log("⚡ [LIVE-RELOAD] Sinal WebSocket de recarregamento recebido!");
+          location.reload();
+        }
+      }
+      window.handleWsMessage = handleWsMessage;
+
       function connectWs() {
         try {
           const wsUrlObj = new URL(targetWsUrl, window.location.href);
@@ -3325,59 +3524,7 @@
           ws.onmessage = (event) => {
             try {
               const msg = JSON.parse(event.data);
-              const type = (msg.type || "").toUpperCase();
-              if (type === "STATE_UPDATE" && msg.payload) {
-                // Ignore state updates belonging to another cabin
-                if (msg.payload.cabinId && state.cabinId && msg.payload.cabinId !== state.cabinId) {
-                  return;
-                }
-                if (msg.payload.track) {
-                  DEMO_PLAYLIST[state.currentIndex] = msg.payload.track;
-                  state.currentTrack = msg.payload.track;
-                  syncAudioEngineWithTrack(msg.payload.track);
-                }
-                if (msg.payload.playback) {
-                  state.isPlaying = (msg.payload.playback.state || "").toUpperCase() === "PLAYING";
-                  if (msg.payload.playback.positionMs !== undefined && Math.abs((state.positionMs || 0) - msg.payload.playback.positionMs) > 2500) {
-                    state.positionMs = msg.payload.playback.positionMs;
-                    if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-                      audio.currentTime = state.positionMs / 1000;
-                    }
-                  }
-                  if (state.isPlaying && audio.paused) {
-                    if (audio.src && audio.src !== window.location.href) {
-                      audio.play().catch(() => {});
-                    } else if (state.currentTrack) {
-                      syncAudioEngineWithTrack(state.currentTrack);
-                    }
-                  } else if (!state.isPlaying && !audio.paused) {
-                    audio.pause();
-                  }
-                }
-                if (msg.payload.isLocked !== undefined) {
-                  state.isLocked = msg.payload.isLocked;
-                }
-                if (msg.payload.queue && Array.isArray(msg.payload.queue)) {
-                  state.queue = msg.payload.queue.map(enrichTrackStreamUrl);
-                }
-                renderState();
-                fetchCabinHistory();
-              } else if (type === "CREW_UPDATE") {
-                state.crew = msg.passengers || state.crew;
-                if (msg.isLocked !== undefined) state.isLocked = msg.isLocked;
-                renderState();
-              } else if (type === "EJECTED") {
-                ejectionScreen.classList.add("active");
-              } else if (type === "CABIN_LOCKED") {
-                state.isLocked = true;
-                renderState();
-              } else if (type === "UNAUTHORIZED") {
-                showToast("⚠️ Comando não autorizado: privilégios de Piloto necessários");
-                openAuthModal();
-              } else if (type === "RELOAD" || type === "DEV_RELOAD") {
-                console.log("⚡ [LIVE-RELOAD] Sinal WebSocket de recarregamento recebido!");
-                location.reload();
-              }
+              handleWsMessage(msg);
             } catch (err) {
               console.warn("WS message parse error:", err);
             }
