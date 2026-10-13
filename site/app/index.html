@@ -2424,6 +2424,7 @@
           playNowBtn.className = "btn btn-action-icon";
           playNowBtn.dataset.action = "play_now";
           playNowBtn.title = "Tocar Agora (interrompe e toca imediatamente)";
+          playNowBtn.setAttribute("aria-label", "Tocar Agora");
           playNowBtn.textContent = "▶";
           playNowBtn.onclick = (e) => {
             e.stopPropagation();
@@ -2437,6 +2438,7 @@
           playNextBtn.className = "btn btn-action-icon";
           playNextBtn.dataset.action = "play_next";
           playNextBtn.title = "Tocar na Sequência (próxima da fila)";
+          playNextBtn.setAttribute("aria-label", "Tocar na Sequência");
           playNextBtn.textContent = "⏭";
           playNextBtn.onclick = (e) => {
             e.stopPropagation();
@@ -2450,6 +2452,7 @@
           enqueueBtn.className = "btn btn-action-icon";
           enqueueBtn.dataset.action = "enqueue";
           enqueueBtn.title = "Adicionar à Fila (fim da fila)";
+          enqueueBtn.setAttribute("aria-label", "Adicionar à Fila");
           enqueueBtn.textContent = "➕";
           enqueueBtn.onclick = (e) => {
             e.stopPropagation();
@@ -2463,6 +2466,7 @@
           startRadioBtn.className = "btn btn-action-icon";
           startRadioBtn.dataset.action = "start_radio";
           startRadioBtn.title = "Iniciar Rádio a partir desta cantiga";
+          startRadioBtn.setAttribute("aria-label", "Iniciar Rádio a partir desta cantiga");
           startRadioBtn.textContent = "📻";
           startRadioBtn.onclick = (e) => {
             e.stopPropagation();
