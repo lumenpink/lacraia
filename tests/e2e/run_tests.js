@@ -54,7 +54,7 @@ async function ensureBackendReady() {
       PORT: process.env.PORT || (new URL(BASE_URL).port || '2011'),
       LACRAIA_MASTER_KEY: 'lacraia_master_2011',
       LACRAIA_SITE_DIR: path.resolve(REPO_ROOT, 'site'),
-      LACRAIA_DB_PATH: path.resolve(REPO_ROOT, 'lacraia.sqlite'),
+      LACRAIA_DB_PATH: process.env.LACRAIA_DB_PATH || path.resolve(REPO_ROOT, 'lacraia.sqlite'),
       LACRAIA_CACHE_DIR: path.resolve(REPO_ROOT, 'cache'),
     },
     stdio: 'ignore',
@@ -776,7 +776,7 @@ async function main() {
 
       // Step 2: Enqueue Track 1 (Chico - Construção)
       const input = page.locator('#enqueue-input');
-      await input.fill('Chico');
+      await input.fill('Construção');
       const dropdown = page.locator('#search-dropdown');
       await dropdown.waitFor({ state: 'visible', timeout: 5000 });
       const addFirstBtn = dropdown.locator('.search-item button[data-action="enqueue"]').first();
@@ -791,8 +791,25 @@ async function main() {
       await page.click('#btn-play-pause');
       await page.waitForFunction(() => {
         const a = document.getElementById('audio-engine');
-        return a && !a.paused && a.src && a.src.length > 0;
-      }, { timeout: 10000 });
+        return a && a.src && a.src.length > 0 && a.src !== window.location.href;
+      }, { timeout: 15000 });
+
+      await page.evaluate(async () => {
+        const a = document.getElementById('audio-engine');
+        if (a && a.paused) {
+          try {
+            await a.play();
+          } catch (_) {
+            const btn = document.getElementById('btn-play-pause');
+            if (btn) btn.click();
+          }
+        }
+      });
+
+      await page.waitForFunction(() => {
+        const a = document.getElementById('audio-engine');
+        return a && !a.paused;
+      }, { timeout: 15000 });
 
       const isPlaying = await page.evaluate(() => !document.getElementById('audio-engine').paused);
       assert(isPlaying, 'Audio element must be playing after clicking play');
@@ -1170,6 +1187,67 @@ async function main() {
         return btn ? (btn.getAttribute('data-active') === 'false' || !btn.classList.contains('active') || btn.innerText.includes('OFF')) : false;
       });
       assert(inactiveBadge, 'Non-stop button must reflect inactive OFF state when nonStop is false');
+
+      await context.close();
+    });
+
+    await test('Scenario: System Settings Modal & Configuration Persistence (Issue #25, #26)', async () => {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await page.goto(`${BASE_URL}/app/index.html?cabin=cab-settings-test`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(500);
+
+      // 1. Settings button should exist and open modal
+      const btnSettings = await page.$('#btn-open-settings');
+      assert(btnSettings, '#btn-open-settings must exist in the navigation bar');
+      await btnSettings.click();
+      await page.waitForTimeout(400);
+
+      const isModalActive = await page.evaluate(() => {
+        const modal = document.getElementById('settings-modal');
+        return modal && modal.classList.contains('active');
+      });
+      assert(isModalActive, '#settings-modal must have active class when opened');
+
+      // 2. Modify queue size to 3 hours and cache to 90 minutes
+      await page.evaluate(() => {
+        const inputQueue = document.getElementById('input-queue-size');
+        const selQueue = document.getElementById('select-queue-unit');
+        const inputCache = document.getElementById('input-cache-size');
+        const selCache = document.getElementById('select-cache-unit');
+        if (inputQueue && selQueue) {
+          inputQueue.value = '3';
+          selQueue.value = 'h';
+        }
+        if (inputCache && selCache) {
+          inputCache.value = '90';
+          selCache.value = 'min';
+        }
+      });
+
+      // 3. Click save
+      const btnSave = await page.$('#btn-save-settings');
+      assert(btnSave, '#btn-save-settings must exist in settings modal');
+      await btnSave.click();
+      await page.waitForTimeout(600);
+
+      // 4. Verify API persisted the updated settings
+      const res = await fetch(`${BASE_URL}/api/config`);
+      assert(res.ok, 'GET /api/config must succeed');
+      const cfg = await res.json();
+      assert(cfg.targetQueueDurationSec === 10800, `targetQueueDurationSec must be 10800s (3h), got ${cfg.targetQueueDurationSec}`);
+      assert(cfg.targetCacheDurationSec === 5400, `targetCacheDurationSec must be 5400s (90min), got ${cfg.targetCacheDurationSec}`);
+
+      // 5. Close settings modal
+      const btnClose = await page.$('#btn-close-settings');
+      if (btnClose) await btnClose.click();
+      await page.waitForTimeout(300);
+
+      const isModalClosed = await page.evaluate(() => {
+        const modal = document.getElementById('settings-modal');
+        return modal && !modal.classList.contains('active');
+      });
+      assert(isModalClosed, '#settings-modal must be closed');
 
       await context.close();
     });

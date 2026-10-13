@@ -125,6 +125,7 @@ async fn test_end_to_end_api_resolve_and_cache_serving() {
         resolver,
         hub,
         cache_dir: cache_dir.clone(),
+        daemon: None,
     };
 
     let app = build_app(state, None);
@@ -271,4 +272,89 @@ async fn test_autopilot_infinite_lookahead_maintenance() {
         .filter(|(e, _)| e.state == QueueState::Pending || e.state == QueueState::Cached)
         .count();
     assert_eq!(upcoming_count, 5, "Autopilot must maintain 5 upcoming tracks ahead forever");
+}
+
+#[tokio::test]
+async fn test_config_api_endpoints_get_and_post() {
+    let db = Database::open_in_memory().unwrap();
+    let cache_dir = std::env::temp_dir().join(format!("lacraia_test_config_{}", uuid::Uuid::new_v4()));
+    let _ = std::fs::create_dir_all(&cache_dir);
+
+    let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+    let resolver = Arc::new(MediaResolver::new(cache_dir.clone(), db.clone()));
+    let (tx, _rx) = broadcast::channel::<WsMessage>(10);
+    let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+    let daemon = Arc::new(QueueDaemon::new(
+        db.clone(),
+        resolver.clone(),
+        similarity.clone(),
+        hub.clone(),
+        5,
+        std::time::Duration::from_millis(50),
+    ));
+
+    let state = AppState {
+        db: db.clone(),
+        similarity,
+        resolver,
+        hub,
+        cache_dir: cache_dir.clone(),
+        daemon: Some(daemon.clone()),
+    };
+
+    let app = build_app(state, None);
+
+    // 1. GET /api/config: verify default values
+    let get_req = Request::builder()
+        .method("GET")
+        .uri("/api/config")
+        .body(Body::empty())
+        .unwrap();
+
+    let get_resp = app.clone().oneshot(get_req).await.unwrap();
+    assert_eq!(get_resp.status(), StatusCode::OK);
+
+    let body_bytes = axum::body::to_bytes(get_resp.into_body(), usize::MAX).await.unwrap();
+    let config_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(config_json["targetQueueDurationSec"], 7200, "Default targetQueueDurationSec must be 7200s (2h, #25)");
+    assert_eq!(config_json["targetCacheDurationSec"], 3600, "Default targetCacheDurationSec must be 3600s (1h)");
+    assert_eq!(config_json["maxDiskCacheMb"], 1024, "Default maxDiskCacheMb must be 1024");
+
+    // 2. POST /api/config: update values and verify daemon dynamic update
+    let update_payload = serde_json::json!({
+        "targetQueueDurationSec": 10800,
+        "targetCacheDurationSec": 5400,
+        "maxDiskCacheMb": 2048
+    });
+
+    let post_req = Request::builder()
+        .method("POST")
+        .uri("/api/config")
+        .header("Content-Type", "application/json")
+        .body(Body::from(serde_json::to_vec(&update_payload).unwrap()))
+        .unwrap();
+
+    let post_resp = app.clone().oneshot(post_req).await.unwrap();
+    assert_eq!(post_resp.status(), StatusCode::OK);
+
+    // Verify daemon was dynamically updated
+    assert_eq!(daemon.target_queue_duration_sec(), 10800);
+    assert_eq!(daemon.target_cache_duration_sec(), 5400);
+
+    // 3. POST /api/config with invalid values: must reject with 400 Bad Request
+    let invalid_payload = serde_json::json!({
+        "targetQueueDurationSec": 10,
+        "targetCacheDurationSec": 3600,
+        "maxDiskCacheMb": 1024
+    });
+
+    let invalid_req = Request::builder()
+        .method("POST")
+        .uri("/api/config")
+        .header("Content-Type", "application/json")
+        .body(Body::from(serde_json::to_vec(&invalid_payload).unwrap()))
+        .unwrap();
+
+    let invalid_resp = app.oneshot(invalid_req).await.unwrap();
+    assert_eq!(invalid_resp.status(), StatusCode::BAD_REQUEST);
 }

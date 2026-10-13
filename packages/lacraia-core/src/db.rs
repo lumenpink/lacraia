@@ -305,6 +305,12 @@ impl Database {
                 ON cache_resolution_attempts(track_id, attempt_number ASC);
             CREATE INDEX IF NOT EXISTS idx_attempts_tier
                 ON cache_resolution_attempts(tier, success);
+
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
             "#,
         )?;
 
@@ -1895,16 +1901,61 @@ impl Database {
     }
 
     pub fn get_system_settings(&self) -> Result<SystemSettings, DbError> {
-        // Stub for RED test: returns 3600 instead of default 7200
+        let conn = self.conn.lock().unwrap();
+        let mut target_queue = 7200u64;
+        let mut target_cache = 3600u64;
+        let mut max_disk = 1024u64;
+
+        let mut stmt = conn.prepare("SELECT key, value FROM system_settings")?;
+        let rows = stmt.query_map([], |row| {
+            let key: String = row.get(0)?;
+            let val: String = row.get(1)?;
+            Ok((key, val))
+        })?;
+
+        for r in rows.flatten() {
+            match r.0.as_str() {
+                "target_queue_duration_sec" => {
+                    if let Ok(v) = r.1.parse::<u64>() {
+                        target_queue = v;
+                    }
+                }
+                "target_cache_duration_sec" => {
+                    if let Ok(v) = r.1.parse::<u64>() {
+                        target_cache = v;
+                    }
+                }
+                "max_disk_cache_mb" => {
+                    if let Ok(v) = r.1.parse::<u64>() {
+                        max_disk = v;
+                    }
+                }
+                _ => {}
+            }
+        }
+
         Ok(SystemSettings {
-            target_queue_duration_sec: 3600,
-            target_cache_duration_sec: 3600,
-            max_disk_cache_mb: 500,
+            target_queue_duration_sec: target_queue,
+            target_cache_duration_sec: target_cache,
+            max_disk_cache_mb: max_disk,
         })
     }
 
-    pub fn update_system_settings(&self, _settings: &SystemSettings) -> Result<(), DbError> {
-        // Stub for RED test: no-op
+    pub fn update_system_settings(&self, settings: &SystemSettings) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('target_queue_duration_sec', ?1, ?2)",
+            params![settings.target_queue_duration_sec.to_string(), now],
+        )?;
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('target_cache_duration_sec', ?1, ?2)",
+            params![settings.target_cache_duration_sec.to_string(), now],
+        )?;
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('max_disk_cache_mb', ?1, ?2)",
+            params![settings.max_disk_cache_mb.to_string(), now],
+        )?;
         Ok(())
     }
 }

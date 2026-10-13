@@ -1287,6 +1287,7 @@
       </div>
       <div id="role-badge" class="badge badge-passenger badge-btn" title="Clique para alterar papel ou autenticar">PASSAGEIRO</div>
       <button id="btn-cabin-access" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Gerenciar Acesso e QR Code da Cabine">🔑 ACESSO &amp; QR</button>
+      <button id="btn-open-settings" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Configurações de Fila e Cache">⚙️ CONFIG</button>
       <div id="door-badge" class="badge badge-locked">🔓 PORTAS ABERTAS</div>
       <a href="/" class="badge badge-btn">&larr; BANCADA</a>
     </div>
@@ -1616,6 +1617,70 @@
     </div>
   </div>
 
+  <!-- Modal: Configurações de Fila & Cache (Issue #25 e #26) -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-card">
+      <div class="modal-title">⚙️ CONFIGURAÇÕES DE CACHE &amp; FILA</div>
+      <div style="font-size: 12px; color: var(--papel-jornal-molhado); margin-bottom: 12px;">
+        Ajuste o horizonte temporal de música antecipada e a cota física de armazenamento em disco:
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
+        <!-- Fila do Autopilot -->
+        <div>
+          <label for="input-queue-size" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+            FILA DO AUTOPILOT (HORIZONTE FUTURO):
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" id="input-queue-size" min="5" max="1440" step="1" value="2" style="flex: 2; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 13px; border-radius: 2px;" />
+            <select id="select-queue-unit" style="flex: 1; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 12px; border-radius: 2px;">
+              <option value="h" selected>Horas</option>
+              <option value="min">Minutos</option>
+            </select>
+          </div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Padrão: 2 horas (7.200s). Mínimo: 5m, Máximo: 24h.</div>
+        </div>
+
+        <!-- Buffer Lookahead em Cache -->
+        <div>
+          <label for="input-cache-size" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+            LOOKAHEAD PRÉ-CACHE (CACHE LOCAL ANTECIPADO):
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" id="input-cache-size" min="5" max="1440" step="1" value="1" style="flex: 2; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 13px; border-radius: 2px;" />
+            <select id="select-cache-unit" style="flex: 1; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 12px; border-radius: 2px;">
+              <option value="h" selected>Horas</option>
+              <option value="min">Minutos</option>
+            </select>
+          </div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Padrão: 1 hora (3.600s, ~57 MB a 128 kbps).</div>
+        </div>
+
+        <!-- Cota Total em Disco -->
+        <div>
+          <label for="input-disk-quota" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+            COTA TOTAL DE DISCO (CACHE FÍSICO):
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" id="input-disk-quota" min="50" max="100000" step="10" value="1024" style="flex: 2; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 13px; border-radius: 2px;" />
+            <select id="select-disk-unit" style="flex: 1; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 12px; border-radius: 2px;">
+              <option value="MB" selected>MB</option>
+              <option value="GB">GB</option>
+            </select>
+          </div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Padrão: 1024 MB (1 GB).</div>
+        </div>
+      </div>
+
+      <div id="settings-status-msg" style="display:none; font-size: 11px; padding: 8px; margin-bottom: 10px; border-radius: 2px;"></div>
+
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-main" id="btn-save-settings" style="flex:2;">💾 SALVAR CONFIGURAÇÕES</button>
+        <button class="btn btn-active" id="btn-close-settings" style="flex:1;">FECHAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Fullscreen Ejection Screen (When passenger is kicked) -->
   <div id="ejection-screen">
     <div class="ejection-glitch">🦂 👢 💥</div>
@@ -1782,6 +1847,17 @@
       const cabinBadge = document.getElementById("cabin-badge");
       const cabinNameDisplay = document.getElementById("cabin-name-display");
       const btnCabinAccess = document.getElementById("btn-cabin-access");
+      const btnOpenSettings = document.getElementById("btn-open-settings");
+      const btnCloseSettings = document.getElementById("btn-close-settings");
+      const btnSaveSettings = document.getElementById("btn-save-settings");
+      const settingsModal = document.getElementById("settings-modal");
+      const inputQueueSize = document.getElementById("input-queue-size");
+      const selectQueueUnit = document.getElementById("select-queue-unit");
+      const inputCacheSize = document.getElementById("input-cache-size");
+      const selectCacheUnit = document.getElementById("select-cache-unit");
+      const inputDiskQuota = document.getElementById("input-disk-quota");
+      const selectDiskUnit = document.getElementById("select-disk-unit");
+      const settingsStatusMsg = document.getElementById("settings-status-msg");
       const roleBadge = document.getElementById("role-badge");
 
       const authModal = document.getElementById("auth-modal");
@@ -2195,6 +2271,7 @@
 
       async function syncAudioEngineWithTrack(trk) {
         if (!trk) return;
+        enrichTrackStreamUrl(trk);
         state.durationMs = trk.duration_ms || trk.durationMs || state.durationMs || 210000;
 
         let streamUrl = trk.stream_url || trk.streamUrl;
@@ -3206,6 +3283,119 @@
       }
       if (btnCreateCabinSubmit) btnCreateCabinSubmit.addEventListener("click", submitCreateCabin);
 
+      // Modal: Configurações de Fila & Cache (Issue #25 e #26)
+      async function loadSettings() {
+        try {
+          const res = await fetch(`${targetHttpUrl}/api/config`);
+          if (!res.ok) return;
+          const cfg = await res.json();
+          const qSec = cfg.targetQueueDurationSec || 7200;
+          if (qSec >= 3600 && qSec % 3600 === 0) {
+            inputQueueSize.value = qSec / 3600;
+            selectQueueUnit.value = "h";
+          } else {
+            inputQueueSize.value = Math.round(qSec / 60);
+            selectQueueUnit.value = "min";
+          }
+          const cSec = cfg.targetCacheDurationSec || 3600;
+          if (cSec >= 3600 && cSec % 3600 === 0) {
+            inputCacheSize.value = cSec / 3600;
+            selectCacheUnit.value = "h";
+          } else {
+            inputCacheSize.value = Math.round(cSec / 60);
+            selectCacheUnit.value = "min";
+          }
+          const dMb = cfg.maxDiskCacheMb || 1024;
+          if (dMb >= 1024 && dMb % 1024 === 0) {
+            inputDiskQuota.value = dMb / 1024;
+            selectDiskUnit.value = "GB";
+          } else {
+            inputDiskQuota.value = dMb;
+            selectDiskUnit.value = "MB";
+          }
+        } catch (err) {
+          console.warn("Failed to load settings:", err);
+        }
+      }
+
+      function showSettingsStatus(msg, isSuccess) {
+        if (!settingsStatusMsg) return;
+        settingsStatusMsg.textContent = msg;
+        settingsStatusMsg.style.display = "block";
+        settingsStatusMsg.style.background = isSuccess ? "var(--asfalto-frio)" : "#441111";
+        settingsStatusMsg.style.color = isSuccess ? "var(--veneno-eletrico)" : "var(--curto-circuito)";
+        settingsStatusMsg.style.border = `1px solid ${isSuccess ? "var(--veneno-eletrico)" : "var(--curto-circuito)"}`;
+      }
+
+      async function saveSettings() {
+        const qVal = parseFloat(inputQueueSize.value);
+        const qUnit = selectQueueUnit.value;
+        const cVal = parseFloat(inputCacheSize.value);
+        const cUnit = selectCacheUnit.value;
+        const dVal = parseFloat(inputDiskQuota.value);
+        const dUnit = selectDiskUnit.value;
+
+        const qSec = Math.round(qUnit === "h" ? qVal * 3600 : qVal * 60);
+        const cSec = Math.round(cUnit === "h" ? cVal * 3600 : cVal * 60);
+        const dMb = Math.round(dUnit === "GB" ? dVal * 1024 : dVal);
+
+        if (isNaN(qSec) || qSec < 300 || qSec > 86400) {
+          showSettingsStatus("Fila deve ter entre 5 minutos e 24 horas.", false);
+          return;
+        }
+        if (isNaN(cSec) || cSec < 300 || cSec > 86400) {
+          showSettingsStatus("Cache deve ter entre 5 minutos e 24 horas.", false);
+          return;
+        }
+        if (isNaN(dMb) || dMb < 50 || dMb > 1048576) {
+          showSettingsStatus("Cota de disco deve ter entre 50 MB e 1 TB.", false);
+          return;
+        }
+
+        try {
+          const res = await fetch(`${targetHttpUrl}/api/config`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              targetQueueDurationSec: qSec,
+              targetCacheDurationSec: cSec,
+              maxDiskCacheMb: dMb,
+            }),
+          });
+          if (res.ok) {
+            showSettingsStatus("Configurações salvas com sucesso!", true);
+            showToast("⚙️ CONFIGURAÇÕES SALVAS!");
+            setTimeout(() => {
+              if (settingsModal) settingsModal.classList.remove("active");
+            }, 800);
+          } else {
+            const errText = await res.text();
+            showSettingsStatus("Erro ao salvar: " + errText, false);
+          }
+        } catch (err) {
+          showSettingsStatus("Falha de conexão: " + err.message, false);
+        }
+      }
+
+      function openSettingsModal() {
+        if (settingsStatusMsg) settingsStatusMsg.style.display = "none";
+        loadSettings();
+        if (settingsModal) settingsModal.classList.add("active");
+      }
+
+      function closeSettingsModal() {
+        if (settingsModal) settingsModal.classList.remove("active");
+      }
+
+      if (btnOpenSettings) btnOpenSettings.addEventListener("click", openSettingsModal);
+      if (btnCloseSettings) btnCloseSettings.addEventListener("click", closeSettingsModal);
+      if (btnSaveSettings) btnSaveSettings.addEventListener("click", saveSettings);
+      if (settingsModal) {
+        settingsModal.addEventListener("click", (e) => {
+          if (e.target === settingsModal) closeSettingsModal();
+        });
+      }
+
       // Sincronização e Auto-Join de Passageiro
       async function syncCabinInfo() {
         try {
@@ -3274,6 +3464,7 @@
           if (qrModal) qrModal.classList.remove("active");
           if (authModal) authModal.classList.remove("active");
           if (cabinModal) cabinModal.classList.remove("active");
+          if (settingsModal) settingsModal.classList.remove("active");
         }
       });
 

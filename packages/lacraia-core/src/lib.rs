@@ -34,6 +34,7 @@ pub struct AppState {
     pub resolver: Arc<MediaResolver>,
     pub hub: Arc<PlaybackHub>,
     pub cache_dir: PathBuf,
+    pub daemon: Option<Arc<QueueDaemon>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -681,6 +682,58 @@ pub async fn handle_history(
     }
 }
 
+pub async fn handle_get_config(
+    State(state): State<AppState>,
+) -> Result<Json<db::SystemSettings>, (StatusCode, String)> {
+    match state.db.get_system_settings() {
+        Ok(settings) => Ok(Json(settings)),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to retrieve settings: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_update_config(
+    State(state): State<AppState>,
+    Json(settings): Json<db::SystemSettings>,
+) -> Result<Json<db::SystemSettings>, (StatusCode, String)> {
+    if settings.target_queue_duration_sec < 300 || settings.target_queue_duration_sec > 86400 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "targetQueueDurationSec must be between 300s (5m) and 86400s (24h)".into(),
+        ));
+    }
+    if settings.target_cache_duration_sec < 300 || settings.target_cache_duration_sec > 86400 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "targetCacheDurationSec must be between 300s (5m) and 86400s (24h)".into(),
+        ));
+    }
+    if settings.max_disk_cache_mb < 50 || settings.max_disk_cache_mb > 1048576 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "maxDiskCacheMb must be between 50MB and 1048576MB (1TB)".into(),
+        ));
+    }
+
+    if let Err(e) = state.db.update_system_settings(&settings) {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to save settings: {}", e),
+        ));
+    }
+
+    if let Some(ref daemon) = state.daemon {
+        daemon.set_temporal_window(
+            settings.target_cache_duration_sec,
+            settings.target_queue_duration_sec,
+        );
+    }
+
+    Ok(Json(settings))
+}
+
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     Query(params): Query<ws::WsParams>,
@@ -698,6 +751,7 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
     let cache_dir = state.cache_dir.clone();
     let mut app = Router::new()
         .route("/health", get(health_check))
+        .route("/api/config", get(handle_get_config).post(handle_update_config))
         .route("/api/search", get(handle_search))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))

@@ -2,6 +2,7 @@ use crate::db::{Database, QueueEntry, QueueState, TrackRecord};
 use crate::resolver::{MediaResolver, ResolverError};
 use crate::similarity::{CompositeSimilarityEngine, SimilarityEngine};
 use crate::ws::PlaybackHub;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -24,8 +25,8 @@ pub struct QueueDaemon {
     lookahead_window: usize,
     local_window: usize,
     remote_window: usize,
-    target_cache_duration_sec: u64,
-    target_queue_duration_sec: u64,
+    target_cache_duration_sec: AtomicU64,
+    target_queue_duration_sec: AtomicU64,
     poll_interval: Duration,
 }
 
@@ -46,8 +47,8 @@ impl QueueDaemon {
             lookahead_window,
             local_window: 5,
             remote_window: 10,
-            target_cache_duration_sec: 3600,
-            target_queue_duration_sec: 3600,
+            target_cache_duration_sec: AtomicU64::new(3600),
+            target_queue_duration_sec: AtomicU64::new(7200),
             poll_interval,
         }
     }
@@ -69,8 +70,8 @@ impl QueueDaemon {
             lookahead_window: local_window,
             local_window,
             remote_window,
-            target_cache_duration_sec: 0,
-            target_queue_duration_sec: 0,
+            target_cache_duration_sec: AtomicU64::new(0),
+            target_queue_duration_sec: AtomicU64::new(0),
             poll_interval,
         }
     }
@@ -92,22 +93,23 @@ impl QueueDaemon {
             lookahead_window: 5,
             local_window: 5,
             remote_window: 10,
-            target_cache_duration_sec,
-            target_queue_duration_sec,
+            target_cache_duration_sec: AtomicU64::new(target_cache_duration_sec),
+            target_queue_duration_sec: AtomicU64::new(target_queue_duration_sec),
             poll_interval,
         }
     }
 
     pub fn target_queue_duration_sec(&self) -> u64 {
-        self.target_queue_duration_sec
+        self.target_queue_duration_sec.load(Ordering::Relaxed)
     }
 
     pub fn target_cache_duration_sec(&self) -> u64 {
-        self.target_cache_duration_sec
+        self.target_cache_duration_sec.load(Ordering::Relaxed)
     }
 
-    pub fn set_temporal_window(&self, _cache_sec: u64, _queue_sec: u64) {
-        // Stub for RED test
+    pub fn set_temporal_window(&self, cache_sec: u64, queue_sec: u64) {
+        self.target_cache_duration_sec.store(cache_sec, Ordering::Relaxed);
+        self.target_queue_duration_sec.store(queue_sec, Ordering::Relaxed);
     }
 
     pub fn find_prefetch_targets_for_window(
@@ -143,8 +145,9 @@ impl QueueDaemon {
             }
         }
 
-        if self.target_cache_duration_sec > 0 {
-            if cached_duration_sec >= self.target_cache_duration_sec {
+        let target_cache_duration_sec = self.target_cache_duration_sec();
+        if target_cache_duration_sec > 0 {
+            if cached_duration_sec >= target_cache_duration_sec {
                 return vec![];
             }
             let mut targets = Vec::new();
@@ -152,7 +155,7 @@ impl QueueDaemon {
             for cand in uncached_candidates {
                 accumulated += cand.duration_sec;
                 targets.push(cand);
-                if accumulated >= self.target_cache_duration_sec {
+                if accumulated >= target_cache_duration_sec {
                     break;
                 }
             }
@@ -206,9 +209,10 @@ impl QueueDaemon {
             return Ok(0);
         }
 
-        let is_temporal = self.target_queue_duration_sec > 0;
+        let target_queue_duration_sec = self.target_queue_duration_sec();
+        let is_temporal = target_queue_duration_sec > 0;
         if is_temporal {
-            if upcoming_duration_sec >= self.target_queue_duration_sec {
+            if upcoming_duration_sec >= target_queue_duration_sec {
                 return Ok(0);
             }
         } else if upcoming_count >= self.remote_window {
@@ -216,7 +220,7 @@ impl QueueDaemon {
         }
 
         let deficit_sec = if is_temporal {
-            self.target_queue_duration_sec.saturating_sub(upcoming_duration_sec)
+            target_queue_duration_sec.saturating_sub(upcoming_duration_sec)
         } else {
             0
         };
@@ -264,7 +268,7 @@ impl QueueDaemon {
 
         info!(
             "Autopilot Sliding: Cabin '{}' has {} upcoming (target count: {}, target duration: {}s). Multi-seed count: {}",
-            cabin_id, upcoming_count, self.remote_window, self.target_queue_duration_sec, seeds.len()
+            cabin_id, upcoming_count, self.remote_window, target_queue_duration_sec, seeds.len()
         );
 
         let mut candidates_to_add: Vec<(String, String, String, u64)> = Vec::new();
@@ -324,7 +328,6 @@ impl QueueDaemon {
                 }
             }
         }
-
         let mut enqueued = 0;
         for (id, artist, title, dur) in candidates_to_add {
             let record = TrackRecord {
@@ -827,10 +830,10 @@ mod tests {
         // With target_queue_duration_sec = 1200s, it must enqueue 20 tracks (20 * 60s = 1200s), NOT just 10!
         let seed = TrackRecord {
             id: "seed_temporal".into(),
-            artist: "Garotos Podres".into(),
-            title: "Papai Noel".into(),
+            artist: "TestArtistTemporal".into(),
+            title: "TestSongTemporal".into(),
             duration_sec: 60,
-            cached_path: Some("/cache/papai_noel.opus".into()),
+            cached_path: Some("/cache/test_seed.opus".into()),
             genres: Some("punk".into()),
             last_played_at: None,
         };
@@ -838,7 +841,7 @@ mod tests {
         for i in 1..=25 {
             let trk = TrackRecord {
                 id: format!("punk_cand_{}", i),
-                artist: "Garotos Podres".into(),
+                artist: "TestArtistTemporal".into(),
                 title: format!("Punk Song {}", i),
                 duration_sec: 60,
                 cached_path: None,

@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         5, // Lookahead window of 5 tracks ahead
         std::time::Duration::from_secs(3),
     ));
-    daemon.start();
+    daemon.clone().start();
 
     let state = AppState {
         db,
@@ -47,6 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         resolver,
         hub,
         cache_dir: cache_dir.clone(),
+        daemon: Some(daemon.clone()),
     };
 
     let site_dir = std::env::var("LACRAIA_SITE_DIR").map(PathBuf::from).ok().or_else(|| {
