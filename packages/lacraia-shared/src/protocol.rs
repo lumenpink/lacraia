@@ -104,6 +104,24 @@ pub enum CommandAction {
         #[serde(rename = "requestedBy", default)]
         requested_by: Option<String>,
     },
+    QueueNext {
+        #[serde(rename = "trackId")]
+        track_id: String,
+        #[serde(rename = "requestedBy", default)]
+        requested_by: Option<String>,
+    },
+    PlayNow {
+        #[serde(rename = "trackId")]
+        track_id: String,
+        #[serde(rename = "requestedBy", default)]
+        requested_by: Option<String>,
+    },
+    StartRadio {
+        #[serde(rename = "trackId")]
+        track_id: String,
+        #[serde(rename = "requestedBy", default)]
+        requested_by: Option<String>,
+    },
     QueueRemove {
         #[serde(rename = "queueId")]
         queue_id: i64,
@@ -211,6 +229,45 @@ mod tests {
                 CommandAction::QueueRemove { queue_id: 42 }
             ),
             _ => panic!("Expected QueueRemove"),
+        }
+
+        let json_next = r#"{"type":"COMMAND","payload":{"action":"QUEUE_NEXT","trackId":"trk_next","requestedBy":"PILOTO"}}"#;
+        let msg_next: WsMessage = serde_json::from_str(json_next).unwrap();
+        match msg_next {
+            WsMessage::Command(cmd) => assert_eq!(
+                cmd.payload,
+                CommandAction::QueueNext {
+                    track_id: "trk_next".into(),
+                    requested_by: Some("PILOTO".into()),
+                }
+            ),
+            _ => panic!("Expected QueueNext"),
+        }
+
+        let json_now = r#"{"type":"COMMAND","payload":{"action":"PLAY_NOW","trackId":"trk_now","requestedBy":"PILOTO"}}"#;
+        let msg_now: WsMessage = serde_json::from_str(json_now).unwrap();
+        match msg_now {
+            WsMessage::Command(cmd) => assert_eq!(
+                cmd.payload,
+                CommandAction::PlayNow {
+                    track_id: "trk_now".into(),
+                    requested_by: Some("PILOTO".into()),
+                }
+            ),
+            _ => panic!("Expected PlayNow"),
+        }
+
+        let json_radio = r#"{"type":"COMMAND","payload":{"action":"START_RADIO","trackId":"trk_radio","requestedBy":"PILOTO"}}"#;
+        let msg_radio: WsMessage = serde_json::from_str(json_radio).unwrap();
+        match msg_radio {
+            WsMessage::Command(cmd) => assert_eq!(
+                cmd.payload,
+                CommandAction::StartRadio {
+                    track_id: "trk_radio".into(),
+                    requested_by: Some("PILOTO".into()),
+                }
+            ),
+            _ => panic!("Expected StartRadio"),
         }
     }
 
