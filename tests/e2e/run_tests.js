@@ -144,6 +144,10 @@ async function main() {
       assert((await page.$('#deck-02')) !== null, '#deck-02 (Queue) must exist');
       assert((await page.$('#deck-03')) !== null, '#deck-03 (Cabin) must exist');
 
+      // Deck 02 must NOT contain redundant microplayer
+      const deck2Miniplayer = await page.$('#deck-02-miniplayer');
+      assert(deck2Miniplayer === null, '#deck-02-miniplayer must NOT exist (redundant microplayer removed)');
+
       // Brand logo
       const brandLogo = await page.$('.brand-logo-img');
       assert(brandLogo !== null, '.brand-logo-img must exist');
