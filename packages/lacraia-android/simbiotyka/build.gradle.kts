@@ -8,7 +8,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "in._2lp.lacraia.simbiotyka"
+        applicationId = "in.twolp.lacraia.simbiotyka"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -19,8 +19,20 @@ android {
 
     signingConfigs {
         create("release") {
-            val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
-            if (debugKeystore.exists()) {
+            val userHome = System.getProperty("user.home")
+            val keystoreProps = file("$userHome/.android/in_twolp_release.properties")
+            val releaseKeystore = file("$userHome/.android/in_twolp_release.keystore")
+            val debugKeystore = file("$userHome/.android/debug.keystore")
+
+            if (keystoreProps.exists() && releaseKeystore.exists()) {
+                val props = java.util.Properties().apply {
+                    keystoreProps.inputStream().use { load(it) }
+                }
+                storeFile = releaseKeystore
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias", "in_twolp")
+                keyPassword = props.getProperty("keyPassword")
+            } else if (debugKeystore.exists()) {
                 storeFile = debugKeystore
                 storePassword = "android"
                 keyAlias = "androiddebugkey"

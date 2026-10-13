@@ -121,12 +121,65 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: "Download Built Android APK Artifacts"
+        uses: https://github.com/actions/download-artifact@v4
+        with:
+          name: android-apks
+          path: apk-artifacts
+
+      - name: "Integrate APKs & Generate Version Manifest for Obtainium"
+        run: |
+          mkdir -p site
+          if [ -d apk-artifacts ]; then
+            cp apk-artifacts/*.apk site/ 2>/dev/null || true
+          fi
+
+          VERSION="$(head -n 1 VERSION 2>/dev/null | tr -d ' \r\n' || echo '0.2.0')"
+          GIT_HASH="$(git rev-parse --short HEAD 2>/dev/null || echo 'main')"
+          PUBLISHED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          cat <<EOF > site/version.json
+          {
+            "version": "${VERSION}",
+            "min_compatible_version": "0.1.0",
+            "package_id": "in.twolp.lacraia.app",
+            "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
+            "release_notes": "Continuous build from commit ${GIT_HASH}.",
+            "published_at": "${PUBLISHED_AT}",
+            "apps": {
+              "lacraia-app": {
+                "package_id": "in.twolp.lacraia.app",
+                "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
+                "name": "La Craia App (Cockpit & Jukebox)"
+              },
+              "simbiotyka": {
+                "package_id": "in.twolp.lacraia.simbiotyka",
+                "apk_url": "https://lacraia.2lp.in/simbiotyka.apk",
+                "name": "Simbiótyka (HUD de Letras Sincronizadas)"
+              }
+            }
+          }
+          EOF
+
+          cat <<EOF > site/version-nightly.json
+          {
+            "version": "${VERSION}-nightly.${GIT_HASH}",
+            "min_compatible_version": "0.1.0",
+            "package_id": "in.twolp.lacraia.app",
+            "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
+            "release_notes": "Continuous rolling nightly build from commit ${GIT_HASH}.",
+            "published_at": "${PUBLISHED_AT}"
+          }
+          EOF
+
+          ls -lh site/*.apk site/*.json 2>/dev/null || true
+
       - name: "Deploy to Cloudflare Workers"
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "::warning::Cloudflare credentials (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID) not configured in secrets. Skipping Cloudflare deployment."
           else
-            echo "Publishing documentation site to lacraia.2lp.in via Cloudflare Workers..."
+            echo "Publishing documentation site and APKs to lacraia.2lp.in via Cloudflare Workers..."
             npx wrangler deploy || echo "::warning::Cloudflare deployment failed, proceeding to Codeberg Pages fallback."
           fi
 
@@ -147,6 +200,8 @@ jobs:
 
           rm -rf "${WORKTREE_DIR:?}"/*
           cp -r site/* "$WORKTREE_DIR/"
+          # Exclude large binary APKs from git branch history (hosted on Cloudflare & Codeberg Releases)
+          rm -f "$WORKTREE_DIR"/*.apk
 
           cd "$WORKTREE_DIR"
           rm -f CNAME

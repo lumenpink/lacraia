@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "min_compatible_version": "0.1.0",
+  "package_id": "in.twolp.lacraia.app",
+  "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
+  "release_notes": "Compilação soberana e contínua do ecossistema La Craia para Android.",
+  "published_at": "2026-10-13T17:00:00Z",
+  "apps": {
+    "lacraia-app": {
+      "package_id": "in.twolp.lacraia.app",
+      "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
+      "name": "La Craia App (Cockpit & Jukebox)"
+    },
+    "simbiotyka": {
+      "package_id": "in.twolp.lacraia.simbiotyka",
+      "apk_url": "https://lacraia.2lp.in/simbiotyka.apk",
+      "name": "Simbiótyka (HUD de Letras Sincronizadas)"
+    }
+  }
+}
