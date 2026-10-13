@@ -1489,6 +1489,30 @@ mod tests {
         assert_eq!(recs2.len(), 5);
         assert!(!recs2.iter().any(|r| r.id == recs[0].id));
     }
+
+    #[test]
+    fn test_cabin_playback_state_persistence() {
+        let db = Database::open_in_memory().unwrap();
+
+        // Initially no state persisted
+        let state = db.get_cabin_state("cab_test").unwrap();
+        assert!(state.is_none());
+
+        // Save state for cab_test
+        db.save_cabin_state("cab_test", Some("mc serginho:vai lacraia"), 45000, "playing").unwrap();
+
+        let state = db.get_cabin_state("cab_test").unwrap().expect("State should exist");
+        assert_eq!(state.cabin_id, "cab_test");
+        assert_eq!(state.track_id.as_deref(), Some("mc serginho:vai lacraia"));
+        assert_eq!(state.position_ms, 45000);
+        assert_eq!(state.playback_state, "playing");
+
+        // Update state with pause and position advance
+        db.save_cabin_state("cab_test", Some("mc serginho:vai lacraia"), 90000, "paused").unwrap();
+        let state2 = db.get_cabin_state("cab_test").unwrap().unwrap();
+        assert_eq!(state2.position_ms, 90000);
+        assert_eq!(state2.playback_state, "paused");
+    }
 }
 
 
