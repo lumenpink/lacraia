@@ -285,7 +285,8 @@ To ensure autonomous, self-updating delivery across smartphones and vehicular so
    - Production and continuous APKs are signed using the official key (`in_twolp`) backed by `~/.android/in_twolp_release.keystore` and verified via `apksigner`.
 3. **Central Store Integration (A Pratilera na Banca):**
    - Official Store URL: `https://banca.2lp.in/pratilera`
-   - Deep link for 1-click addition in Droid-ify and Neo Store: `fdroidrepos://banca.2lp.in/pratilera`
+   - Canonical HTTPS Entry: Droid-ify and Neo Store repository form input requires `https://banca.2lp.in/pratilera` (avoiding input scheme rejection).
+   - One-touch clipboard copy button provided in web interface for instant addition.
    - Friendly aliases with automatic 301 redirect: `/patilera`, `/prateleira`, `/repo`.
 4. **Autonomous Distribution Endpoint & Headers (`https://lacraia.2lp.in`):**
    - Direct APK downloads remain hosted as fallback targets: `https://lacraia.2lp.in/lacraia-app.apk` and `https://lacraia.2lp.in/simbiotyka.apk`.
