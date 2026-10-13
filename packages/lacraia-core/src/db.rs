@@ -226,6 +226,46 @@ impl Database {
 
             CREATE INDEX IF NOT EXISTS idx_queue_pos 
                 ON queue(cabin_id, position ASC, state);
+
+            CREATE TABLE IF NOT EXISTS cache_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id TEXT UNIQUE NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size_bytes INTEGER NOT NULL,
+                duration_sec INTEGER NOT NULL,
+                audio_codec TEXT NOT NULL DEFAULT 'opus',
+                hit_count INTEGER NOT NULL DEFAULT 1,
+                last_served_at INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_cache_entries_served
+                ON cache_entries(last_served_at DESC);
+
+            CREATE TABLE IF NOT EXISTS cache_resolution_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id TEXT NOT NULL,
+                attempt_number INTEGER NOT NULL,
+                tier TEXT NOT NULL,
+                method TEXT NOT NULL,
+                command_line TEXT,
+                success INTEGER NOT NULL,
+                exit_code INTEGER,
+                error_code TEXT,
+                error_output TEXT,
+                duration_ms INTEGER NOT NULL,
+                bytes_received INTEGER NOT NULL DEFAULT 0,
+                validation_status TEXT NOT NULL,
+                cabin_id TEXT,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_attempts_track
+                ON cache_resolution_attempts(track_id, attempt_number ASC);
+            CREATE INDEX IF NOT EXISTS idx_attempts_tier
+                ON cache_resolution_attempts(tier, success);
             "#,
         )?;
 
@@ -1325,28 +1365,183 @@ impl Database {
         }
     }
 
-    pub fn record_resolution_attempt(&self, _attempt: &CacheResolutionAttempt) -> Result<i64, DbError> {
-        // Red test stub
-        Ok(0)
+    pub fn record_resolution_attempt(&self, attempt: &CacheResolutionAttempt) -> Result<i64, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = if attempt.created_at > 0 { attempt.created_at } else { Utc::now().timestamp() };
+
+        let (def_artist, def_title) = if let Some((a, t)) = attempt.track_id.split_once(':') {
+            (a.trim().to_string(), t.trim().to_string())
+        } else {
+            ("Desconhecido".to_string(), attempt.track_id.clone())
+        };
+
+        conn.execute(
+            r#"
+            INSERT OR IGNORE INTO tracks (id, artist, title, duration_sec, cached_path, genres, last_played_at)
+            VALUES (?1, ?2, ?3, 210, NULL, NULL, NULL)
+            "#,
+            params![attempt.track_id, def_artist, def_title],
+        )?;
+
+        conn.execute(
+            r#"
+            INSERT INTO cache_resolution_attempts (
+                track_id, attempt_number, tier, method, command_line,
+                success, exit_code, error_code, error_output, duration_ms,
+                bytes_received, validation_status, cabin_id, created_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            "#,
+            params![
+                attempt.track_id,
+                attempt.attempt_number,
+                attempt.tier,
+                attempt.method,
+                attempt.command_line,
+                if attempt.success { 1 } else { 0 },
+                attempt.exit_code,
+                attempt.error_code,
+                attempt.error_output,
+                attempt.duration_ms as i64,
+                attempt.bytes_received as i64,
+                attempt.validation_status,
+                attempt.cabin_id,
+                now,
+            ],
+        )?;
+        Ok(conn.last_insert_rowid())
     }
 
-    pub fn get_resolution_attempts_for_track(&self, _track_id: &str) -> Result<Vec<CacheResolutionAttempt>, DbError> {
-        // Red test stub
-        Ok(vec![])
+    pub fn get_resolution_attempts_for_track(&self, track_id: &str) -> Result<Vec<CacheResolutionAttempt>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id, track_id, attempt_number, tier, method, command_line,
+                   success, exit_code, error_code, error_output, duration_ms,
+                   bytes_received, validation_status, cabin_id, created_at
+            FROM cache_resolution_attempts
+            WHERE track_id = ?1
+            ORDER BY attempt_number ASC, id ASC
+            "#,
+        )?;
+        let rows = stmt.query_map(params![track_id], |row| {
+            let success_int: i32 = row.get(6)?;
+            let dur: i64 = row.get(10)?;
+            let bytes: i64 = row.get(11)?;
+            Ok(CacheResolutionAttempt {
+                id: row.get(0)?,
+                track_id: row.get(1)?,
+                attempt_number: row.get(2)?,
+                tier: row.get(3)?,
+                method: row.get(4)?,
+                command_line: row.get(5)?,
+                success: success_int != 0,
+                exit_code: row.get(7)?,
+                error_code: row.get(8)?,
+                error_output: row.get(9)?,
+                duration_ms: dur.max(0) as u64,
+                bytes_received: bytes.max(0) as u64,
+                validation_status: row.get(12)?,
+                cabin_id: row.get(13)?,
+                created_at: row.get(14)?,
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
     }
 
-    pub fn upsert_cache_entry(&self, _entry: &CacheEntry) -> Result<(), DbError> {
-        // Red test stub
+    pub fn upsert_cache_entry(&self, entry: &CacheEntry) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = if entry.created_at > 0 { entry.created_at } else { Utc::now().timestamp() };
+        let last_served = if entry.last_served_at > 0 { entry.last_served_at } else { now };
+
+        let (def_artist, def_title) = if let Some((a, t)) = entry.track_id.split_once(':') {
+            (a.trim().to_string(), t.trim().to_string())
+        } else {
+            ("Desconhecido".to_string(), entry.track_id.clone())
+        };
+
+        conn.execute(
+            r#"
+            INSERT OR IGNORE INTO tracks (id, artist, title, duration_sec, cached_path, genres, last_played_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL)
+            "#,
+            params![entry.track_id, def_artist, def_title, entry.duration_sec as i64, entry.file_path],
+        )?;
+
+        conn.execute(
+            r#"
+            INSERT INTO cache_entries (
+                track_id, file_path, file_size_bytes, duration_sec, audio_codec,
+                hit_count, last_served_at, created_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            ON CONFLICT(track_id) DO UPDATE SET
+                file_path = excluded.file_path,
+                file_size_bytes = excluded.file_size_bytes,
+                duration_sec = excluded.duration_sec,
+                audio_codec = excluded.audio_codec,
+                hit_count = cache_entries.hit_count + 1,
+                last_served_at = excluded.last_served_at
+            "#,
+            params![
+                entry.track_id,
+                entry.file_path,
+                entry.file_size_bytes as i64,
+                entry.duration_sec as i64,
+                entry.audio_codec,
+                entry.hit_count as i64,
+                last_served,
+                now,
+            ],
+        )?;
         Ok(())
     }
 
-    pub fn get_cache_entry(&self, _track_id: &str) -> Result<Option<CacheEntry>, DbError> {
-        // Red test stub
-        Ok(None)
+    pub fn get_cache_entry(&self, track_id: &str) -> Result<Option<CacheEntry>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id, track_id, file_path, file_size_bytes, duration_sec,
+                   audio_codec, hit_count, last_served_at, created_at
+            FROM cache_entries
+            WHERE track_id = ?1
+            "#,
+        )?;
+        let mut rows = stmt.query(params![track_id])?;
+        if let Some(row) = rows.next()? {
+            let size: i64 = row.get(3)?;
+            let dur: i64 = row.get(4)?;
+            let hits: i64 = row.get(6)?;
+            Ok(Some(CacheEntry {
+                id: row.get(0)?,
+                track_id: row.get(1)?,
+                file_path: row.get(2)?,
+                file_size_bytes: size.max(0) as u64,
+                duration_sec: dur.max(0) as u64,
+                audio_codec: row.get(5)?,
+                hit_count: hits.max(0) as u64,
+                last_served_at: row.get(7)?,
+                created_at: row.get(8)?,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
-    pub fn increment_cache_hit(&self, _track_id: &str, _served_at: i64) -> Result<(), DbError> {
-        // Red test stub
+    pub fn increment_cache_hit(&self, track_id: &str, served_at: i64) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"
+            UPDATE cache_entries
+            SET hit_count = hit_count + 1, last_served_at = ?2
+            WHERE track_id = ?1
+            "#,
+            params![track_id, served_at],
+        )?;
         Ok(())
     }
 
