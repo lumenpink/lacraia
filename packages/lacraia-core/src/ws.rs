@@ -156,7 +156,7 @@ impl PlaybackHub {
             }
             Some(Role::Passenger) => {
                 match &action {
-                    CommandAction::QueueAppend { .. } => { /* Allowed */ }
+                    CommandAction::QueueAppend { .. } | CommandAction::QueueNext { .. } => { /* Allowed */ }
                     _ => return Err("FORBIDDEN: Apenas o piloto pode comandar a cabine".to_string()),
                 }
             }
@@ -166,7 +166,7 @@ impl PlaybackHub {
                     return Err("FORBIDDEN: Cabine trancada pelo piloto".to_string());
                 }
                 match &action {
-                    CommandAction::QueueAppend { .. } => { /* Allowed */ }
+                    CommandAction::QueueAppend { .. } | CommandAction::QueueNext { .. } => { /* Allowed */ }
                     _ => return Err("UNAUTHORIZED: Autenticação de piloto necessária para comandar a cabine".to_string()),
                 }
             }
@@ -254,6 +254,55 @@ impl PlaybackHub {
             CommandAction::QueueAppend { track_id, requested_by } => {
                 if let Err(e) = self.db.enqueue_track_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
                     return Err(format!("Failed to enqueue track: {}", e));
+                }
+            }
+            CommandAction::QueueNext { track_id, requested_by } => {
+                if let Err(e) = self.db.enqueue_track_next_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
+                    return Err(format!("Failed to enqueue track next: {}", e));
+                }
+            }
+            CommandAction::PlayNow { track_id, requested_by } => {
+                *self.position_ms.lock().await = 0;
+                match self.db.play_now_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
+                    Ok(entry) => {
+                        if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            let track = Track {
+                                id: record.id.clone(),
+                                title: record.title,
+                                artist: record.artist,
+                                album: None,
+                                duration_ms: record.duration_sec * 1000,
+                                cover_url: None,
+                                stream_url: record.cached_path.as_deref().map(clean_stream_url),
+                                requested_by: entry.requested_by,
+                            };
+                            *self.current_track.lock().await = Some(track);
+                            *self.playback_state.lock().await = PlaybackState::Playing;
+                        }
+                    }
+                    Err(e) => return Err(format!("Failed to play track now: {}", e)),
+                }
+            }
+            CommandAction::StartRadio { track_id, requested_by } => {
+                *self.position_ms.lock().await = 0;
+                match self.db.start_radio_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
+                    Ok(entry) => {
+                        if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            let track = Track {
+                                id: record.id.clone(),
+                                title: record.title,
+                                artist: record.artist,
+                                album: None,
+                                duration_ms: record.duration_sec * 1000,
+                                cover_url: None,
+                                stream_url: record.cached_path.as_deref().map(clean_stream_url),
+                                requested_by: entry.requested_by,
+                            };
+                            *self.current_track.lock().await = Some(track);
+                            *self.playback_state.lock().await = PlaybackState::Playing;
+                        }
+                    }
+                    Err(e) => return Err(format!("Failed to start radio from track: {}", e)),
                 }
             }
             CommandAction::QueueRemove { queue_id } => {
@@ -534,6 +583,83 @@ mod tests {
                 assert_eq!(u.payload.track.unwrap().title, "One More Time");
             }
             _ => panic!("Expected StateUpdate for Jump"),
+        }
+
+        // 5. PlayNow Command
+        let track3 = TrackRecord {
+            id: "trk_now".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 240,
+            cached_path: Some("/cache/serginho_vai_lacraia.opus".into()),
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track3).unwrap();
+        hub.dispatch_command(CommandAction::PlayNow {
+            track_id: "trk_now".into(),
+            requested_by: Some("PILOTO".into()),
+        }).await.unwrap();
+        let received5 = rx.recv().await.unwrap();
+        match received5 {
+            WsMessage::StateUpdate(u) => {
+                assert_eq!(u.payload.playback.state, PlaybackState::Playing);
+                assert!(u.payload.track.is_some());
+                assert_eq!(u.payload.track.unwrap().title, "Vai Lacraia");
+            }
+            _ => panic!("Expected StateUpdate for PlayNow"),
+        }
+
+        // 6. QueueNext Command
+        let track4 = TrackRecord {
+            id: "trk_next".into(),
+            artist: "Legião Urbana".into(),
+            title: "Tempo Perdido".into(),
+            duration_sec: 300,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track4).unwrap();
+        hub.dispatch_command(CommandAction::QueueNext {
+            track_id: "trk_next".into(),
+            requested_by: Some("@Mari".into()),
+        }).await.unwrap();
+        let received6 = rx.recv().await.unwrap();
+        match received6 {
+            WsMessage::StateUpdate(u) => {
+                let upcoming: Vec<_> = u.payload.queue.iter().filter(|q| q.state != "playing").collect();
+                assert!(!upcoming.is_empty());
+                assert_eq!(upcoming[0].title, "Tempo Perdido");
+            }
+            _ => panic!("Expected StateUpdate for QueueNext"),
+        }
+
+        // 7. StartRadio Command
+        let track5 = TrackRecord {
+            id: "trk_radio".into(),
+            artist: "Chico Buarque".into(),
+            title: "Construção".into(),
+            duration_sec: 258,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track5).unwrap();
+        hub.dispatch_command(CommandAction::StartRadio {
+            track_id: "trk_radio".into(),
+            requested_by: Some("PILOTO".into()),
+        }).await.unwrap();
+        let received7 = rx.recv().await.unwrap();
+        match received7 {
+            WsMessage::StateUpdate(u) => {
+                assert_eq!(u.payload.playback.state, PlaybackState::Playing);
+                assert!(u.payload.track.is_some());
+                assert_eq!(u.payload.track.unwrap().title, "Construção");
+                let upcoming: Vec<_> = u.payload.queue.iter().filter(|q| q.state != "playing").collect();
+                assert!(upcoming.is_empty());
+            }
+            _ => panic!("Expected StateUpdate for StartRadio"),
         }
     }
 
