@@ -1,5 +1,5 @@
 use chrono::Utc;
-use lacraia_shared::{PassengerInfo, PlaybackHistoryEntry, Role};
+use lacraia_shared::{CacheEntry, CacheResolutionAttempt, PassengerInfo, PlaybackHistoryEntry, Role};
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -1325,6 +1325,31 @@ impl Database {
         }
     }
 
+    pub fn record_resolution_attempt(&self, _attempt: &CacheResolutionAttempt) -> Result<i64, DbError> {
+        // Red test stub
+        Ok(0)
+    }
+
+    pub fn get_resolution_attempts_for_track(&self, _track_id: &str) -> Result<Vec<CacheResolutionAttempt>, DbError> {
+        // Red test stub
+        Ok(vec![])
+    }
+
+    pub fn upsert_cache_entry(&self, _entry: &CacheEntry) -> Result<(), DbError> {
+        // Red test stub
+        Ok(())
+    }
+
+    pub fn get_cache_entry(&self, _track_id: &str) -> Result<Option<CacheEntry>, DbError> {
+        // Red test stub
+        Ok(None)
+    }
+
+    pub fn increment_cache_hit(&self, _track_id: &str, _served_at: i64) -> Result<(), DbError> {
+        // Red test stub
+        Ok(())
+    }
+
     pub fn record_playback_history(
         &self,
         cabin_id: &str,
@@ -1970,6 +1995,87 @@ mod tests {
         assert!(!recs.is_empty(), "Multi-seed query must return candidates");
         // Candidate 1 must be first due to highest combined edge affinity across seeds
         assert_eq!(recs[0].id, "c1", "Candidate with multi-seed edge affinity must rank #1");
+    }
+
+    #[test]
+    fn test_cache_inventory_and_resolution_attempt_logging() {
+        use lacraia_shared::models::{CacheEntry, CacheResolutionAttempt, ResolutionTier, ValidationStatus};
+
+        let db = Database::open_in_memory().unwrap();
+
+        // 1. Log Attempt 1 (Failure: Tier 1 Direct fails with HTTP 403)
+        let attempt1 = CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_telemetry".into(),
+            attempt_number: 1,
+            tier: ResolutionTier::Tier1Direct.as_str().into(),
+            method: "rustypipe_stream".into(),
+            command_line: None,
+            success: false,
+            exit_code: Some(403),
+            error_code: Some("HTTP_403".into()),
+            error_output: Some("Forbidden signature cipher error".into()),
+            duration_ms: 250,
+            bytes_received: 0,
+            validation_status: ValidationStatus::NetworkError.as_str().into(),
+            cabin_id: Some("cab_alpha".into()),
+            created_at: 1700000000,
+        };
+        db.record_resolution_attempt(&attempt1).unwrap();
+
+        // 2. Log Attempt 2 (Success: Tier 3 yt-dlp android client succeeds)
+        let attempt2 = CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_telemetry".into(),
+            attempt_number: 2,
+            tier: ResolutionTier::Tier3YtdlpAndroid.as_str().into(),
+            method: "ytdlp_cli".into(),
+            command_line: Some("yt-dlp --extractor-args youtube:player_client=android".into()),
+            success: true,
+            exit_code: Some(0),
+            error_code: None,
+            error_output: None,
+            duration_ms: 3200,
+            bytes_received: 5242880,
+            validation_status: ValidationStatus::Valid.as_str().into(),
+            cabin_id: Some("cab_alpha".into()),
+            created_at: 1700000003,
+        };
+        db.record_resolution_attempt(&attempt2).unwrap();
+
+        // Query attempts for this track
+        let attempts = db.get_resolution_attempts_for_track("trk_telemetry").unwrap();
+        assert_eq!(attempts.len(), 2, "Must return exactly 2 attempts");
+        assert_eq!(attempts[0].attempt_number, 1);
+        assert!(!attempts[0].success);
+        assert_eq!(attempts[0].error_code.as_deref(), Some("HTTP_403"));
+        assert_eq!(attempts[1].attempt_number, 2);
+        assert!(attempts[1].success);
+        assert_eq!(attempts[1].bytes_received, 5242880);
+
+        // 3. Upsert Physical Cache Entry
+        let entry = CacheEntry {
+            id: 0,
+            track_id: "trk_telemetry".into(),
+            file_path: "/cache/trk_telemetry.opus".into(),
+            file_size_bytes: 5242880,
+            duration_sec: 215,
+            audio_codec: "opus".into(),
+            hit_count: 1,
+            last_served_at: 1700000005,
+            created_at: 1700000003,
+        };
+        db.upsert_cache_entry(&entry).unwrap();
+
+        let retrieved = db.get_cache_entry("trk_telemetry").unwrap().expect("Cache entry must exist");
+        assert_eq!(retrieved.file_size_bytes, 5242880);
+        assert_eq!(retrieved.hit_count, 1);
+
+        // 4. Increment Cache Hit
+        db.increment_cache_hit("trk_telemetry", 1700000010).unwrap();
+        let updated = db.get_cache_entry("trk_telemetry").unwrap().unwrap();
+        assert_eq!(updated.hit_count, 2, "Hit count must increment to 2");
+        assert_eq!(updated.last_served_at, 1700000010);
     }
 }
 
