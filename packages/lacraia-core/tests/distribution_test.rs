@@ -57,12 +57,12 @@ fn test_obtainium_html_autodiscovery() {
 
     // Validação da loja Pratilera da Banca (F-Droid / Droid-ify)
     assert!(
-        html.contains("banca.2lp.in/pratilera"),
-        "site/index.html deve conter a URL canônica da Pratilera na Banca (banca.2lp.in/pratilera)"
+        html.contains("https://banca.2lp.in/pratilera"),
+        "site/index.html deve conter a URL canônica HTTPS da Pratilera na Banca (https://banca.2lp.in/pratilera)"
     );
     assert!(
-        html.contains("fdroidrepos://banca.2lp.in/pratilera"),
-        "site/index.html deve conter o deep link fdroidrepos:// para adição direta no Droid-ify"
+        html.contains("navigator.clipboard.writeText('https://banca.2lp.in/pratilera')"),
+        "site/index.html deve conter botão com cópia para o clipboard de https://banca.2lp.in/pratilera"
     );
     assert!(
         html.contains("patilera") && html.contains("prateleira"),
