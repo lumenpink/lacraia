@@ -348,13 +348,14 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
   - Suíte de testes unitários e teste Playwright E2E 18 validando transições e isolamento por cabine.
 
 
+---
 
-
-
-
-
-
-
-
-
-
+### Issue #22: Inventário de Cache e Telemetria de Tentativas de Resolução por Tier
+* **Package:** `packages/lacraia-core`, `packages/lacraia-shared`
+* **Goal:** Criar tabelas relacionais em SQLite para inventário de cache e rastreamento granular de todas as tentativas de resolução (sucessos e falhas com logs de saída), permitindo geração de diagnósticos e estatísticas analíticas de taxa de sucesso por tier e distribuição de tentativas.
+* **Acceptance Criteria:**
+  - Tabela `cache_entries` mapeando arquivos físicos, tamanhos em bytes, codecs, contadores de hits e timestamps.
+  - Tabela `cache_resolution_attempts` com log estrito de tentativas por tier (`tier_0_local`, `tier_1_direct`, `tier_2_ytdlp_web`, `tier_3_ytdlp_android`), códigos de saída, códigos de erro e saída detalhada de comando/stderr.
+  - Métodos analíticos SQL: `get_attempts_success_distribution` (quantas faixas resolvem na 1ª tentativa vs fallbacks), `get_tier_success_rates` e `get_top_resolution_errors`.
+  - Instrumentação do `MediaResolver` registrando hits e tentativas reais de download/transcode.
+  - Cobertura total com testes unitários em `db.rs` e `resolver.rs`.

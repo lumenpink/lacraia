@@ -281,7 +281,23 @@ To guarantee continuous playback and zero dead-air buffer starvation across any 
    * The cockpit UI provides a high-contrast neon switch (`#btn-toggle-nonstop`) displaying `🔁 NON-STOP: ON` or `⏸ NON-STOP: OFF`.
    * When enabled, the daemon automatically replenishes upcoming slots as playback advances. When disabled, playback ceases once user-enqueued tracks exhaust.
 
+---
 
+## 14. Cache Inventory & Granular Resolution Attempt Telemetry
 
+To prevent blind spots in offline performance and audit track download provenance across multiple fallback tiers, `lacraia-core` maintains structured telemetry tables in SQLite:
 
-
+1. **`cache_entries` (Physical Cache Inventory):**
+   * Stores physical artifact details: `track_id`, `file_path`, `file_size_bytes`, `duration_sec`, `audio_codec` (`opus`), `hit_count`, `last_served_at`, and `created_at`.
+   * Automatically upserted on local cache hits and newly completed downloads, incrementing `hit_count` and serving timestamps.
+2. **`cache_resolution_attempts` (Execution Attempt Log):**
+   * Captures every resolution attempt (successes and failures alike) across all tiers:
+     * `tier_0_local`: Local filesystem or database cache hits.
+     * `tier_1_direct`: Direct native YouTube Music queries via RustyPipe.
+     * `tier_2_ytdlp_web`: Web-client fallback queries.
+     * `tier_3_ytdlp_android`: Android client extraction fallback via yt-dlp.
+   * Records exact latency (`duration_ms`), exit codes, error classifications (`RUSTYPIPE_FAILED`, `YTDLP_FAILED`), captured command output/stderr, bytes received, and validation status.
+3. **Analytical Statistical Queries:**
+   * **Success by Attempt Number (`get_attempts_success_distribution`):** Aggregates how many tracks succeed on the 1st attempt vs fallback attempts.
+   * **Tier Success Rates (`get_tier_success_rates`):** Computes total attempts, successes, failures, success percentage, and average latency per resolution tier.
+   * **Error Diagnostics (`get_top_resolution_errors`):** Groups error occurrences by tier and error code with sample diagnostic output for post-mortem troubleshooting.
