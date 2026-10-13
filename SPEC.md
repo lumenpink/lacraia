@@ -275,28 +275,20 @@ To prevent mobile chat truncation and aggressive 1:1 cropping across WhatsApp, T
 
 ---
 
-## 13. Sovereign Android Distribution and Obtainium Ingestion
+## 13. Sovereign Android Distribution via A Pratilera (F-Droid / Droid-ify)
 
-To ensure autonomous and self-updating delivery across smartphones and vehicular soundwalls without gatekeeping by Google Play Store:
+To ensure autonomous, self-updating delivery across smartphones and vehicular soundwalls without gatekeeping by Google Play Store:
 1. **Canonical Package Identifiers:**
    - Console & Jukebox: `in.twolp.lacraia.app` (`lacraia-app.apk`)
    - Symbiotic Lyric HUD: `in.twolp.lacraia.simbiotyka` (`simbiotyka.apk`)
 2. **Sovereign Signing:**
    - Production and continuous APKs are signed using the official key (`in_twolp`) backed by `~/.android/in_twolp_release.keystore` and verified via `apksigner`.
-3. **Distribution Endpoint & Headers (`https://lacraia.2lp.in`):**
-   - APK files are hosted directly at root: `https://lacraia.2lp.in/lacraia-app.apk` and `https://lacraia.2lp.in/simbiotyka.apk`.
-   - MIME type headers configured via `site/_headers`:
-     ```http
-     /*.apk
-       Content-Type: application/vnd.android.package-archive
-       Access-Control-Allow-Origin: *
-       Cache-Control: public, max-age=300, must-revalidate
+3. **Central Store Integration (A Pratilera na Banca):**
+   - Official Store URL: `https://banca.2lp.in/pratilera`
+   - Deep link for 1-click addition in Droid-ify and Neo Store: `fdroidrepos://banca.2lp.in/pratilera`
+   - Friendly aliases with automatic 301 redirect: `/patilera`, `/prateleira`, `/repo`.
+4. **Autonomous Distribution Endpoint & Headers (`https://lacraia.2lp.in`):**
+   - Direct APK downloads remain hosted as fallback targets: `https://lacraia.2lp.in/lacraia-app.apk` and `https://lacraia.2lp.in/simbiotyka.apk`.
+   - MIME type headers configured via `site/_headers` (`application/vnd.android.package-archive` and `Access-Control-Allow-Origin: *`).
+   - Version manifests (`site/version.json` and `site/version-nightly.json`) preserve compatibility with Obtainium and standalone JSON updaters.
 
-     /version.json
-       Content-Type: application/json; charset=utf-8
-       Access-Control-Allow-Origin: *
-       Cache-Control: public, max-age=300, must-revalidate
-     ```
-4. **Obtainium Autodiscovery:**
-   - The landing page (`site/index.html`) exposes an HTML scraping target containing direct links to both APKs and metadata cards indicating source URL (`https://lacraia.2lp.in`) and respective Package IDs.
-   - Version manifests (`site/version.json` and `site/version-nightly.json`) expose SemVer tags, published timestamps, and direct APK download targets.
