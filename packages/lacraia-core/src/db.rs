@@ -601,12 +601,137 @@ impl Database {
     /// aggregating similarity edges, common genres, and artist affinities to preserve playlist mood.
     pub fn get_recommendations_for_multi_seeds(
         &self,
-        _seed_ids: &[String],
-        _exclude_ids: &[String],
-        _limit: usize,
+        seed_ids: &[String],
+        exclude_ids: &[String],
+        limit: usize,
     ) -> Result<Vec<TrackRecord>, DbError> {
-        // Red test stub
-        Err(DbError::TrackNotFound("multi-seed not yet implemented".into()))
+        let conn = self.conn.lock().unwrap();
+        if seed_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // 1. Traverse similarity edges from graph across all seed tracks,
+        // accumulating edge weights and count of seeds connected to each candidate.
+        let mut candidate_scores: std::collections::HashMap<String, (TrackRecord, f64, usize)> = std::collections::HashMap::new();
+
+        for seed_id in seed_ids {
+            let mut stmt = conn.prepare(
+                r#"
+                SELECT t.id, t.artist, t.title, t.duration_sec, t.cached_path, t.genres, t.last_played_at, e.weight
+                FROM similarity_edges e
+                JOIN tracks t ON t.id = e.target_track_id
+                WHERE e.source_track_id = ?1
+                ORDER BY e.weight DESC
+                LIMIT 25
+                "#,
+            )?;
+            let rows = stmt.query_map(params![seed_id], |row| {
+                Ok((
+                    TrackRecord {
+                        id: row.get(0)?,
+                        artist: row.get(1)?,
+                        title: row.get(2)?,
+                        duration_sec: row.get(3)?,
+                        cached_path: row.get(4)?,
+                        genres: row.get(5)?,
+                        last_played_at: row.get(6)?,
+                    },
+                    row.get::<_, f64>(7)?,
+                ))
+            })?;
+            for (record, weight) in rows.flatten() {
+                if !exclude_ids.contains(&record.id) && !seed_ids.contains(&record.id) {
+                    let entry = candidate_scores.entry(record.id.clone()).or_insert_with(|| (record, 0.0, 0));
+                    entry.1 += weight;
+                    entry.2 += 1;
+                }
+            }
+        }
+
+        // Rank candidates: multi-seed connections receive a multi-affinity multiplier
+        let mut scored_list: Vec<(TrackRecord, f64)> = candidate_scores
+            .into_values()
+            .map(|(rec, score, count)| {
+                let boost = 1.0 + 0.5 * ((count.saturating_sub(1)) as f64);
+                (rec, score * boost)
+            })
+            .collect();
+
+        scored_list.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let mut results: Vec<TrackRecord> = scored_list.into_iter().map(|(rec, _)| rec).collect();
+        if results.len() >= limit {
+            results.truncate(limit);
+            return Ok(results);
+        }
+
+        // 2. Query same artist or genre affinity across the seeds
+        for seed_id in seed_ids {
+            let seed_opt: Option<(String, Option<String>)> = conn
+                .query_row(
+                    "SELECT artist, genres FROM tracks WHERE id = ?1",
+                    params![seed_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .ok();
+
+            if let Some((artist, _genres)) = seed_opt {
+                let mut stmt_artist = conn.prepare(
+                    "SELECT id, artist, title, duration_sec, cached_path, genres, last_played_at FROM tracks WHERE artist = ?1 LIMIT 10",
+                )?;
+                let artist_rows = stmt_artist.query_map(params![artist], |row| {
+                    Ok(TrackRecord {
+                        id: row.get(0)?,
+                        artist: row.get(1)?,
+                        title: row.get(2)?,
+                        duration_sec: row.get(3)?,
+                        cached_path: row.get(4)?,
+                        genres: row.get(5)?,
+                        last_played_at: row.get(6)?,
+                    })
+                })?;
+                for r in artist_rows.flatten() {
+                    if !exclude_ids.contains(&r.id)
+                        && !seed_ids.contains(&r.id)
+                        && !results.iter().any(|existing| existing.id == r.id)
+                    {
+                        results.push(r);
+                        if results.len() >= limit {
+                            return Ok(results);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback to catalog defaults
+        let mut stmt_all = conn.prepare(
+            "SELECT id, artist, title, duration_sec, cached_path, genres, last_played_at FROM tracks ORDER BY id ASC LIMIT 30",
+        )?;
+        let all_rows = stmt_all.query_map([], |row| {
+            Ok(TrackRecord {
+                id: row.get(0)?,
+                artist: row.get(1)?,
+                title: row.get(2)?,
+                duration_sec: row.get(3)?,
+                cached_path: row.get(4)?,
+                genres: row.get(5)?,
+                last_played_at: row.get(6)?,
+            })
+        })?;
+        for r in all_rows.flatten() {
+            if !exclude_ids.contains(&r.id)
+                && !seed_ids.contains(&r.id)
+                && !results.iter().any(|existing| existing.id == r.id)
+            {
+                results.push(r);
+                if results.len() >= limit {
+                    break;
+                }
+            }
+        }
+
+        Ok(results)
     }
 
     pub fn enqueue_track(&self, track_id: &str) -> Result<i64, DbError> {
