@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node run_tests.js"
+    "test": "node run_tests.js",
+    "test:smoke": "node run_tests.js --smoke",
+    "test:exhaustive": "node run_tests.js --exhaustive"
   },
   "dependencies": {
     "playwright": "^1.49.0"

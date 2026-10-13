@@ -506,22 +506,15 @@ impl QueueDaemon {
 
     /// Executes a single prefetch cycle for the lookahead window.
     pub async fn step(&self) -> Result<usize, QueueDaemonError> {
-        let mut cabin_ids = vec!["default".to_string()];
-        if let Ok(cabins) = self.db.list_cabins() {
-            for c in cabins {
-                if !cabin_ids.contains(&c.id) {
-                    cabin_ids.push(c.id);
-                }
-            }
-        }
+        let cabin_ids = self.db.list_active_cabin_ids().unwrap_or_else(|_| vec!["default".to_string()]);
 
         for cid in &cabin_ids {
             let _ = self.maintain_autopilot_queue_sliding(cid).await;
         }
 
         let mut all_queues = Vec::new();
-        for cid in cabin_ids {
-            if let Ok(q) = self.db.get_queue_for_cabin(&cid) {
+        for cid in &cabin_ids {
+            if let Ok(q) = self.db.get_queue_for_cabin(cid) {
                 all_queues.extend(q);
             }
         }

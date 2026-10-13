@@ -1340,12 +1340,48 @@ impl Database {
         Ok(matched.is_some())
     }
 
+    pub fn list_active_cabin_ids(&self) -> Result<Vec<String>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id FROM cabins
+            UNION
+            SELECT DISTINCT cabin_id FROM queue
+            UNION
+            SELECT DISTINCT cabin_id FROM cabin_playback_state
+            "#
+        )?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        if !list.contains(&"default".to_string()) {
+            list.push("default".to_string());
+        }
+        Ok(list)
+    }
+
     pub fn set_cabin_locked(&self, cabin_id: &str, locked: bool) -> Result<(), DbError> {
         let conn = self.conn.lock().unwrap();
-        conn.execute(
+        let rows = conn.execute(
             "UPDATE cabins SET is_locked = ?1 WHERE id = ?2",
             params![if locked { 1 } else { 0 }, cabin_id],
         )?;
+        if rows == 0 {
+            let now = Utc::now().timestamp();
+            let default_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+            let pilot_tok = format!("pilot_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+            let name = format!("Cabine {}", cabin_id);
+            conn.execute(
+                r#"
+                INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                ON CONFLICT(id) DO UPDATE SET is_locked = ?3
+                "#,
+                params![cabin_id, name, if locked { 1 } else { 0 }, pilot_tok, default_key, now],
+            )?;
+        }
         Ok(())
     }
 

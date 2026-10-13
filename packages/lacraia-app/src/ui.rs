@@ -11,13 +11,7 @@ pub fn format_time(ms: u64) -> String {
 
 /// Clamps volume float between 0.0 and 1.0
 pub fn clamp_volume(volume: f64) -> f64 {
-    if volume < 0.0 {
-        0.0
-    } else if volume > 1.0 {
-        1.0
-    } else {
-        volume
-    }
+    volume.clamp(0.0, 1.0)
 }
 
 /// Formats volume float (0.0 to 1.0) into the legendary 0 to 11 gain scale
@@ -83,6 +77,7 @@ impl QueueController {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<&Track> {
         if let Some(idx) = self.current_index {
             if idx + 1 < self.queue.len() {
@@ -263,9 +258,7 @@ impl VisualizerState {
     }
 
     pub fn reset(&mut self) {
-        for amp in &mut self.amplitudes {
-            *amp = 0.0;
-        }
+        self.amplitudes.fill(0.0);
     }
 
     pub fn update_amplitudes(&mut self, new_raw_bands: &[f32]) {

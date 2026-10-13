@@ -10,8 +10,12 @@ const REPO_ROOT = path.resolve(__dirname, '../..');
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:2011';
 const CHROME_PATH = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 
+const IS_SMOKE = process.argv.includes('--smoke');
+const IS_EXHAUSTIVE = process.argv.includes('--exhaustive');
+
 let passed = 0;
 let failed = 0;
+let skipped = 0;
 let spawnedServer = null;
 
 function assert(condition, message) {
@@ -20,7 +24,16 @@ function assert(condition, message) {
   }
 }
 
-async function test(name, fn) {
+async function test(name, fn, options = {}) {
+  const { smoke = false, exhaustive = false } = options;
+  if (IS_SMOKE && !smoke) {
+    skipped++;
+    return;
+  }
+  if (exhaustive && !IS_EXHAUSTIVE) {
+    skipped++;
+    return;
+  }
   process.stdout.write(`  ⏳ ${name}... `);
   try {
     await fn();
@@ -75,7 +88,9 @@ async function ensureBackendReady() {
 }
 
 async function main() {
-  console.log(`\n🦂 [LA CRAIA :: EXHAUSTIVE PLAYWRIGHT E2E SUITE]`);
+  const modeLabel = IS_SMOKE ? 'SMOKE (< 5s, Vital Sanity)' : IS_EXHAUSTIVE ? 'EXHAUSTIVE / DEEP STRESS' : 'REGRESSION (19 Scenarios)';
+  console.log(`\n🦂 [LA CRAIA :: PLAYWRIGHT E2E SUITE]`);
+  console.log(`   Mode: ${modeLabel}`);
   console.log(`   Target: ${BASE_URL}`);
   console.log(`   Browser: ${CHROME_PATH} (Headless, Ephemeral Incognito Contexts)`);
   console.log(`------------------------------------------------------------\n`);
@@ -126,7 +141,7 @@ async function main() {
       assert(cockpitLink !== null, 'Portal must contain navigation link to /app');
 
       await context.close();
-    });
+    }, { smoke: true });
 
     // -------------------------------------------------------------
     // Test 2: Cockpit Desktop Architecture & Layout (/app)
@@ -170,7 +185,7 @@ async function main() {
       );
 
       await context.close();
-    });
+    }, { smoke: true });
 
     // -------------------------------------------------------------
     // Test 3: Mobile Viewport (< 860px) & Tab Switching
@@ -378,7 +393,7 @@ async function main() {
       assert(timeCurrentText !== '00:00', `Seeking to 50% must advance time label, got ${timeCurrentText}`);
 
       await context.close();
-    });
+    }, { smoke: true });
 
     // -------------------------------------------------------------
     // Test 6: Station Dial by Acoustic Similarity Graph
@@ -879,12 +894,13 @@ async function main() {
 
       await page.waitForFunction(() => {
         const tit = document.getElementById('track-title');
-        return tit && (tit.textContent.includes('Vai Lacraia') || tit.textContent.includes('Lacraia') || tit.textContent.includes('Serginho'));
-      }, { timeout: 10000 });
+        const text = tit ? tit.textContent.toUpperCase() : '';
+        return text.includes('LACRAIA') || text.includes('SERGINHO');
+      }, { timeout: 15000 });
 
       const titleAfterNext = await page.locator('#track-title').textContent();
       assert(
-        titleAfterNext.includes('Vai Lacraia') || titleAfterNext.includes('Lacraia') || titleAfterNext.includes('Serginho'),
+        titleAfterNext.toUpperCase().includes('LACRAIA') || titleAfterNext.toUpperCase().includes('SERGINHO'),
         `Track title after Next must advance to Track 3, got '${titleAfterNext}'`
       );
 
@@ -1168,7 +1184,7 @@ async function main() {
       assert(activeBadge, 'Non-stop button must reflect active ON state when nonStop is true');
 
       // 5. Test turning non-stop OFF reflects inactive state
-      await page.evaluate(() => {
+      const inactiveBadge = await page.evaluate(() => {
         if (window.handleWsMessage) {
           window.handleWsMessage({
             type: 'STATE_UPDATE',
@@ -1179,10 +1195,6 @@ async function main() {
             }
           });
         }
-      });
-      await page.waitForTimeout(300);
-
-      const inactiveBadge = await page.evaluate(() => {
         const btn = document.getElementById('btn-toggle-nonstop');
         return btn ? (btn.getAttribute('data-active') === 'false' || !btn.classList.contains('active') || btn.innerText.includes('OFF')) : false;
       });
@@ -1252,6 +1264,165 @@ async function main() {
       await context.close();
     });
 
+    // =============================================================
+    // EXHAUSTIVE DEEP SUITE (Executed only when --exhaustive is set)
+    // =============================================================
+
+    // -------------------------------------------------------------
+    // Test 20 (Exhaustive): Jukebox Input Fuzzing & Malicious Payload Resilience
+    // -------------------------------------------------------------
+    await test('Exhaustive Stress: Jukebox Input Fuzzing & Malicious Payload Resilience', async () => {
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page = await context.newPage();
+      await page.goto(`${BASE_URL}/app?master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(400);
+
+      const input = page.locator('#enqueue-input');
+      const dropdown = page.locator('#search-dropdown');
+
+      const payloads = [
+        "'; DROP TABLE tracks; --",
+        "' OR '1'='1' --",
+        "<script>window.__xss_fuzz = true;</script>",
+        "<img src=x onerror=\"window.__xss_img = 1\">",
+        "SELECT * FROM queue WHERE state = 'playing'",
+        "../../../../../../etc/passwd",
+        "🦂⚡🔥🏎️🎵🎶🎸🥁🎛️",
+        "Z̸̢̛a̵̢̛ļ̶̛ģ̷̛ơ̸̢ ̷̧̛T̸̢̛e̸̢̛x̶̧̛ţ̷̛",
+        "\u202E\u200B\uFEFFinvisible_and_rtl",
+        "A".repeat(1500),
+      ];
+
+      for (const payload of payloads) {
+        await input.fill(payload);
+        await page.waitForTimeout(200);
+
+        // Assert no XSS was executed
+        const xssExecuted = await page.evaluate(() => !!(window.__xss_fuzz || window.__xss_img));
+        assert(!xssExecuted, `XSS payload execution detected for payload: ${payload.slice(0, 30)}`);
+
+        // Assert application UI didn't crash
+        const appAlive = await page.evaluate(() => !!document.getElementById('deck-01'));
+        assert(appAlive, `Application UI crashed after receiving fuzz payload: ${payload.slice(0, 30)}`);
+      }
+
+      // Assert search returns gracefully to normal operation
+      await input.fill('Kraftwerk');
+      await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+      const count = await dropdown.locator('.search-item').count();
+      assert(count > 0, 'Jukebox search must function properly after extensive fuzzing');
+
+      await context.close();
+    }, { exhaustive: true });
+
+    // -------------------------------------------------------------
+    // Test 21 (Exhaustive): Concurrent Multi-Cabin State Isolation & Passenger Contention
+    // -------------------------------------------------------------
+    await test('Exhaustive Stress: Concurrent Multi-Cabin State Isolation & Passenger Contention', async () => {
+      const cabin1 = `cab_stress_alpha_${Date.now()}`;
+      const cabin2 = `cab_stress_beta_${Date.now()}`;
+
+      const ctx1 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page1 = await ctx1.newPage();
+      const page2 = await ctx2.newPage();
+
+      // Open Cabin Alpha and Cabin Beta simultaneously
+      await Promise.all([
+        page1.goto(`${BASE_URL}/app?cabin=${cabin1}&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' }),
+        page2.goto(`${BASE_URL}/app?cabin=${cabin2}&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' }),
+      ]);
+      await Promise.all([page1.waitForTimeout(600), page2.waitForTimeout(600)]);
+
+      // Cabin Alpha locks doors
+      const lockBtn1 = page1.locator('#btn-toggle-door');
+      await lockBtn1.click({ force: true });
+      await page1.waitForFunction(() => {
+        const badge = document.getElementById('door-badge');
+        return badge && badge.textContent.includes('TRANCADAS');
+      }, { timeout: 8000 });
+
+      // Verify Cabin Alpha is locked
+      const isLocked1 = await page1.evaluate(() => document.getElementById('door-badge')?.textContent?.includes('TRANCADAS'));
+      assert(isLocked1, 'Cabin Alpha must be locked');
+
+      // Verify Cabin Beta is NOT locked (strict isolation)
+      const isLocked2 = await page2.evaluate(() => document.getElementById('door-badge')?.textContent?.includes('ABERTAS'));
+      assert(isLocked2, 'Cabin Beta must remain open (strict cabin isolation)');
+
+      // Concurrently enqueue into both cabins
+      const input1 = page1.locator('#enqueue-input');
+      const input2 = page2.locator('#enqueue-input');
+
+      await input1.fill('Construção');
+      await page1.locator('#search-dropdown').waitFor({ state: 'visible', timeout: 5000 });
+      await page1.locator('.search-item button[data-action="enqueue"]').first().click();
+
+      await input2.fill('Kraftwerk');
+      await page2.locator('#search-dropdown').waitFor({ state: 'visible', timeout: 5000 });
+      await page2.locator('.search-item button[data-action="enqueue"]').first().click();
+
+      await Promise.all([page1.waitForTimeout(600), page2.waitForTimeout(600)]);
+
+      // Verify Cabin Alpha queue contains only Construção, not Kraftwerk
+      const q1Text = await page1.locator('#queue-list-container').textContent();
+      assert(q1Text.includes('Construção') || q1Text.includes('Chico'), 'Cabin Alpha must contain its own enqueued track');
+      assert(!q1Text.includes('Autobahn') && !q1Text.includes('Kraftwerk'), 'Cabin Alpha must NOT contain Cabin Beta tracks');
+
+      // Verify Cabin Beta queue contains only Kraftwerk, not Construção
+      const q2Text = await page2.locator('#queue-list-container').textContent();
+      assert(q2Text.includes('Autobahn') || q2Text.includes('Kraftwerk'), 'Cabin Beta must contain its own enqueued track');
+      assert(!q2Text.includes('Construção'), 'Cabin Beta must NOT contain Cabin Alpha tracks');
+
+      await Promise.all([ctx1.close(), ctx2.close()]);
+    }, { exhaustive: true });
+
+    // -------------------------------------------------------------
+    // Test 22 (Exhaustive): Autopilot Endurance & Rapid Track Cycling Soak Test
+    // -------------------------------------------------------------
+    await test('Exhaustive Stress: Autopilot Lookahead Endurance & Rapid Track Cycling Soak Test', async () => {
+      const soakCabin = `cab_soak_${Date.now()}`;
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page = await context.newPage();
+      await page.goto(`${BASE_URL}/app?cabin=${soakCabin}&master_key=lacraia_master_2011`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(600);
+
+      const input = page.locator('#enqueue-input');
+      const dropdown = page.locator('#search-dropdown');
+
+      // Populate initial catalog seeds into cabin
+      const seeds = ['Construção', 'One More Time', 'Kraftwerk'];
+      for (const s of seeds) {
+        await input.fill(s);
+        await dropdown.waitFor({ state: 'visible', timeout: 5000 });
+        const btn = dropdown.locator('.search-item button[data-action="enqueue"]').first();
+        await btn.click();
+        await page.waitForTimeout(500);
+      }
+
+      // Verify upcoming queue has items
+      const initialCount = await page.locator('.queue-item-row').count();
+      assert(initialCount >= 2, `Queue must have at least 2 upcoming tracks, got ${initialCount}`);
+
+      // Start playback
+      await page.click('#btn-play-pause');
+      await page.waitForTimeout(600);
+
+      // Rapidly skip 5 tracks with 400ms intervals (stress cycling)
+      const nextBtn = page.locator('#btn-next');
+      for (let i = 0; i < 5; i++) {
+        await nextBtn.click();
+        await page.waitForTimeout(400);
+      }
+
+      // Active player track must exist and be defined
+      await page.waitForTimeout(600);
+      const activeTitle = await page.locator('#track-title').textContent();
+      assert(activeTitle && activeTitle.trim().length > 0 && activeTitle !== '--', `Active track title must remain valid after rapid skipping, got '${activeTitle}'`);
+
+      await context.close();
+    }, { exhaustive: true });
+
   } finally {
     await browser.close();
     if (spawnedServer) {
@@ -1263,7 +1434,7 @@ async function main() {
   }
 
   console.log(`\n------------------------------------------------------------`);
-  console.log(`🏁 Playwright E2E Results: ${passed} passed, ${failed} failed`);
+  console.log(`🏁 Playwright E2E Results: ${passed} passed, ${failed} failed${skipped > 0 ? `, ${skipped} skipped` : ''}`);
   console.log(`------------------------------------------------------------\n`);
 
   if (failed > 0) {

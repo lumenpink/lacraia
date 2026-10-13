@@ -184,13 +184,59 @@ impl PlaybackHub {
         let _ = self.tx.send(update);
     }
 
-    pub async fn is_cabin_playing(&self, _cabin_id: &str) -> bool {
-        let state = self.playback_state.lock().await;
-        *state == PlaybackState::Playing
+    pub async fn is_cabin_playing(&self, cabin_id: &str) -> bool {
+        if let Ok(Some(persisted)) = self.db.get_cabin_state(cabin_id) {
+            return persisted.playback_state == "playing";
+        }
+        if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
+            if queue.iter().any(|(e, _)| e.state == crate::db::QueueState::Playing) {
+                return true;
+            }
+        }
+        if cabin_id == "default" {
+            let state = self.playback_state.lock().await;
+            *state == PlaybackState::Playing
+        } else {
+            false
+        }
     }
 
-    pub async fn get_current_track_for_cabin(&self, _cabin_id: &str) -> Option<Track> {
-        self.current_track.lock().await.clone()
+    pub async fn get_current_track_for_cabin(&self, cabin_id: &str) -> Option<Track> {
+        if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
+            if let Some((q, t)) = queue.into_iter().find(|(entry, _)| entry.state == crate::db::QueueState::Playing) {
+                return Some(Track {
+                    id: t.id,
+                    title: t.title,
+                    artist: t.artist,
+                    album: None,
+                    duration_ms: t.duration_sec * 1000,
+                    cover_url: None,
+                    stream_url: t.cached_path.as_deref().map(clean_stream_url),
+                    requested_by: q.requested_by,
+                });
+            }
+        }
+        if let Ok(Some(persisted)) = self.db.get_cabin_state(cabin_id) {
+            if let Some(ref tid) = persisted.track_id {
+                if let Ok(Some(record)) = self.db.get_track(tid) {
+                    return Some(Track {
+                        id: record.id,
+                        title: record.title,
+                        artist: record.artist,
+                        album: None,
+                        duration_ms: record.duration_sec * 1000,
+                        cover_url: None,
+                        stream_url: record.cached_path.as_deref().map(clean_stream_url),
+                        requested_by: Some("CABINE".into()),
+                    });
+                }
+            }
+        }
+        if cabin_id == "default" {
+            self.current_track.lock().await.clone()
+        } else {
+            None
+        }
     }
 
     /// Evaluates starvation or missing cache status for a given track in a cabin.
