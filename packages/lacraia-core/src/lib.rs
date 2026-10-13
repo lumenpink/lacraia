@@ -176,6 +176,8 @@ pub struct MasterAuthResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct EnqueueRequest {
+    #[serde(default)]
+    pub action: Option<String>,
     #[serde(alias = "trackId")]
     pub track_id: String,
     #[serde(alias = "requestedBy")]
@@ -575,11 +577,35 @@ pub async fn handle_queue_append(
     Json(payload): Json<EnqueueRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let cabin_id = payload.cabin_id.unwrap_or_else(|| "default".to_string());
-    match state.db.enqueue_track_with_meta(
-        &payload.track_id,
-        payload.requested_by.as_deref(),
-        &cabin_id,
-    ) {
+    let action_str = payload.action.as_deref().unwrap_or("QUEUE_APPEND");
+    let result = match action_str {
+        "QUEUE_NEXT" => state.db.enqueue_track_next_with_meta(
+            &payload.track_id,
+            payload.requested_by.as_deref(),
+            &cabin_id,
+        ),
+        "PLAY_NOW" => {
+            state.db.play_now_with_meta(
+                &payload.track_id,
+                payload.requested_by.as_deref(),
+                &cabin_id,
+            ).map(|e| e.id)
+        }
+        "START_RADIO" => {
+            state.db.start_radio_with_meta(
+                &payload.track_id,
+                payload.requested_by.as_deref(),
+                &cabin_id,
+            ).map(|e| e.id)
+        }
+        _ => state.db.enqueue_track_with_meta(
+            &payload.track_id,
+            payload.requested_by.as_deref(),
+            &cabin_id,
+        ),
+    };
+
+    match result {
         Ok(queue_id) => {
             let update = state.hub.build_state_update_for_cabin(&cabin_id).await;
             let _ = state.hub.tx.send(update);

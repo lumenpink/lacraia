@@ -638,7 +638,7 @@ impl Database {
 
         let min_pending: Option<i64> = conn
             .query_row(
-                "SELECT MIN(position) FROM queue WHERE cabin_id = ?1 AND state IN ('pending', 'cached')",
+                "SELECT MIN(position) FROM queue WHERE cabin_id = ?1 AND state != 'playing' AND state != 'played'",
                 params![cabin_id],
                 |row| row.get(0),
             )
@@ -646,7 +646,7 @@ impl Database {
 
         let target_pos = if let Some(min_pos) = min_pending {
             conn.execute(
-                "UPDATE queue SET position = position + 1 WHERE cabin_id = ?1 AND state IN ('pending', 'cached')",
+                "UPDATE queue SET position = position + 1 WHERE cabin_id = ?1 AND state != 'playing' AND state != 'played'",
                 params![cabin_id],
             )?;
             min_pos
@@ -658,7 +658,7 @@ impl Database {
                     |row| row.get(0),
                 )
                 .unwrap_or(None);
-            max_pos.map(|p| p + 1).unwrap_or(0)
+            max_pos.map(|p| p + 1).unwrap_or(1)
         };
 
         conn.execute(
