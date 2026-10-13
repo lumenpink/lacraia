@@ -174,6 +174,48 @@ impl PlaybackHub {
         self.current_track.lock().await.clone()
     }
 
+    /// Evaluates starvation or missing cache status for a given track in a cabin.
+    pub fn evaluate_cache_status(&self, track_id: &str) -> Option<CacheAlertInfo> {
+        let track = self.db.get_track(track_id).ok().flatten();
+        match track {
+            Some(t) => {
+                if t.cached_path.is_none() {
+                    Some(CacheAlertInfo {
+                        starvation_type: CacheStarvationType::LocalCacheMissing,
+                        message: "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM".into(),
+                        track_id: Some(t.id),
+                    })
+                } else {
+                    None
+                }
+            }
+            None => Some(CacheAlertInfo {
+                starvation_type: CacheStarvationType::LocalCacheMissing,
+                message: "CACHE LOCAL EM FALTA :: CANTIGA NÃO CATALOGADA".into(),
+                track_id: Some(track_id.to_string()),
+            }),
+        }
+    }
+
+    /// Broadcasts a buffer starvation or cache absence alert to cockpit clients.
+    pub async fn emit_cache_alert(
+        &self,
+        cabin_id: &str,
+        starvation_type: CacheStarvationType,
+        message: &str,
+        track_id: Option<String>,
+        active: bool,
+    ) {
+        let alert = WsMessage::CacheAlert(CacheAlertNotification {
+            cabin_id: cabin_id.to_string(),
+            starvation_type,
+            message: message.to_string(),
+            track_id,
+            active,
+        });
+        let _ = self.tx.send(alert);
+    }
+
     pub async fn dispatch_command(&self, action: CommandAction) -> Result<WsMessage, String> {
         let cabin_id = self.cabin_id.lock().await.clone();
         self.dispatch_command_with_role(action, &cabin_id, Some(Role::Pilot)).await
@@ -572,7 +614,7 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
                 Ok(WsMessage::StateUpdate(_)) => {
                     warn!("Client sent unexpected StateUpdate, ignoring");
                 }
-                Ok(WsMessage::CrewUpdate(_)) | Ok(WsMessage::Ejected(_)) | Ok(WsMessage::CabinLocked(_)) => {
+                Ok(WsMessage::CrewUpdate(_)) | Ok(WsMessage::Ejected(_)) | Ok(WsMessage::CabinLocked(_)) | Ok(WsMessage::CacheAlert(_)) => {
                     // Outgoing notifications ignored from client input
                 }
                 Err(e) => {
