@@ -24,6 +24,8 @@ pub struct QueueDaemon {
     lookahead_window: usize,
     local_window: usize,
     remote_window: usize,
+    target_cache_duration_sec: u64,
+    target_queue_duration_sec: u64,
     poll_interval: Duration,
 }
 
@@ -44,6 +46,8 @@ impl QueueDaemon {
             lookahead_window,
             local_window: 5,
             remote_window: 10,
+            target_cache_duration_sec: 3600,
+            target_queue_duration_sec: 3600,
             poll_interval,
         }
     }
@@ -65,6 +69,31 @@ impl QueueDaemon {
             lookahead_window: local_window,
             local_window,
             remote_window,
+            target_cache_duration_sec: 0,
+            target_queue_duration_sec: 0,
+            poll_interval,
+        }
+    }
+
+    pub fn new_with_temporal_window(
+        db: Database,
+        resolver: Arc<MediaResolver>,
+        similarity: Arc<CompositeSimilarityEngine>,
+        hub: Arc<PlaybackHub>,
+        target_cache_duration_sec: u64,
+        target_queue_duration_sec: u64,
+        poll_interval: Duration,
+    ) -> Self {
+        Self {
+            db,
+            resolver,
+            similarity,
+            hub,
+            lookahead_window: 5,
+            local_window: 5,
+            remote_window: 10,
+            target_cache_duration_sec,
+            target_queue_duration_sec,
             poll_interval,
         }
     }
@@ -87,6 +116,7 @@ impl QueueDaemon {
         };
 
         let mut cached_count = 0;
+        let mut cached_duration_sec: u64 = 0;
         let mut uncached_candidates = Vec::new();
 
         for (_, (entry, track)) in queue.iter().enumerate().skip(start_index) {
@@ -95,17 +125,33 @@ impl QueueDaemon {
             }
             if track.cached_path.is_some() || entry.state == QueueState::Cached {
                 cached_count += 1;
+                cached_duration_sec += track.duration_sec;
             } else if entry.state == QueueState::Pending {
                 uncached_candidates.push(track.clone());
             }
         }
 
-        if cached_count >= self.local_window {
-            return vec![];
+        if self.target_cache_duration_sec > 0 {
+            if cached_duration_sec >= self.target_cache_duration_sec {
+                return vec![];
+            }
+            let mut targets = Vec::new();
+            let mut accumulated = cached_duration_sec;
+            for cand in uncached_candidates {
+                accumulated += cand.duration_sec;
+                targets.push(cand);
+                if accumulated >= self.target_cache_duration_sec {
+                    break;
+                }
+            }
+            targets
+        } else {
+            if cached_count >= self.local_window {
+                return vec![];
+            }
+            let needed = self.local_window - cached_count;
+            uncached_candidates.into_iter().take(needed).collect()
         }
-
-        let needed = self.local_window - cached_count;
-        uncached_candidates.into_iter().take(needed).collect()
     }
 
     pub async fn maintain_autopilot_queue_sliding(
@@ -120,6 +166,7 @@ impl QueueDaemon {
 
         let mut playing_index = None;
         let mut upcoming_count = 0;
+        let mut upcoming_duration_sec: u64 = 0;
         let mut exclude_ids = Vec::new();
 
         for (i, (entry, track)) in queue.iter().enumerate() {
@@ -134,9 +181,10 @@ impl QueueDaemon {
             None => 0,
         };
 
-        for (_, (entry, _)) in queue.iter().enumerate().skip(start_index) {
+        for (_, (entry, track)) in queue.iter().enumerate().skip(start_index) {
             if entry.state == QueueState::Pending || entry.state == QueueState::Cached {
                 upcoming_count += 1;
+                upcoming_duration_sec += track.duration_sec;
             }
         }
 
@@ -146,11 +194,26 @@ impl QueueDaemon {
             return Ok(0);
         }
 
-        if upcoming_count >= self.remote_window {
+        let is_temporal = self.target_queue_duration_sec > 0;
+        if is_temporal {
+            if upcoming_duration_sec >= self.target_queue_duration_sec {
+                return Ok(0);
+            }
+        } else if upcoming_count >= self.remote_window {
             return Ok(0);
         }
 
-        let deficit = self.remote_window - upcoming_count;
+        let deficit_sec = if is_temporal {
+            self.target_queue_duration_sec.saturating_sub(upcoming_duration_sec)
+        } else {
+            0
+        };
+
+        let deficit_count = if is_temporal {
+            ((deficit_sec / 60) + 5) as usize
+        } else {
+            self.remote_window.saturating_sub(upcoming_count)
+        };
 
         // Multi-seed collection across recent history and active queue
         let mut seeds: Vec<(String, String, String)> = Vec::new();
@@ -188,36 +251,61 @@ impl QueueDaemon {
         }
 
         info!(
-            "Autopilot Sliding: Cabin '{}' has {} upcoming (target: {}). Multi-seed count: {} (deficit: {})",
-            cabin_id, upcoming_count, self.remote_window, seeds.len(), deficit
+            "Autopilot Sliding: Cabin '{}' has {} upcoming (target count: {}, target duration: {}s). Multi-seed count: {}",
+            cabin_id, upcoming_count, self.remote_window, self.target_queue_duration_sec, seeds.len()
         );
 
         let mut candidates_to_add: Vec<(String, String, String, u64)> = Vec::new();
+        let mut added_duration_sec: u64 = 0;
 
         // Query multi-seed similarity engine
-        if let Ok(sim_results) = self.similarity.find_similar_multi(&seeds, deficit * 2).await {
+        let query_limit = (deficit_count * 2).max(10);
+        if let Ok(sim_results) = self.similarity.find_similar_multi(&seeds, query_limit).await {
             for c in sim_results {
                 if !exclude_ids.contains(&c.id)
                     && !candidates_to_add.iter().any(|(id, ..)| id == &c.id)
                 {
-                    candidates_to_add.push((c.id, c.artist, c.title, c.duration_sec.unwrap_or(210)));
-                    if candidates_to_add.len() >= deficit {
+                    let dur = c.duration_sec.unwrap_or(210);
+                    candidates_to_add.push((c.id, c.artist, c.title, dur));
+                    added_duration_sec += dur;
+                    if is_temporal {
+                        if added_duration_sec >= deficit_sec {
+                            break;
+                        }
+                    } else if candidates_to_add.len() >= deficit_count {
                         break;
                     }
                 }
             }
         }
 
-        if candidates_to_add.len() < deficit {
+        let still_needed = if is_temporal {
+            added_duration_sec < deficit_sec
+        } else {
+            candidates_to_add.len() < deficit_count
+        };
+
+        if still_needed {
             let mut local_exclude = exclude_ids.clone();
             for (id, ..) in &candidates_to_add {
                 local_exclude.push(id.clone());
             }
-            if let Ok(local_recs) = self.db.get_recommendations_for_multi_seeds(&seed_ids, &local_exclude, deficit - candidates_to_add.len()) {
+            let needed_query = if is_temporal {
+                let rem_sec = deficit_sec.saturating_sub(added_duration_sec);
+                ((rem_sec / 60) + 5) as usize
+            } else {
+                deficit_count - candidates_to_add.len()
+            };
+            if let Ok(local_recs) = self.db.get_recommendations_for_multi_seeds(&seed_ids, &local_exclude, needed_query) {
                 for r in local_recs {
                     if !candidates_to_add.iter().any(|(id, ..)| id == &r.id) {
                         candidates_to_add.push((r.id, r.artist, r.title, r.duration_sec));
-                        if candidates_to_add.len() >= deficit {
+                        added_duration_sec += r.duration_sec;
+                        if is_temporal {
+                            if added_duration_sec >= deficit_sec {
+                                break;
+                            }
+                        } else if candidates_to_add.len() >= deficit_count {
                             break;
                         }
                     }
@@ -722,6 +810,44 @@ mod tests {
         // To satisfy 600s of cache with 60s tracks, it must select 10 tracks, NOT 5!
         let prefetch_targets = daemon.find_prefetch_targets_for_window(&queue);
         assert_eq!(prefetch_targets.len(), 10, "With 60s tracks and 600s target, must select 10 tracks");
+
+        // Autopilot sliding: seed cabin playing, and DB has 25 candidate tracks of 60s each.
+        // With target_queue_duration_sec = 1200s, it must enqueue 20 tracks (20 * 60s = 1200s), NOT just 10!
+        let seed = TrackRecord {
+            id: "seed_temporal".into(),
+            artist: "Garotos Podres".into(),
+            title: "Papai Noel".into(),
+            duration_sec: 60,
+            cached_path: Some("/cache/papai_noel.opus".into()),
+            genres: Some("punk".into()),
+            last_played_at: None,
+        };
+        db.upsert_track(&seed).unwrap();
+        for i in 1..=25 {
+            let trk = TrackRecord {
+                id: format!("punk_cand_{}", i),
+                artist: "Garotos Podres".into(),
+                title: format!("Punk Song {}", i),
+                duration_sec: 60,
+                cached_path: None,
+                genres: Some("punk".into()),
+                last_played_at: None,
+            };
+            db.upsert_track(&trk).unwrap();
+            db.insert_edge("seed_temporal", &format!("punk_cand_{}", i), 0.99 - (i as f64 * 0.01), "test").unwrap();
+        }
+        db.play_now_with_meta("seed_temporal", Some("PILOTO"), "cab_temporal").unwrap();
+        let _ = hub.dispatch_command_with_role(lacraia_shared::CommandAction::Play, "cab_temporal", Some(lacraia_shared::Role::Pilot)).await;
+
+        let enqueued = daemon.maintain_autopilot_queue_sliding("cab_temporal").await.unwrap();
+        assert_eq!(enqueued, 20, "Autopilot must enqueue 20 tracks (60s each) to satisfy 1200s target queue duration");
+
+        let queue = db.get_queue_for_cabin("cab_temporal").unwrap();
+        let upcoming_duration: u64 = queue.iter()
+            .filter(|(e, _)| e.state != QueueState::Playing)
+            .map(|(_, t)| t.duration_sec)
+            .sum();
+        assert!(upcoming_duration >= 1200, "Total upcoming queue duration must be at least 1200s");
     }
 }
 
