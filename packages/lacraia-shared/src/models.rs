@@ -40,6 +40,8 @@ pub struct CabinInfo {
     pub name: String,
     #[serde(rename = "isLocked")]
     pub is_locked: bool,
+    #[serde(rename = "nonStop", default)]
+    pub non_stop: bool,
     #[serde(default)]
     pub passengers: Vec<PassengerInfo>,
 }

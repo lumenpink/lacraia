@@ -83,6 +83,8 @@ pub struct StatePayload {
     pub cabin_id: Option<String>,
     #[serde(rename = "isLocked", default)]
     pub is_locked: Option<bool>,
+    #[serde(rename = "nonStop", default)]
+    pub non_stop: Option<bool>,
     #[serde(default)]
     pub queue: Vec<QueueItem>,
 }
@@ -152,6 +154,10 @@ pub enum CommandAction {
         passenger_id: String,
     },
     EjectAll,
+    ToggleNonStop,
+    SetNonStop {
+        enabled: bool,
+    },
 }
 
 #[cfg(test)]
@@ -180,6 +186,7 @@ mod tests {
                 has_lrc: true,
                 cabin_id: Some("van-furacao".into()),
                 is_locked: Some(false),
+                non_stop: None,
                 queue: vec![],
             },
         });
@@ -328,6 +335,49 @@ mod tests {
 
         let deserialized: WsMessage = serde_json::from_str(&json_alert).unwrap();
         assert_eq!(deserialized, alert);
+    }
+
+    #[test]
+    fn test_non_stop_commands_and_state_serialization() {
+        // 1. ToggleNonStop command
+        let toggle_cmd = Command {
+            payload: CommandAction::ToggleNonStop,
+        };
+        let json_toggle = serde_json::to_string(&toggle_cmd).unwrap();
+        assert!(json_toggle.contains("TOGGLE_NON_STOP"));
+        let de_toggle: Command = serde_json::from_str(&json_toggle).unwrap();
+        assert_eq!(de_toggle.payload, CommandAction::ToggleNonStop);
+
+        // 2. SetNonStop command
+        let set_cmd = Command {
+            payload: CommandAction::SetNonStop { enabled: true },
+        };
+        let json_set = serde_json::to_string(&set_cmd).unwrap();
+        assert!(json_set.contains("SET_NON_STOP"));
+        assert!(json_set.contains("enabled"));
+        let de_set: Command = serde_json::from_str(&json_set).unwrap();
+        assert_eq!(de_set.payload, CommandAction::SetNonStop { enabled: true });
+
+        // 3. StatePayload with non_stop: true
+        let state = StateUpdate {
+            payload: StatePayload {
+                track: None,
+                playback: PlaybackDetails {
+                    state: PlaybackState::Playing,
+                    position_ms: 0,
+                    updated_at: 0,
+                },
+                has_lrc: false,
+                cabin_id: Some("cab_nonstop".into()),
+                is_locked: Some(false),
+                non_stop: Some(true),
+                queue: vec![],
+            },
+        };
+        let json_state = serde_json::to_string(&state).unwrap();
+        assert!(json_state.contains("\"nonStop\":true"));
+        let de_state: StateUpdate = serde_json::from_str(&json_state).unwrap();
+        assert_eq!(de_state.payload.non_stop, Some(true));
     }
 }
 

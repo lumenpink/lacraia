@@ -128,6 +128,7 @@ pub struct PlayerState {
     pub show_qr_modal: bool,
     pub queue: Vec<lacraia_shared::QueueItem>,
     pub cache_alert: Option<lacraia_shared::CacheAlertInfo>,
+    pub non_stop: bool,
 }
 
 impl Default for PlayerState {
@@ -154,6 +155,7 @@ impl Default for PlayerState {
             show_qr_modal: false,
             queue: vec![],
             cache_alert: None,
+            non_stop: true,
         }
     }
 }
@@ -173,6 +175,9 @@ impl PlayerState {
                 }
                 if let Some(locked) = payload.is_locked {
                     self.is_locked = locked;
+                }
+                if let Some(ns) = payload.non_stop {
+                    self.non_stop = ns;
                 }
                 self.queue = payload.queue;
             }
@@ -387,6 +392,7 @@ mod tests {
                 has_lrc: true,
                 cabin_id: Some("van-furacao".into()),
                 is_locked: Some(false),
+                non_stop: Some(true),
                 queue: vec![],
             },
         });
@@ -399,6 +405,7 @@ mod tests {
         assert_eq!(state.current_track.as_ref().unwrap().title, "Construção");
         assert_eq!(state.cabin_id, "van-furacao");
         assert!(!state.is_locked);
+        assert!(state.non_stop);
 
         // Test CrewUpdate message
         let crew_msg = WsMessage::CrewUpdate(lacraia_shared::CrewUpdate {

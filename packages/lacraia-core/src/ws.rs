@@ -34,6 +34,7 @@ pub struct PlaybackHub {
     pub playback_state: Arc<Mutex<PlaybackState>>,
     pub position_ms: Arc<Mutex<u64>>,
     pub cabin_id: Arc<Mutex<String>>,
+    pub non_stop_cabins: Arc<Mutex<std::collections::HashMap<String, bool>>>,
 }
 
 pub fn clean_stream_url(path: &str) -> String {
@@ -53,7 +54,24 @@ impl PlaybackHub {
             playback_state: Arc::new(Mutex::new(PlaybackState::Stopped)),
             position_ms: Arc::new(Mutex::new(0)),
             cabin_id: Arc::new(Mutex::new("default".into())),
+            non_stop_cabins: Arc::new(Mutex::new(std::collections::HashMap::new())),
         }
+    }
+
+    pub async fn is_cabin_non_stop(&self, cabin_id: &str) -> bool {
+        self.non_stop_cabins
+            .lock()
+            .await
+            .get(cabin_id)
+            .copied()
+            .unwrap_or(true)
+    }
+
+    pub async fn set_cabin_non_stop(&self, cabin_id: &str, enabled: bool) {
+        self.non_stop_cabins
+            .lock()
+            .await
+            .insert(cabin_id.to_string(), enabled);
     }
 
     /// Builds a snapshot `STATE_UPDATE` message with the current playback status for a specific cabin.
@@ -149,6 +167,7 @@ impl PlaybackHub {
                 has_lrc: true,
                 cabin_id: Some(cabin_id.to_string()),
                 is_locked: Some(is_locked),
+                non_stop: Some(self.is_cabin_non_stop(cabin_id).await),
                 queue,
             },
         })
@@ -450,6 +469,17 @@ impl PlaybackHub {
                     is_locked,
                     passengers: vec![],
                 }));
+            }
+            CommandAction::ToggleNonStop => {
+                let current = self.is_cabin_non_stop(cabin_id).await;
+                self.set_cabin_non_stop(cabin_id, !current).await;
+                self.broadcast_state_for_cabin(cabin_id).await;
+                return Ok(self.build_state_update_for_cabin(cabin_id).await);
+            }
+            CommandAction::SetNonStop { enabled } => {
+                self.set_cabin_non_stop(cabin_id, enabled).await;
+                self.broadcast_state_for_cabin(cabin_id).await;
+                return Ok(self.build_state_update_for_cabin(cabin_id).await);
             }
         }
 
