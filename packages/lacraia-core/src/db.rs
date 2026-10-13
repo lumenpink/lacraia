@@ -1,5 +1,8 @@
 use chrono::Utc;
-use lacraia_shared::{CacheEntry, CacheResolutionAttempt, PassengerInfo, PlaybackHistoryEntry, Role};
+use lacraia_shared::{
+    AttemptsSuccessDistribution, CacheEntry, CacheResolutionAttempt, PassengerInfo,
+    PlaybackHistoryEntry, ResolutionErrorDiagnostic, Role, TierSuccessRate,
+};
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -1545,6 +1548,21 @@ impl Database {
         Ok(())
     }
 
+    pub fn get_attempts_success_distribution(&self) -> Result<Vec<AttemptsSuccessDistribution>, DbError> {
+        // Red test stub
+        Ok(vec![])
+    }
+
+    pub fn get_tier_success_rates(&self) -> Result<Vec<TierSuccessRate>, DbError> {
+        // Red test stub
+        Ok(vec![])
+    }
+
+    pub fn get_top_resolution_errors(&self, _limit: usize) -> Result<Vec<ResolutionErrorDiagnostic>, DbError> {
+        // Red test stub
+        Ok(vec![])
+    }
+
     pub fn record_playback_history(
         &self,
         cabin_id: &str,
@@ -2271,6 +2289,152 @@ mod tests {
         let updated = db.get_cache_entry("trk_telemetry").unwrap().unwrap();
         assert_eq!(updated.hit_count, 2, "Hit count must increment to 2");
         assert_eq!(updated.last_served_at, 1700000010);
+    }
+
+    #[test]
+    fn test_cache_statistical_analytics_and_error_diagnostics() {
+        use lacraia_shared::models::{CacheResolutionAttempt, ResolutionTier, ValidationStatus};
+
+        let db = Database::open_in_memory().unwrap();
+
+        // Track A: resolved on 1st attempt (Tier 1)
+        db.record_resolution_attempt(&CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_a".into(),
+            attempt_number: 1,
+            tier: ResolutionTier::Tier1Direct.as_str().into(),
+            method: "rustypipe_stream".into(),
+            command_line: None,
+            success: true,
+            exit_code: Some(0),
+            error_code: None,
+            error_output: None,
+            duration_ms: 500,
+            bytes_received: 3000000,
+            validation_status: ValidationStatus::Valid.as_str().into(),
+            cabin_id: None,
+            created_at: 100,
+        }).unwrap();
+
+        // Track B: attempt 1 fails (Tier 1, HTTP_403), attempt 2 succeeds (Tier 3)
+        db.record_resolution_attempt(&CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_b".into(),
+            attempt_number: 1,
+            tier: ResolutionTier::Tier1Direct.as_str().into(),
+            method: "rustypipe_stream".into(),
+            command_line: None,
+            success: false,
+            exit_code: Some(403),
+            error_code: Some("HTTP_403".into()),
+            error_output: Some("Forbidden cipher".into()),
+            duration_ms: 400,
+            bytes_received: 0,
+            validation_status: ValidationStatus::NetworkError.as_str().into(),
+            cabin_id: None,
+            created_at: 110,
+        }).unwrap();
+
+        db.record_resolution_attempt(&CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_b".into(),
+            attempt_number: 2,
+            tier: ResolutionTier::Tier3YtdlpAndroid.as_str().into(),
+            method: "ytdlp_cli".into(),
+            command_line: Some("yt-dlp --android".into()),
+            success: true,
+            exit_code: Some(0),
+            error_code: None,
+            error_output: None,
+            duration_ms: 2000,
+            bytes_received: 3500000,
+            validation_status: ValidationStatus::Valid.as_str().into(),
+            cabin_id: None,
+            created_at: 112,
+        }).unwrap();
+
+        // Track C: attempt 1 fails (Tier 1, HTTP_403), attempt 2 fails (Tier 2, BOT_DETECT), attempt 3 succeeds (Tier 3)
+        db.record_resolution_attempt(&CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_c".into(),
+            attempt_number: 1,
+            tier: ResolutionTier::Tier1Direct.as_str().into(),
+            method: "rustypipe_stream".into(),
+            command_line: None,
+            success: false,
+            exit_code: Some(403),
+            error_code: Some("HTTP_403".into()),
+            error_output: Some("Forbidden cipher".into()),
+            duration_ms: 450,
+            bytes_received: 0,
+            validation_status: ValidationStatus::NetworkError.as_str().into(),
+            cabin_id: None,
+            created_at: 120,
+        }).unwrap();
+
+        db.record_resolution_attempt(&CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_c".into(),
+            attempt_number: 2,
+            tier: ResolutionTier::Tier2YtdlpWeb.as_str().into(),
+            method: "ytdlp_cli".into(),
+            command_line: Some("yt-dlp --web".into()),
+            success: false,
+            exit_code: Some(1),
+            error_code: Some("BOT_DETECT".into()),
+            error_output: Some("Sign in to confirm you are not a bot".into()),
+            duration_ms: 1200,
+            bytes_received: 0,
+            validation_status: ValidationStatus::NetworkError.as_str().into(),
+            cabin_id: None,
+            created_at: 122,
+        }).unwrap();
+
+        db.record_resolution_attempt(&CacheResolutionAttempt {
+            id: 0,
+            track_id: "trk_c".into(),
+            attempt_number: 3,
+            tier: ResolutionTier::Tier3YtdlpAndroid.as_str().into(),
+            method: "ytdlp_cli".into(),
+            command_line: Some("yt-dlp --android".into()),
+            success: true,
+            exit_code: Some(0),
+            error_code: None,
+            error_output: None,
+            duration_ms: 2200,
+            bytes_received: 4000000,
+            validation_status: ValidationStatus::Valid.as_str().into(),
+            cabin_id: None,
+            created_at: 124,
+        }).unwrap();
+
+        // 1. Verify Distribution of Successful Attempts
+        let dist = db.get_attempts_success_distribution().unwrap();
+        assert_eq!(dist.len(), 3, "Must report stats for 1st, 2nd, and 3rd attempt successes");
+        assert_eq!(dist[0].attempt_number, 1);
+        assert_eq!(dist[0].count, 1, "1 track succeeded on 1st attempt (trk_a)");
+        assert_eq!(dist[1].attempt_number, 2);
+        assert_eq!(dist[1].count, 1, "1 track succeeded on 2nd attempt (trk_b)");
+        assert_eq!(dist[2].attempt_number, 3);
+        assert_eq!(dist[2].count, 1, "1 track succeeded on 3rd attempt (trk_c)");
+
+        // 2. Verify Tier Success Rates
+        let tier_rates = db.get_tier_success_rates().unwrap();
+        let t1 = tier_rates.iter().find(|t| t.tier == "tier_1_direct").expect("Tier 1 rate must exist");
+        assert_eq!(t1.total_attempts, 3);
+        assert_eq!(t1.successes, 1);
+        assert_eq!(t1.failures, 2);
+
+        let t3 = tier_rates.iter().find(|t| t.tier == "tier_3_ytdlp_android").expect("Tier 3 rate must exist");
+        assert_eq!(t3.total_attempts, 2);
+        assert_eq!(t3.successes, 2);
+        assert_eq!(t3.failures, 0);
+
+        // 3. Verify Top Errors Diagnostic
+        let top_errors = db.get_top_resolution_errors(5).unwrap();
+        assert!(!top_errors.is_empty(), "Must list top resolution errors");
+        assert_eq!(top_errors[0].error_code, "HTTP_403");
+        assert_eq!(top_errors[0].count, 2, "HTTP_403 occurred twice in Tier 1");
     }
 }
 
