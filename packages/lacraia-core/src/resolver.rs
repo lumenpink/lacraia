@@ -686,5 +686,11 @@ mod tests {
         // Cleanup
         let _ = std::fs::remove_dir_all(&tmp_dir);
     }
+
+    #[test]
+    fn test_ffmpeg_audio_codec_args_fast_remux() {
+        assert_eq!(MediaResolver::ffmpeg_audio_codec_args(true), vec!["-c:a", "copy"]);
+        assert_eq!(MediaResolver::ffmpeg_audio_codec_args(false), vec!["-c:a", "libopus", "-b:a", "128k"]);
+    }
 }
 
