@@ -1673,13 +1673,13 @@
           playText.textContent = "TOCAR";
         }
 
-        // Miniplayers Update (Deck 02, Deck 03 e Sticky Dock Mobile)
+        // Miniplayers Update (Deck 03 e Sticky Dock Mobile)
         const currentTitle = trk ? trk.title.toUpperCase() : "--";
         const currentArtist = trk ? trk.artist.toUpperCase() : "--";
         const miniTimeStr = `${formatTime(state.positionMs)} / ${formatTime(state.durationMs)}`;
         const playIconChar = state.isPlaying ? "⏸" : "▶";
 
-        ['02', '03'].forEach(deckId => {
+        ['03'].forEach(deckId => {
           const tEl = document.getElementById(`mini-title-${deckId}`);
           const aEl = document.getElementById(`mini-artist-${deckId}`);
           const iconEl = document.getElementById(`mini-play-icon-${deckId}`);
