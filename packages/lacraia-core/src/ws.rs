@@ -9,8 +9,9 @@ use axum::{
 use chrono::Utc;
 use futures::{SinkExt, StreamExt};
 use lacraia_shared::{
-    CabinLockedNotification, CommandAction, CrewUpdate, EjectedNotification, PlaybackDetails,
-    PlaybackState, Role, StatePayload, StateUpdate, Track, WsMessage,
+    CabinLockedNotification, CacheAlertInfo, CacheAlertNotification, CacheStarvationType,
+    CommandAction, CrewUpdate, EjectedNotification, PlaybackDetails, PlaybackState, Role,
+    StatePayload, StateUpdate, Track, WsMessage,
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -984,6 +985,66 @@ mod tests {
         assert_eq!(history[0].passenger_name.as_deref(), Some("PASSENGER_ALEX"));
         assert_eq!(history[0].cabin_id, "cab_history_test");
         assert_eq!(history[0].duration_sec, 180);
+    }
+
+    #[tokio::test]
+    async fn test_playback_hub_cache_starvation_evaluation() {
+        let db = Database::open_in_memory().unwrap();
+        let (tx, mut rx) = broadcast::channel(100);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+
+        // 1. Uncached track
+        let uncached = TrackRecord {
+            id: "trk_cloud".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 180,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&uncached).unwrap();
+
+        let alert = hub.evaluate_cache_status("trk_cloud");
+        assert!(alert.is_some(), "Uncached track must produce starvation alert");
+        let alert = alert.unwrap();
+        assert_eq!(alert.starvation_type, CacheStarvationType::LocalCacheMissing);
+        assert!(alert.message.contains("CACHE LOCAL"));
+
+        // 2. Cached track
+        let cached = TrackRecord {
+            id: "trk_local".into(),
+            artist: "Kraftwerk".into(),
+            title: "Autobahn".into(),
+            duration_sec: 300,
+            cached_path: Some("/cache/autobahn.opus".into()),
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&cached).unwrap();
+
+        let alert_cached = hub.evaluate_cache_status("trk_local");
+        assert!(alert_cached.is_none(), "Cached track must have no local cache missing alert");
+
+        // 3. Emit remote buffer starvation alert
+        hub.emit_cache_alert(
+            "cab_starve",
+            CacheStarvationType::RemoteBufferStarved,
+            "BUFFER REMOTO ESGOTADO :: AGUARDANDO FLUXO",
+            Some("trk_cloud".into()),
+            true,
+        )
+        .await;
+
+        let received = rx.recv().await.unwrap();
+        match received {
+            WsMessage::CacheAlert(a) => {
+                assert_eq!(a.cabin_id, "cab_starve");
+                assert_eq!(a.starvation_type, CacheStarvationType::RemoteBufferStarved);
+                assert!(a.active);
+            }
+            _ => panic!("Expected WsMessage::CacheAlert"),
+        }
     }
 }
 
