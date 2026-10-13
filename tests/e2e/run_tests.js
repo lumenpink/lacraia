@@ -751,6 +751,15 @@ async function main() {
       const t1 = await page.evaluate(() => document.getElementById('audio-engine').currentTime);
       assert(t1 >= t0, `Audio currentTime must advance during playback: t0=${t0}, t1=${t1}`);
 
+      // The currently playing track must NOT be listed in upcoming queue deck
+      const playingInQueue = await page.evaluate(() => {
+        const tit = document.getElementById('track-title')?.textContent?.trim()?.toUpperCase();
+        const rows = Array.from(document.querySelectorAll('.queue-item-row .queue-item-title'))
+          .map(el => el.textContent.trim().toUpperCase());
+        return rows.some(r => r.length > 0 && tit.includes(r));
+      });
+      assert(!playingInQueue, 'Currently playing track must NOT appear in the upcoming queue list');
+
       // Step 4: Click Pause -> audio must pause
       await page.click('#btn-play-pause');
       await page.waitForTimeout(400);
@@ -764,12 +773,12 @@ async function main() {
       await addSecondBtn.click();
       await page.waitForTimeout(800);
 
-      // Verify queue has exactly 2 items now (Track 1 and Track 2)
+      // Verify upcoming queue has Track 2 (Track 1 is currently loaded/active in player, not in upcoming queue)
       const queueCountAfter2 = await page.locator('.queue-item-row').count();
-      assert(queueCountAfter2 === 2, `Queue must have exactly 2 items after second enqueue, got ${queueCountAfter2}`);
+      assert(queueCountAfter2 === 1, `Queue must have exactly 1 upcoming item after second enqueue, got ${queueCountAfter2}`);
 
       // Step 6: Muda pra ela (Click on Track 2 row to jump directly to it)
-      const secondTrackRow = page.locator('.queue-item-row').nth(1);
+      const secondTrackRow = page.locator('.queue-item-row').first();
       await secondTrackRow.click();
       await page.waitForTimeout(800);
 
@@ -794,7 +803,7 @@ async function main() {
       await page.waitForTimeout(800);
 
       const queueCountAfter3 = await page.locator('.queue-item-row').count();
-      assert(queueCountAfter3 >= 2, `Queue must register the 3rd track, got ${queueCountAfter3} rows`);
+      assert(queueCountAfter3 === 1, `Queue must have 1 upcoming track (Track 3), got ${queueCountAfter3} rows`);
 
       // Step 8: Click Next -> transitions to Track 3
       await page.click('#btn-next');
