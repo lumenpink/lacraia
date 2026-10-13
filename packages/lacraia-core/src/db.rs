@@ -1580,6 +1580,62 @@ mod tests {
         assert_eq!(state2.position_ms, 90000);
         assert_eq!(state2.playback_state, "paused");
     }
+
+    #[test]
+    fn test_playback_history_recording_and_filtering() {
+        let db = Database::open_in_memory().unwrap();
+
+        // 1. Initially history is empty
+        let h0 = db.get_playback_history(None, None, 10).unwrap();
+        assert_eq!(h0.len(), 0);
+
+        // 2. Insert two tracks
+        let trk1 = TrackRecord {
+            id: "trk_h1".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 240,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+        let trk2 = TrackRecord {
+            id: "trk_h2".into(),
+            artist: "Daft Punk".into(),
+            title: "One More Time".into(),
+            duration_sec: 320,
+            cached_path: None,
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&trk1).unwrap();
+        db.upsert_track(&trk2).unwrap();
+
+        // 3. Record playback history entries
+        db.record_playback_history("cab_alpha", "trk_h1", Some("@Mari")).unwrap();
+        db.record_playback_history("cab_alpha", "trk_h2", Some("@Lumen")).unwrap();
+        db.record_playback_history("cab_beta", "trk_h1", Some("@Mari")).unwrap();
+
+        // 4. Query all history
+        let all = db.get_playback_history(None, None, 10).unwrap();
+        assert_eq!(all.len(), 3);
+        // Latest entry first
+        assert_eq!(all[0].cabin_id, "cab_beta");
+        assert_eq!(all[0].track_id, "trk_h1");
+
+        // 5. Query filtered by cabin
+        let cab_alpha = db.get_playback_history(Some("cab_alpha"), None, 10).unwrap();
+        assert_eq!(cab_alpha.len(), 2);
+
+        // 6. Query filtered by user
+        let user_mari = db.get_playback_history(None, Some("@Mari"), 10).unwrap();
+        assert_eq!(user_mari.len(), 2);
+
+        // 7. Query filtered by cabin AND user
+        let both = db.get_playback_history(Some("cab_alpha"), Some("@Mari"), 10).unwrap();
+        assert_eq!(both.len(), 1);
+        assert_eq!(both[0].title, "Vai Lacraia");
+    }
 }
 
 
