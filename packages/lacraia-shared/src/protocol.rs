@@ -379,5 +379,48 @@ mod tests {
         let de_state: StateUpdate = serde_json::from_str(&json_state).unwrap();
         assert_eq!(de_state.payload.non_stop, Some(true));
     }
+
+    #[test]
+    fn test_serialize_cache_inventory_and_attempts() {
+        use crate::models::{CacheEntry, CacheResolutionAttempt, ResolutionTier, ValidationStatus};
+
+        let entry = CacheEntry {
+            id: 1,
+            track_id: "mc:vai_lacraia".into(),
+            file_path: "/cache/vai_lacraia.opus".into(),
+            file_size_bytes: 4194304,
+            duration_sec: 240,
+            audio_codec: "opus".into(),
+            hit_count: 5,
+            last_served_at: 1700000000,
+            created_at: 1699990000,
+        };
+        let json_entry = serde_json::to_string(&entry).unwrap();
+        assert!(json_entry.contains("\"trackId\":\"mc:vai_lacraia\""));
+        assert!(json_entry.contains("\"fileSizeBytes\":4194304"));
+        assert!(json_entry.contains("\"hitCount\":5"));
+
+        let attempt = CacheResolutionAttempt {
+            id: 10,
+            track_id: "mc:vai_lacraia".into(),
+            attempt_number: 1,
+            tier: ResolutionTier::Tier1Direct.as_str().into(),
+            method: "rustypipe_stream".into(),
+            command_line: None,
+            success: false,
+            exit_code: Some(403),
+            error_code: Some("HTTP_403".into()),
+            error_output: Some("Forbidden signature error".into()),
+            duration_ms: 350,
+            bytes_received: 0,
+            validation_status: ValidationStatus::NetworkError.as_str().into(),
+            cabin_id: Some("cab_default".into()),
+            created_at: 1700000000,
+        };
+        let json_attempt = serde_json::to_string(&attempt).unwrap();
+        assert!(json_attempt.contains("\"tier\":\"tier_1_direct\""));
+        assert!(json_attempt.contains("\"exitCode\":403"));
+        assert!(json_attempt.contains("\"errorCode\":\"HTTP_403\""));
+    }
 }
 
