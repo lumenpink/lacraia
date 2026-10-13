@@ -613,6 +613,171 @@ impl Database {
         Ok(conn.last_insert_rowid())
     }
 
+    pub fn enqueue_track_next_with_meta(
+        &self,
+        track_id: &str,
+        requested_by: Option<&str>,
+        cabin_id: &str,
+    ) -> Result<i64, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+
+        let (def_artist, def_title) = if let Some((a, t)) = track_id.split_once(':') {
+            (a.trim().to_string(), t.trim().to_string())
+        } else {
+            ("Desconhecido".to_string(), track_id.to_string())
+        };
+
+        conn.execute(
+            r#"
+            INSERT OR IGNORE INTO tracks (id, artist, title, duration_sec, cached_path, genres, last_played_at)
+            VALUES (?1, ?2, ?3, 210, NULL, NULL, NULL)
+            "#,
+            params![track_id, def_artist, def_title],
+        )?;
+
+        let min_pending: Option<i64> = conn
+            .query_row(
+                "SELECT MIN(position) FROM queue WHERE cabin_id = ?1 AND state IN ('pending', 'cached')",
+                params![cabin_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(None);
+
+        let target_pos = if let Some(min_pos) = min_pending {
+            conn.execute(
+                "UPDATE queue SET position = position + 1 WHERE cabin_id = ?1 AND state IN ('pending', 'cached')",
+                params![cabin_id],
+            )?;
+            min_pos
+        } else {
+            let max_pos: Option<i64> = conn
+                .query_row(
+                    "SELECT MAX(position) FROM queue WHERE cabin_id = ?1",
+                    params![cabin_id],
+                    |row| row.get(0),
+                )
+                .unwrap_or(None);
+            max_pos.map(|p| p + 1).unwrap_or(0)
+        };
+
+        conn.execute(
+            r#"
+            INSERT INTO queue (track_id, position, state, created_at, cabin_id, requested_by)
+            VALUES (?1, ?2, 'pending', ?3, ?4, ?5)
+            "#,
+            params![track_id, target_pos, now, cabin_id, requested_by],
+        )?;
+
+        Ok(conn.last_insert_rowid())
+    }
+
+    pub fn play_now_with_meta(
+        &self,
+        track_id: &str,
+        requested_by: Option<&str>,
+        cabin_id: &str,
+    ) -> Result<QueueEntry, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+
+        let (def_artist, def_title) = if let Some((a, t)) = track_id.split_once(':') {
+            (a.trim().to_string(), t.trim().to_string())
+        } else {
+            ("Desconhecido".to_string(), track_id.to_string())
+        };
+
+        conn.execute(
+            r#"
+            INSERT OR IGNORE INTO tracks (id, artist, title, duration_sec, cached_path, genres, last_played_at)
+            VALUES (?1, ?2, ?3, 210, NULL, NULL, NULL)
+            "#,
+            params![track_id, def_artist, def_title],
+        )?;
+
+        conn.execute(
+            "UPDATE queue SET state = 'played' WHERE cabin_id = ?1 AND state = 'playing'",
+            params![cabin_id],
+        )?;
+
+        conn.execute(
+            r#"
+            INSERT INTO queue (track_id, position, state, created_at, cabin_id, requested_by)
+            VALUES (?1, 0, 'playing', ?2, ?3, ?4)
+            "#,
+            params![track_id, now, cabin_id, requested_by],
+        )?;
+
+        let id = conn.last_insert_rowid();
+        Ok(QueueEntry {
+            id,
+            track_id: track_id.to_string(),
+            position: 0,
+            state: QueueState::Playing,
+            created_at: now,
+            cabin_id: cabin_id.to_string(),
+            requested_by: requested_by.map(|s| s.to_string()),
+        })
+    }
+
+    pub fn start_radio_with_meta(
+        &self,
+        track_id: &str,
+        requested_by: Option<&str>,
+        cabin_id: &str,
+    ) -> Result<QueueEntry, DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "DELETE FROM queue WHERE cabin_id = ?1 AND state IN ('pending', 'cached')",
+            params![cabin_id],
+        )?;
+        drop(conn);
+
+        self.play_now_with_meta(track_id, requested_by, cabin_id)
+    }
+
+    pub fn get_upcoming_queue_for_cabin(&self, cabin_id: &str) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT q.id, q.track_id, q.position, q.state, q.created_at, q.cabin_id, q.requested_by,
+                   t.artist, t.title, t.duration_sec, t.cached_path, t.genres, t.last_played_at
+            FROM queue q
+            LEFT JOIN tracks t ON t.id = q.track_id
+            WHERE q.state IN ('pending', 'cached') AND q.cabin_id = ?1
+            ORDER BY q.position ASC
+            "#,
+        )?;
+
+        let rows = stmt.query_map(params![cabin_id], |row| {
+            let entry = QueueEntry {
+                id: row.get(0)?,
+                track_id: row.get(1)?,
+                position: row.get(2)?,
+                state: QueueState::from_str(&row.get::<_, String>(3)?),
+                created_at: row.get(4)?,
+                cabin_id: row.get(5)?,
+                requested_by: row.get(6)?,
+            };
+            let track = TrackRecord {
+                id: entry.track_id.clone(),
+                artist: row.get::<_, Option<String>>(7)?.unwrap_or_else(|| "Desconhecido".into()),
+                title: row.get::<_, Option<String>>(8)?.unwrap_or_else(|| entry.track_id.clone()),
+                duration_sec: row.get::<_, Option<u64>>(9)?.unwrap_or(210),
+                cached_path: row.get(10)?,
+                genres: row.get(11)?,
+                last_played_at: row.get(12)?,
+            };
+            Ok((entry, track))
+        })?;
+
+        let mut results = Vec::new();
+        for r in rows {
+            results.push(r?);
+        }
+        Ok(results)
+    }
+
     pub fn remove_queue_entry(&self, id: i64, cabin_id: &str) -> Result<bool, DbError> {
         let conn = self.conn.lock().unwrap();
         let affected = conn.execute(
