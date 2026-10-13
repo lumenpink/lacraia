@@ -216,6 +216,19 @@ impl PlaybackHub {
         let _ = self.tx.send(alert);
     }
 
+    /// Evaluates track cache path and broadcasts cache alert state if local cache is absent.
+    pub async fn check_and_emit_track_cache_alert(&self, cabin_id: &str, record: &crate::db::TrackRecord) {
+        if record.cached_path.is_none() {
+            self.emit_cache_alert(
+                cabin_id,
+                CacheStarvationType::LocalCacheMissing,
+                "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM",
+                Some(record.id.clone()),
+                true,
+            ).await;
+        }
+    }
+
     pub async fn dispatch_command(&self, action: CommandAction) -> Result<WsMessage, String> {
         let cabin_id = self.cabin_id.lock().await.clone();
         self.dispatch_command_with_role(action, &cabin_id, Some(Role::Pilot)).await
@@ -260,6 +273,7 @@ impl PlaybackHub {
                 if self.current_track.lock().await.is_none() {
                     if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
                         if let Some((entry, record)) = queue.into_iter().next() {
+                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
                             let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
@@ -287,6 +301,7 @@ impl PlaybackHub {
                 match self.db.advance_queue_for_cabin(cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
                             let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
@@ -317,6 +332,7 @@ impl PlaybackHub {
                 match self.db.jump_queue_for_cabin(queue_id, cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
                             let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
@@ -351,6 +367,7 @@ impl PlaybackHub {
                 match self.db.play_now_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
                     Ok(entry) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
                             let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
@@ -374,6 +391,7 @@ impl PlaybackHub {
                 match self.db.start_radio_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
                     Ok(entry) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
+                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
                             let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
                             let track = Track {
                                 id: record.id.clone(),
@@ -777,6 +795,14 @@ mod tests {
             track_id: "trk_radio".into(),
             requested_by: Some("PILOTO".into()),
         }).await.unwrap();
+        let received7_alert = rx.recv().await.unwrap();
+        match received7_alert {
+            WsMessage::CacheAlert(a) => {
+                assert_eq!(a.starvation_type, CacheStarvationType::LocalCacheMissing);
+                assert!(a.active);
+            }
+            _ => panic!("Expected CacheAlert for StartRadio on uncached track"),
+        }
         let received7 = rx.recv().await.unwrap();
         match received7 {
             WsMessage::StateUpdate(u) => {

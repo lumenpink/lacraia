@@ -586,6 +586,9 @@ pub async fn handle_queue_append(
         ),
         "PLAY_NOW" => {
             let _ = state.db.record_playback_history(&cabin_id, &payload.track_id, payload.requested_by.as_deref());
+            if let Ok(Some(ref record)) = state.db.get_track(&payload.track_id) {
+                state.hub.check_and_emit_track_cache_alert(&cabin_id, record).await;
+            }
             if cabin_id == "default" {
                 if let Ok(Some(record)) = state.db.get_track(&payload.track_id) {
                     *state.hub.current_track.lock().await = Some(Track {
@@ -609,6 +612,9 @@ pub async fn handle_queue_append(
         }
         "START_RADIO" => {
             let _ = state.db.record_playback_history(&cabin_id, &payload.track_id, payload.requested_by.as_deref());
+            if let Ok(Some(ref record)) = state.db.get_track(&payload.track_id) {
+                state.hub.check_and_emit_track_cache_alert(&cabin_id, record).await;
+            }
             if cabin_id == "default" {
                 if let Ok(Some(record)) = state.db.get_track(&payload.track_id) {
                     *state.hub.current_track.lock().await = Some(Track {

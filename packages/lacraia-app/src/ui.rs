@@ -127,6 +127,7 @@ pub struct PlayerState {
     pub ejection_reason: Option<String>,
     pub show_qr_modal: bool,
     pub queue: Vec<lacraia_shared::QueueItem>,
+    pub cache_alert: Option<lacraia_shared::CacheAlertInfo>,
 }
 
 impl Default for PlayerState {
@@ -152,6 +153,7 @@ impl Default for PlayerState {
             ejection_reason: None,
             show_qr_modal: false,
             queue: vec![],
+            cache_alert: None,
         }
     }
 }
@@ -185,6 +187,17 @@ impl PlayerState {
             }
             WsMessage::CabinLocked(_) => {
                 self.is_locked = true;
+            }
+            WsMessage::CacheAlert(alert) => {
+                if alert.active {
+                    self.cache_alert = Some(lacraia_shared::CacheAlertInfo {
+                        starvation_type: alert.starvation_type,
+                        message: alert.message,
+                        track_id: alert.track_id,
+                    });
+                } else {
+                    self.cache_alert = None;
+                }
             }
             WsMessage::Command(_) => {}
         }
@@ -411,6 +424,30 @@ mod tests {
         state.handle_ws_message(eject_msg);
         assert!(state.is_ejected);
         assert_eq!(state.ejection_reason.as_deref(), Some("Chute da cabine pelo piloto"));
+
+        // Test CacheAlert message
+        let alert_msg = WsMessage::CacheAlert(lacraia_shared::CacheAlertNotification {
+            cabin_id: "van-furacao".into(),
+            starvation_type: lacraia_shared::CacheStarvationType::LocalCacheMissing,
+            message: "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM".into(),
+            track_id: Some("trk_cloud".into()),
+            active: true,
+        });
+        state.handle_ws_message(alert_msg);
+        assert!(state.cache_alert.is_some());
+        assert_eq!(state.cache_alert.as_ref().unwrap().starvation_type, lacraia_shared::CacheStarvationType::LocalCacheMissing);
+        assert_eq!(state.cache_alert.as_ref().unwrap().message, "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM");
+
+        // Test clear CacheAlert message
+        let alert_clear = WsMessage::CacheAlert(lacraia_shared::CacheAlertNotification {
+            cabin_id: "van-furacao".into(),
+            starvation_type: lacraia_shared::CacheStarvationType::LocalCacheMissing,
+            message: "".into(),
+            track_id: None,
+            active: false,
+        });
+        state.handle_ws_message(alert_clear);
+        assert!(state.cache_alert.is_none());
 
         state.set_volume(1.2);
         assert_eq!(state.volume, 1.0);
