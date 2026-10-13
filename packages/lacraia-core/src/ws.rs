@@ -806,4 +806,62 @@ mod tests {
             _ => panic!("Expected StateUpdate for cabin_beta"),
         }
     }
+
+    #[tokio::test]
+    async fn test_playback_hub_state_persistence_and_resume() {
+        let db = Database::open_in_memory().unwrap();
+        let track = TrackRecord {
+            id: "trk_persist".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 240,
+            cached_path: Some("/cache/vai_lacraia.opus".into()),
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&track).unwrap();
+
+        let (tx, _rx) = broadcast::channel(100);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+
+        // 1. PlayNow on cabin 'cab_persisted'
+        hub.dispatch_command_with_role(
+            CommandAction::PlayNow {
+                track_id: "trk_persist".into(),
+                requested_by: Some("PILOTO".into()),
+            },
+            "cab_persisted",
+            Some(Role::Pilot),
+        )
+        .await
+        .unwrap();
+
+        // 2. Seek to 25000 ms
+        hub.dispatch_command_with_role(
+            CommandAction::Seek { position_ms: 25000 },
+            "cab_persisted",
+            Some(Role::Pilot),
+        )
+        .await
+        .unwrap();
+
+        // Check SQLite persistence
+        let persisted = db.get_cabin_state("cab_persisted").unwrap().expect("State must be persisted in SQLite");
+        assert_eq!(persisted.track_id.as_deref(), Some("trk_persist"));
+        assert_eq!(persisted.position_ms, 25000);
+
+        // 3. New hub instance simulates daemon/process restart
+        let (tx2, _rx2) = broadcast::channel(100);
+        let hub2 = Arc::new(PlaybackHub::new(db.clone(), tx2));
+        let state_resumed = hub2.build_state_update_for_cabin("cab_persisted").await;
+
+        match state_resumed {
+            WsMessage::StateUpdate(u) => {
+                assert!(u.payload.track.is_some(), "Restored cabin state must include last track");
+                assert_eq!(u.payload.track.unwrap().id, "trk_persist");
+                assert_eq!(u.payload.playback.position_ms, 25000, "Restored cabin position must match SQLite");
+            }
+            _ => panic!("Expected StateUpdate on resumed cabin"),
+        }
+    }
 }
