@@ -108,8 +108,10 @@ impl QueueDaemon {
     }
 
     pub fn set_temporal_window(&self, cache_sec: u64, queue_sec: u64) {
-        self.target_cache_duration_sec.store(cache_sec, Ordering::Relaxed);
-        self.target_queue_duration_sec.store(queue_sec, Ordering::Relaxed);
+        self.target_cache_duration_sec
+            .store(cache_sec, Ordering::Relaxed);
+        self.target_queue_duration_sec
+            .store(queue_sec, Ordering::Relaxed);
     }
 
     pub fn find_prefetch_targets_for_window(
@@ -276,7 +278,11 @@ impl QueueDaemon {
 
         // Query multi-seed similarity engine
         let query_limit = (deficit_count * 2).max(10);
-        if let Ok(sim_results) = self.similarity.find_similar_multi(&seeds, query_limit).await {
+        if let Ok(sim_results) = self
+            .similarity
+            .find_similar_multi(&seeds, query_limit)
+            .await
+        {
             for c in sim_results {
                 if !exclude_ids.contains(&c.id)
                     && !candidates_to_add.iter().any(|(id, ..)| id == &c.id)
@@ -312,7 +318,10 @@ impl QueueDaemon {
             } else {
                 deficit_count - candidates_to_add.len()
             };
-            if let Ok(local_recs) = self.db.get_recommendations_for_multi_seeds(&seed_ids, &local_exclude, needed_query) {
+            if let Ok(local_recs) =
+                self.db
+                    .get_recommendations_for_multi_seeds(&seed_ids, &local_exclude, needed_query)
+            {
                 for r in local_recs {
                     if !candidates_to_add.iter().any(|(id, ..)| id == &r.id) {
                         candidates_to_add.push((r.id, r.artist, r.title, r.duration_sec));
@@ -340,13 +349,20 @@ impl QueueDaemon {
                 last_played_at: None,
             };
             let _ = self.db.upsert_track(&record);
-            if self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id).is_ok() {
+            if self
+                .db
+                .enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id)
+                .is_ok()
+            {
                 enqueued += 1;
             }
         }
 
         if enqueued > 0 {
-            info!("Autopilot Sliding: Enqueued {} tracks for cabin '{}'", enqueued, cabin_id);
+            info!(
+                "Autopilot Sliding: Enqueued {} tracks for cabin '{}'",
+                enqueued, cabin_id
+            );
             self.hub.broadcast_state_for_cabin(cabin_id).await;
         }
 
@@ -432,9 +448,19 @@ impl QueueDaemon {
         let current_track_in_hub = self.hub.get_current_track_for_cabin(cabin_id).await;
         // Determine seed track: last track in queue, or current playing track in hub
         let seed: Option<(String, String, String)> = if let Some((_, last_track)) = queue.last() {
-            Some((last_track.artist.clone(), last_track.title.clone(), last_track.id.clone()))
+            Some((
+                last_track.artist.clone(),
+                last_track.title.clone(),
+                last_track.id.clone(),
+            ))
         } else {
-            current_track_in_hub.as_ref().map(|current| (current.artist.clone(), current.title.clone(), current.id.clone()))
+            current_track_in_hub.as_ref().map(|current| {
+                (
+                    current.artist.clone(),
+                    current.title.clone(),
+                    current.id.clone(),
+                )
+            })
         };
 
         let (seed_artist, seed_title, seed_id) = match seed {
@@ -449,12 +475,21 @@ impl QueueDaemon {
 
         let mut candidates_to_add: Vec<(String, String, String, u64)> = Vec::new();
 
-        if let Ok(sim_results) = self.similarity.find_similar(&seed_artist, &seed_title, 10).await {
+        if let Ok(sim_results) = self
+            .similarity
+            .find_similar(&seed_artist, &seed_title, 10)
+            .await
+        {
             for c in sim_results {
                 if !exclude_ids.contains(&c.id)
                     && !candidates_to_add.iter().any(|(id, ..)| id == &c.id)
                 {
-                    candidates_to_add.push((c.id, c.artist, c.title, c.duration_sec.unwrap_or(210)));
+                    candidates_to_add.push((
+                        c.id,
+                        c.artist,
+                        c.title,
+                        c.duration_sec.unwrap_or(210),
+                    ));
                     if candidates_to_add.len() >= deficit {
                         break;
                     }
@@ -467,7 +502,11 @@ impl QueueDaemon {
             for (id, ..) in &candidates_to_add {
                 local_exclude.push(id.clone());
             }
-            if let Ok(local_recs) = self.db.get_recommendations_for_seed(&seed_id, &local_exclude, deficit - candidates_to_add.len()) {
+            if let Ok(local_recs) = self.db.get_recommendations_for_seed(
+                &seed_id,
+                &local_exclude,
+                deficit - candidates_to_add.len(),
+            ) {
                 for r in local_recs {
                     if !candidates_to_add.iter().any(|(id, ..)| id == &r.id) {
                         candidates_to_add.push((r.id, r.artist, r.title, r.duration_sec));
@@ -491,13 +530,20 @@ impl QueueDaemon {
                 last_played_at: None,
             };
             let _ = self.db.upsert_track(&record);
-            if self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id).is_ok() {
+            if self
+                .db
+                .enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id)
+                .is_ok()
+            {
                 enqueued += 1;
             }
         }
 
         if enqueued > 0 {
-            info!("Autopilot: Successfully enqueued {} tracks for cabin '{}'", enqueued, cabin_id);
+            info!(
+                "Autopilot: Successfully enqueued {} tracks for cabin '{}'",
+                enqueued, cabin_id
+            );
             self.hub.broadcast_state_for_cabin(cabin_id).await;
         }
 
@@ -506,7 +552,10 @@ impl QueueDaemon {
 
     /// Executes a single prefetch cycle for the lookahead window.
     pub async fn step(&self) -> Result<usize, QueueDaemonError> {
-        let cabin_ids = self.db.list_active_cabin_ids().unwrap_or_else(|_| vec!["default".to_string()]);
+        let cabin_ids = self
+            .db
+            .list_active_cabin_ids()
+            .unwrap_or_else(|_| vec!["default".to_string()]);
 
         for cid in &cabin_ids {
             let _ = self.maintain_autopilot_queue_sliding(cid).await;
@@ -555,7 +604,6 @@ impl QueueDaemon {
 
         Ok(processed)
     }
-
 
     /// Spawns the daemon background task.
     pub fn start(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
@@ -710,7 +758,10 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         let (tx, _rx) = tokio::sync::broadcast::channel(100);
         let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
-        let resolver = Arc::new(crate::resolver::MediaResolver::new(std::path::PathBuf::from("/tmp/cache"), db.clone()));
+        let resolver = Arc::new(crate::resolver::MediaResolver::new(
+            std::path::PathBuf::from("/tmp/cache"),
+            db.clone(),
+        ));
         let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
 
         // Default lookahead: 5 local, 10 remote
@@ -746,28 +797,64 @@ mod tests {
                 last_played_at: None,
             };
             db.upsert_track(&trk).unwrap();
-            db.insert_edge("seed_1", &format!("cand_{}", i), 0.95 - (i as f64 * 0.02), "test").unwrap();
+            db.insert_edge(
+                "seed_1",
+                &format!("cand_{}", i),
+                0.95 - (i as f64 * 0.02),
+                "test",
+            )
+            .unwrap();
         }
-        db.play_now_with_meta("seed_1", Some("PILOTO"), "cab_lookahead").unwrap();
-        let _ = hub.dispatch_command_with_role(lacraia_shared::CommandAction::Play, "cab_lookahead", Some(lacraia_shared::Role::Pilot)).await;
+        db.play_now_with_meta("seed_1", Some("PILOTO"), "cab_lookahead")
+            .unwrap();
+        let _ = hub
+            .dispatch_command_with_role(
+                lacraia_shared::CommandAction::Play,
+                "cab_lookahead",
+                Some(lacraia_shared::Role::Pilot),
+            )
+            .await;
 
         // 2. Maintain autopilot with non-stop enabled -> must populate until 10 upcoming tracks
-        let enqueued = daemon.maintain_autopilot_queue_sliding("cab_lookahead").await.unwrap();
-        assert_eq!(enqueued, 10, "Autopilot must enqueue 10 remote upcoming tracks");
+        let enqueued = daemon
+            .maintain_autopilot_queue_sliding("cab_lookahead")
+            .await
+            .unwrap();
+        assert_eq!(
+            enqueued, 10,
+            "Autopilot must enqueue 10 remote upcoming tracks"
+        );
 
         let queue = db.get_queue_for_cabin("cab_lookahead").unwrap();
-        let upcoming: Vec<_> = queue.iter().filter(|(e, _)| e.state != QueueState::Playing).collect();
-        assert_eq!(upcoming.len(), 10, "Queue must contain 10 upcoming remote tracks");
+        let upcoming: Vec<_> = queue
+            .iter()
+            .filter(|(e, _)| e.state != QueueState::Playing)
+            .collect();
+        assert_eq!(
+            upcoming.len(),
+            10,
+            "Queue must contain 10 upcoming remote tracks"
+        );
 
         // 3. Find prefetch targets -> must target exactly 5 local tracks
         let all_queues = db.get_queue_for_cabin("cab_lookahead").unwrap();
         let prefetch_targets = daemon.find_prefetch_targets_for_window(&all_queues);
-        assert_eq!(prefetch_targets.len(), 5, "Daemon must prefetch exactly 5 local cached tracks");
+        assert_eq!(
+            prefetch_targets.len(),
+            5,
+            "Daemon must prefetch exactly 5 local cached tracks"
+        );
 
         // 4. When non-stop is disabled for this cabin, maintain_autopilot does not add more
         hub.set_cabin_non_stop("cab_lookahead", false).await;
-        let enqueued_disabled = daemon.maintain_autopilot_queue_sliding("cab_lookahead").await.unwrap();
-        assert_eq!(enqueued_disabled, 0, "When non-stop is disabled, autopilot must not auto-populate");
+        let enqueued_disabled = daemon
+            .maintain_autopilot_queue_sliding("cab_lookahead")
+            .await
+            .unwrap();
+        assert_eq!(
+            enqueued_disabled, 0,
+            "When non-stop is disabled, autopilot must not auto-populate"
+        );
     }
 
     #[tokio::test]
@@ -775,7 +862,10 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         let (tx, _rx) = tokio::sync::broadcast::channel(100);
         let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
-        let resolver = Arc::new(crate::resolver::MediaResolver::new(std::path::PathBuf::from("/tmp/cache"), db.clone()));
+        let resolver = Arc::new(crate::resolver::MediaResolver::new(
+            std::path::PathBuf::from("/tmp/cache"),
+            db.clone(),
+        ));
         let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
 
         // Temporal lookahead daemon: 600s cache target, 1200s queue target
@@ -810,14 +900,24 @@ mod tests {
         };
 
         // Track 1 playing (60s), followed by 15 pending short tracks of 60s each
-        let mut queue = vec![(dummy_entry(1, QueueState::Playing), dummy_track("punk_1", 60))];
+        let mut queue = vec![(
+            dummy_entry(1, QueueState::Playing),
+            dummy_track("punk_1", 60),
+        )];
         for i in 2..=16 {
-            queue.push((dummy_entry(i, QueueState::Pending), dummy_track(&format!("punk_{}", i), 60)));
+            queue.push((
+                dummy_entry(i, QueueState::Pending),
+                dummy_track(&format!("punk_{}", i), 60),
+            ));
         }
 
         // To satisfy 600s of cache with 60s tracks, it must select 10 tracks, NOT 5!
         let prefetch_targets = daemon.find_prefetch_targets_for_window(&queue);
-        assert_eq!(prefetch_targets.len(), 10, "With 60s tracks and 600s target, must select 10 tracks");
+        assert_eq!(
+            prefetch_targets.len(),
+            10,
+            "With 60s tracks and 600s target, must select 10 tracks"
+        );
 
         // Autopilot sliding: seed cabin playing, and DB has 25 candidate tracks of 60s each.
         // With target_queue_duration_sec = 1200s, it must enqueue 20 tracks (20 * 60s = 1200s), NOT just 10!
@@ -842,20 +942,43 @@ mod tests {
                 last_played_at: None,
             };
             db.upsert_track(&trk).unwrap();
-            db.insert_edge("seed_temporal", &format!("punk_cand_{}", i), 0.99 - (i as f64 * 0.01), "test").unwrap();
+            db.insert_edge(
+                "seed_temporal",
+                &format!("punk_cand_{}", i),
+                0.99 - (i as f64 * 0.01),
+                "test",
+            )
+            .unwrap();
         }
-        db.play_now_with_meta("seed_temporal", Some("PILOTO"), "cab_temporal").unwrap();
-        let _ = hub.dispatch_command_with_role(lacraia_shared::CommandAction::Play, "cab_temporal", Some(lacraia_shared::Role::Pilot)).await;
+        db.play_now_with_meta("seed_temporal", Some("PILOTO"), "cab_temporal")
+            .unwrap();
+        let _ = hub
+            .dispatch_command_with_role(
+                lacraia_shared::CommandAction::Play,
+                "cab_temporal",
+                Some(lacraia_shared::Role::Pilot),
+            )
+            .await;
 
-        let enqueued = daemon.maintain_autopilot_queue_sliding("cab_temporal").await.unwrap();
-        assert_eq!(enqueued, 20, "Autopilot must enqueue 20 tracks (60s each) to satisfy 1200s target queue duration");
+        let enqueued = daemon
+            .maintain_autopilot_queue_sliding("cab_temporal")
+            .await
+            .unwrap();
+        assert_eq!(
+            enqueued, 20,
+            "Autopilot must enqueue 20 tracks (60s each) to satisfy 1200s target queue duration"
+        );
 
         let queue = db.get_queue_for_cabin("cab_temporal").unwrap();
-        let upcoming_duration: u64 = queue.iter()
+        let upcoming_duration: u64 = queue
+            .iter()
             .filter(|(e, _)| e.state != QueueState::Playing)
             .map(|(_, t)| t.duration_sec)
             .sum();
-        assert!(upcoming_duration >= 1200, "Total upcoming queue duration must be at least 1200s");
+        assert!(
+            upcoming_duration >= 1200,
+            "Total upcoming queue duration must be at least 1200s"
+        );
     }
 
     #[tokio::test]
@@ -863,7 +986,10 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         let (tx, _rx) = tokio::sync::broadcast::channel(100);
         let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
-        let resolver = Arc::new(crate::resolver::MediaResolver::new(std::path::PathBuf::from("/tmp/cache"), db.clone()));
+        let resolver = Arc::new(crate::resolver::MediaResolver::new(
+            std::path::PathBuf::from("/tmp/cache"),
+            db.clone(),
+        ));
         let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
 
         let daemon = QueueDaemon::new(
@@ -876,8 +1002,16 @@ mod tests {
         );
 
         // Issue #25: Default queue duration must be 7200s (2 hours)
-        assert_eq!(daemon.target_queue_duration_sec(), 7200, "Default daemon queue duration must be 7200s (2 hours)");
-        assert_eq!(daemon.target_cache_duration_sec(), 3600, "Default daemon cache duration must be 3600s (1 hour)");
+        assert_eq!(
+            daemon.target_queue_duration_sec(),
+            7200,
+            "Default daemon queue duration must be 7200s (2 hours)"
+        );
+        assert_eq!(
+            daemon.target_cache_duration_sec(),
+            3600,
+            "Default daemon cache duration must be 3600s (1 hour)"
+        );
 
         // Issue #26: Dynamic update of lookahead windows
         daemon.set_temporal_window(1800, 10800);
@@ -885,4 +1019,3 @@ mod tests {
         assert_eq!(daemon.target_queue_duration_sec(), 10800);
     }
 }
-

@@ -229,5 +229,3 @@ pub struct ResolutionErrorDiagnostic {
     #[serde(rename = "sampleOutput")]
     pub sample_output: Option<String>,
 }
-
-

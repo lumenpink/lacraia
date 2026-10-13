@@ -37,7 +37,10 @@ pub fn parse_lrc(raw: &str) -> Vec<LyricLine> {
             };
 
             let timestamp_ms = (minutes * 60 * 1000) + (seconds * 1000) + millis;
-            let text = caps.get(4).map(|m| m.as_str().trim().to_string()).unwrap_or_default();
+            let text = caps
+                .get(4)
+                .map(|m| m.as_str().trim().to_string())
+                .unwrap_or_default();
 
             lines.push(LyricLine { timestamp_ms, text });
         }

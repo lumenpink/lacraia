@@ -7,8 +7,8 @@ pub use fuzzy::{is_title_clean, is_title_matching, is_valid_duration_delta, stri
 pub use lrc::{parse_lrc, LyricLine};
 pub use models::{
     AttemptsSuccessDistribution, CabinInfo, CacheAlertInfo, CacheEntry, CacheResolutionAttempt,
-    CacheStarvationType, PassengerInfo, PlaybackHistoryEntry, PlaybackState, ResolutionErrorDiagnostic,
-    ResolutionTier, Role, TierSuccessRate, Track, ValidationStatus,
+    CacheStarvationType, PassengerInfo, PlaybackHistoryEntry, PlaybackState,
+    ResolutionErrorDiagnostic, ResolutionTier, Role, TierSuccessRate, Track, ValidationStatus,
 };
 pub use protocol::{
     CabinLockedNotification, CacheAlertNotification, Command, CommandAction, CrewUpdate,

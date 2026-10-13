@@ -1,7 +1,7 @@
 use crate::db::{Database, TrackRecord};
 use lacraia_shared::{
-    is_title_clean, is_title_matching, is_valid_duration_delta, strip_accents,
-    CacheEntry, CacheResolutionAttempt,
+    is_title_clean, is_title_matching, is_valid_duration_delta, strip_accents, CacheEntry,
+    CacheResolutionAttempt,
 };
 use rustypipe::client::RustyPipe;
 use rustypipe::model::{AudioCodec, TrackItem};
@@ -54,8 +54,7 @@ pub struct MediaResolver {
 
 impl MediaResolver {
     pub fn new(cache_dir: PathBuf, db: Database) -> Self {
-        let ytdlp_bin = std::env::var("YTDLP_BIN")
-            .unwrap_or_else(|_| "yt-dlp".to_string());
+        let ytdlp_bin = std::env::var("YTDLP_BIN").unwrap_or_else(|_| "yt-dlp".to_string());
         let rp = RustyPipe::new();
         Self {
             cache_dir,
@@ -107,7 +106,10 @@ impl MediaResolver {
         target_path: &Path,
     ) -> Result<u64, String> {
         let query = format!("{} {}", artist, title);
-        info!("MediaResolver (Tier 2): Querying YouTube Music via native RustyPipe for '{}'", query);
+        info!(
+            "MediaResolver (Tier 2): Querying YouTube Music via native RustyPipe for '{}'",
+            query
+        );
 
         let search_res = self
             .rp
@@ -122,12 +124,18 @@ impl MediaResolver {
         for item in search_res.items.items {
             let duration_sec = item.duration.unwrap_or(expected_duration_sec as u32) as u64;
             if Self::evaluate_candidate(&item.name, duration_sec, title, expected_duration_sec) {
-                info!("RustyPipe candidate accepted: '{}' ({}s) [id={}]", item.name, duration_sec, item.id);
+                info!(
+                    "RustyPipe candidate accepted: '{}' ({}s) [id={}]",
+                    item.name, duration_sec, item.id
+                );
                 candidate_id = Some(item.id);
                 candidate_duration = duration_sec;
                 break;
             } else {
-                info!("RustyPipe candidate rejected: '{}' ({}s)", item.name, duration_sec);
+                info!(
+                    "RustyPipe candidate rejected: '{}' ({}s)",
+                    item.name, duration_sec
+                );
             }
         }
 
@@ -150,13 +158,18 @@ impl MediaResolver {
                         break;
                     }
                 }
-                let (id, d) = found.ok_or_else(|| "No candidate matched fuzzy duration/filter in RustyPipe".to_string())?;
+                let (id, d) = found.ok_or_else(|| {
+                    "No candidate matched fuzzy duration/filter in RustyPipe".to_string()
+                })?;
                 candidate_duration = d;
                 id
             }
         };
 
-        info!("RustyPipe fetching player stream for video ID: {}", video_id);
+        info!(
+            "RustyPipe fetching player stream for video ID: {}",
+            video_id
+        );
         let player = self
             .rp
             .query()
@@ -175,7 +188,10 @@ impl MediaResolver {
         let stream_url = audio_stream.url;
         let is_opus = audio_stream.codec == AudioCodec::Opus;
         let codec_args = Self::ffmpeg_audio_codec_args(is_opus);
-        info!("RustyPipe saving stream to target (is_opus={}, codec_args={:?})", is_opus, codec_args);
+        info!(
+            "RustyPipe saving stream to target (is_opus={}, codec_args={:?})",
+            is_opus, codec_args
+        );
 
         // Remux or transcode stream to target Opus file using ffmpeg with browser User-Agent and headers
         let mut ffmpeg_cmd = TokioCommand::new("ffmpeg");
@@ -204,7 +220,10 @@ impl MediaResolver {
             return Err(format!("ffmpeg transcoding error: {}", err));
         }
 
-        info!("RustyPipe: successfully saved and transcoded to {}", target_path.display());
+        info!(
+            "RustyPipe: successfully saved and transcoded to {}",
+            target_path.display()
+        );
         Ok(candidate_duration)
     }
 
@@ -223,13 +242,29 @@ impl MediaResolver {
 
         let clean_artist = strip_accents(artist)
             .chars()
-            .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+            .map(|c| {
+                if c.is_alphanumeric() || c.is_whitespace() {
+                    c
+                } else {
+                    ' '
+                }
+            })
             .collect::<String>();
         let clean_title = strip_accents(title)
             .chars()
-            .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+            .map(|c| {
+                if c.is_alphanumeric() || c.is_whitespace() {
+                    c
+                } else {
+                    ' '
+                }
+            })
             .collect::<String>();
-        let search_query = format!("ytsearch5:{} {} audio", clean_artist.trim(), clean_title.trim());
+        let search_query = format!(
+            "ytsearch5:{} {} audio",
+            clean_artist.trim(),
+            clean_title.trim()
+        );
         let output = TokioCommand::new(&self.ytdlp_bin)
             .args([
                 &search_query,
@@ -260,7 +295,8 @@ impl MediaResolver {
 
             if let Ok(item) = serde_json::from_str::<YtDlpSearchResult>(line) {
                 let duration_sec = item.duration.map(|d| d as u64).unwrap_or(0);
-                if Self::evaluate_candidate(&item.title, duration_sec, title, expected_duration_sec) {
+                if Self::evaluate_candidate(&item.title, duration_sec, title, expected_duration_sec)
+                {
                     info!(
                         "yt-dlp candidate accepted: '{}' ({}s) [id={}]",
                         item.title, duration_sec, item.id
@@ -282,7 +318,10 @@ impl MediaResolver {
             .webpage_url
             .unwrap_or_else(|| format!("https://www.youtube.com/watch?v={}", candidate.id));
 
-        info!("Extracting audio via yt-dlp from {} to {}", video_url, target_path_str);
+        info!(
+            "Extracting audio via yt-dlp from {} to {}",
+            video_url, target_path_str
+        );
 
         let dl_output = TokioCommand::new(&self.ytdlp_bin)
             .args([
@@ -301,7 +340,6 @@ impl MediaResolver {
             .stderr(Stdio::piped())
             .output()
             .await?;
-
 
         if !dl_output.status.success() {
             let err = String::from_utf8_lossy(&dl_output.stderr);
@@ -329,7 +367,11 @@ impl MediaResolver {
         let clean_artist = strip_accents(artist).to_lowercase();
         let clean_title = strip_accents(title).to_lowercase();
         let track_id = format!("{}:{}", clean_artist.trim(), clean_title.trim());
-        let raw_track_id = format!("{}:{}", artist.to_lowercase().trim(), title.to_lowercase().trim());
+        let raw_track_id = format!(
+            "{}:{}",
+            artist.to_lowercase().trim(),
+            title.to_lowercase().trim()
+        );
         let safe_filename = format!(
             "{}.opus",
             track_id.replace(|c: char| !c.is_alphanumeric(), "_")
@@ -338,7 +380,11 @@ impl MediaResolver {
         let target_path_str = target_path.to_string_lossy().to_string();
 
         // 1. Check if DB already knows a cached_path for this track (either track_id or raw_track_id)
-        let db_existing = self.db.get_track(&track_id).ok().flatten()
+        let db_existing = self
+            .db
+            .get_track(&track_id)
+            .ok()
+            .flatten()
             .or_else(|| self.db.get_track(&raw_track_id).ok().flatten());
 
         if let Some(ref existing) = db_existing {
@@ -358,9 +404,16 @@ impl MediaResolver {
                 };
 
                 if let Some(hit) = hit_path {
-                    let hit_file = hit.file_name().and_then(|n| n.to_str()).unwrap_or(&safe_filename).to_string();
+                    let hit_file = hit
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(&safe_filename)
+                        .to_string();
                     let hit_path_str = hit.to_string_lossy().to_string();
-                    info!("Tier 0 Cache hit for track '{}' from DB record at {}", track_id, hit_path_str);
+                    info!(
+                        "Tier 0 Cache hit for track '{}' from DB record at {}",
+                        track_id, hit_path_str
+                    );
                     let file_size_bytes = std::fs::metadata(&hit).map(|m| m.len()).unwrap_or(0);
                     let now = chrono::Utc::now().timestamp();
                     let _ = self.db.upsert_cache_entry(&CacheEntry {
@@ -429,7 +482,10 @@ impl MediaResolver {
 
         if let Some((hit_file, hit_path)) = found_path {
             let hit_path_str = hit_path.to_string_lossy().to_string();
-            info!("Tier 0 Filesystem Cache hit for track '{}' at {}", track_id, hit_path_str);
+            info!(
+                "Tier 0 Filesystem Cache hit for track '{}' at {}",
+                track_id, hit_path_str
+            );
             let (tit, art, dur) = if let Some(existing) = db_existing {
                 (existing.title, existing.artist, existing.duration_sec)
             } else {
@@ -487,7 +543,9 @@ impl MediaResolver {
 
         let resolved_duration = match rp_res {
             Ok(duration) => {
-                let file_size_bytes = std::fs::metadata(&target_path).map(|m| m.len()).unwrap_or(0);
+                let file_size_bytes = std::fs::metadata(&target_path)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
                 let now = chrono::Utc::now().timestamp();
                 let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
                     id: 0,
@@ -542,7 +600,9 @@ impl MediaResolver {
 
                 match ytdlp_res {
                     Ok(dur) => {
-                        let file_size_bytes = std::fs::metadata(&target_path).map(|m| m.len()).unwrap_or(0);
+                        let file_size_bytes = std::fs::metadata(&target_path)
+                            .map(|m| m.len())
+                            .unwrap_or(0);
                         let _ = self.db.record_resolution_attempt(&CacheResolutionAttempt {
                             id: 0,
                             track_id: track_id.clone(),
@@ -600,7 +660,9 @@ impl MediaResolver {
         self.db.upsert_track(&record)?;
         self.db.mark_cached(&track_id, &target_path_str)?;
 
-        let file_size_bytes = std::fs::metadata(&target_path).map(|m| m.len()).unwrap_or(0);
+        let file_size_bytes = std::fs::metadata(&target_path)
+            .map(|m| m.len())
+            .unwrap_or(0);
         let now = chrono::Utc::now().timestamp();
         let _ = self.db.upsert_cache_entry(&CacheEntry {
             id: 0,
@@ -656,10 +718,7 @@ mod tests {
 
         // Rejected: false positive with unrelated title
         assert!(!MediaResolver::evaluate_candidate(
-            "RIO",
-            210,
-            "lacraia",
-            210
+            "RIO", 210, "lacraia", 210
         ));
 
         // Accepted: fuzzy matching with diacritics
@@ -673,7 +732,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_media_resolver_attempts_logging_and_cache_inventory() {
-        let tmp_dir = std::env::temp_dir().join(format!("lacraia_test_cache_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "lacraia_test_cache_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&tmp_dir).unwrap();
 
         let db = Database::open_in_memory().unwrap();
@@ -684,19 +749,32 @@ mod tests {
         let file_path = tmp_dir.join(safe_filename);
         std::fs::write(&file_path, b"FAKE_OPUS_AUDIO_BYTES_TEST").unwrap();
 
-        let res = resolver.resolve_and_cache("Chico Buarque", "Construção", 258).await.unwrap();
+        let res = resolver
+            .resolve_and_cache("Chico Buarque", "Construção", 258)
+            .await
+            .unwrap();
         assert_eq!(res.track_id, "chico buarque:construcao");
 
         // Must create/update cache_entries
-        let entry = db.get_cache_entry("chico buarque:construcao").unwrap().expect("Cache entry must be recorded in DB");
+        let entry = db
+            .get_cache_entry("chico buarque:construcao")
+            .unwrap()
+            .expect("Cache entry must be recorded in DB");
         assert_eq!(entry.file_path, file_path.to_string_lossy().to_string());
         assert_eq!(entry.file_size_bytes, 26);
         assert!(entry.hit_count >= 1);
 
         // Must record a Tier 0 success attempt
-        let attempts = db.get_resolution_attempts_for_track("chico buarque:construcao").unwrap();
-        assert!(!attempts.is_empty(), "Resolution attempts must record Tier 0 local cache hit");
-        assert!(attempts.iter().any(|a| a.tier == "tier_0_local" && a.success));
+        let attempts = db
+            .get_resolution_attempts_for_track("chico buarque:construcao")
+            .unwrap();
+        assert!(
+            !attempts.is_empty(),
+            "Resolution attempts must record Tier 0 local cache hit"
+        );
+        assert!(attempts
+            .iter()
+            .any(|a| a.tier == "tier_0_local" && a.success));
 
         // Cleanup
         let _ = std::fs::remove_dir_all(&tmp_dir);
@@ -704,20 +782,41 @@ mod tests {
 
     #[test]
     fn test_ffmpeg_audio_codec_args_fast_remux() {
-        assert_eq!(MediaResolver::ffmpeg_audio_codec_args(true), vec!["-c:a", "copy"]);
-        assert_eq!(MediaResolver::ffmpeg_audio_codec_args(false), vec!["-c:a", "libopus", "-b:a", "128k"]);
+        assert_eq!(
+            MediaResolver::ffmpeg_audio_codec_args(true),
+            vec!["-c:a", "copy"]
+        );
+        assert_eq!(
+            MediaResolver::ffmpeg_audio_codec_args(false),
+            vec!["-c:a", "libopus", "-b:a", "128k"]
+        );
     }
 
     #[tokio::test]
     async fn test_ffmpeg_direct_stream_copy_execution() {
-        let tmp_dir = std::env::temp_dir().join(format!("lacraia_remux_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "lacraia_remux_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&tmp_dir).unwrap();
 
         let src_file = tmp_dir.join("src.opus");
         let dst_file = tmp_dir.join("dst.opus");
 
         let gen = TokioCommand::new("ffmpeg")
-            .args(["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.2", "-c:a", "libopus", src_file.to_str().unwrap()])
+            .args([
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=0.2",
+                "-c:a",
+                "libopus",
+                src_file.to_str().unwrap(),
+            ])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
@@ -739,4 +838,3 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp_dir);
     }
 }
-

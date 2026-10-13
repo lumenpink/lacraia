@@ -77,16 +77,19 @@ impl PlaybackHub {
     /// Builds a snapshot `STATE_UPDATE` message with the current playback status for a specific cabin.
     pub async fn build_state_update_for_cabin(&self, cabin_id: &str) -> WsMessage {
         let queue_entries = self.db.get_queue_for_cabin(cabin_id).unwrap_or_default();
-        let playing_track = queue_entries.iter().find(|(q, _)| q.state == crate::db::QueueState::Playing).map(|(q, t)| Track {
-            id: t.id.clone(),
-            title: t.title.clone(),
-            artist: t.artist.clone(),
-            album: None,
-            duration_ms: t.duration_sec * 1000,
-            cover_url: None,
-            stream_url: t.cached_path.as_deref().map(clean_stream_url),
-            requested_by: q.requested_by.clone(),
-        });
+        let playing_track = queue_entries
+            .iter()
+            .find(|(q, _)| q.state == crate::db::QueueState::Playing)
+            .map(|(q, t)| Track {
+                id: t.id.clone(),
+                title: t.title.clone(),
+                artist: t.artist.clone(),
+                album: None,
+                duration_ms: t.duration_sec * 1000,
+                cover_url: None,
+                stream_url: t.cached_path.as_deref().map(clean_stream_url),
+                requested_by: q.requested_by.clone(),
+            });
 
         let persisted_state = self.db.get_cabin_state(cabin_id).ok().flatten();
 
@@ -189,7 +192,10 @@ impl PlaybackHub {
             return persisted.playback_state == "playing";
         }
         if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
-            if queue.iter().any(|(e, _)| e.state == crate::db::QueueState::Playing) {
+            if queue
+                .iter()
+                .any(|(e, _)| e.state == crate::db::QueueState::Playing)
+            {
                 return true;
             }
         }
@@ -203,7 +209,10 @@ impl PlaybackHub {
 
     pub async fn get_current_track_for_cabin(&self, cabin_id: &str) -> Option<Track> {
         if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
-            if let Some((q, t)) = queue.into_iter().find(|(entry, _)| entry.state == crate::db::QueueState::Playing) {
+            if let Some((q, t)) = queue
+                .into_iter()
+                .find(|(entry, _)| entry.state == crate::db::QueueState::Playing)
+            {
                 return Some(Track {
                     id: t.id,
                     title: t.title,
@@ -282,7 +291,11 @@ impl PlaybackHub {
     }
 
     /// Evaluates track cache path and broadcasts cache alert state if local cache is absent.
-    pub async fn check_and_emit_track_cache_alert(&self, cabin_id: &str, record: &crate::db::TrackRecord) {
+    pub async fn check_and_emit_track_cache_alert(
+        &self,
+        cabin_id: &str,
+        record: &crate::db::TrackRecord,
+    ) {
         if record.cached_path.is_none() {
             self.emit_cache_alert(
                 cabin_id,
@@ -290,13 +303,15 @@ impl PlaybackHub {
                 "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM",
                 Some(record.id.clone()),
                 true,
-            ).await;
+            )
+            .await;
         }
     }
 
     pub async fn dispatch_command(&self, action: CommandAction) -> Result<WsMessage, String> {
         let cabin_id = self.cabin_id.lock().await.clone();
-        self.dispatch_command_with_role(action, &cabin_id, Some(Role::Pilot)).await
+        self.dispatch_command_with_role(action, &cabin_id, Some(Role::Pilot))
+            .await
     }
 
     /// Dispatches a command action, mutates internal state, queries the database if needed,
@@ -314,8 +329,11 @@ impl PlaybackHub {
             }
             Some(Role::Passenger) => {
                 match &action {
-                    CommandAction::QueueAppend { .. } | CommandAction::QueueNext { .. } => { /* Allowed */ }
-                    _ => return Err("FORBIDDEN: Apenas o piloto pode comandar a cabine".to_string()),
+                    CommandAction::QueueAppend { .. } | CommandAction::QueueNext { .. } => { /* Allowed */
+                    }
+                    _ => {
+                        return Err("FORBIDDEN: Apenas o piloto pode comandar a cabine".to_string())
+                    }
                 }
             }
             None => {
@@ -324,8 +342,12 @@ impl PlaybackHub {
                     return Err("FORBIDDEN: Cabine trancada pelo piloto".to_string());
                 }
                 match &action {
-                    CommandAction::QueueAppend { .. } | CommandAction::QueueNext { .. } => { /* Allowed */ }
-                    _ => return Err("UNAUTHORIZED: Autenticação de piloto necessária para comandar a cabine".to_string()),
+                    CommandAction::QueueAppend { .. } | CommandAction::QueueNext { .. } => { /* Allowed */
+                    }
+                    _ => return Err(
+                        "UNAUTHORIZED: Autenticação de piloto necessária para comandar a cabine"
+                            .to_string(),
+                    ),
                 }
             }
         }
@@ -338,8 +360,13 @@ impl PlaybackHub {
                 if self.current_track.lock().await.is_none() {
                     if let Ok(queue) = self.db.get_queue_for_cabin(cabin_id) {
                         if let Some((entry, record)) = queue.into_iter().next() {
-                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
-                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
+                            self.check_and_emit_track_cache_alert(cabin_id, &record)
+                                .await;
+                            let _ = self.db.record_playback_history(
+                                cabin_id,
+                                &record.id,
+                                entry.requested_by.as_deref(),
+                            );
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -366,8 +393,13 @@ impl PlaybackHub {
                 match self.db.advance_queue_for_cabin(cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
-                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
-                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
+                            self.check_and_emit_track_cache_alert(cabin_id, &record)
+                                .await;
+                            let _ = self.db.record_playback_history(
+                                cabin_id,
+                                &record.id,
+                                entry.requested_by.as_deref(),
+                            );
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -397,8 +429,13 @@ impl PlaybackHub {
                 match self.db.jump_queue_for_cabin(queue_id, cabin_id) {
                     Ok(Some(entry)) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
-                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
-                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
+                            self.check_and_emit_track_cache_alert(cabin_id, &record)
+                                .await;
+                            let _ = self.db.record_playback_history(
+                                cabin_id,
+                                &record.id,
+                                entry.requested_by.as_deref(),
+                            );
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -417,23 +454,47 @@ impl PlaybackHub {
                     Err(e) => return Err(format!("Database queue jump failed: {}", e)),
                 }
             }
-            CommandAction::QueueAppend { track_id, requested_by } => {
-                if let Err(e) = self.db.enqueue_track_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
+            CommandAction::QueueAppend {
+                track_id,
+                requested_by,
+            } => {
+                if let Err(e) =
+                    self.db
+                        .enqueue_track_with_meta(&track_id, requested_by.as_deref(), cabin_id)
+                {
                     return Err(format!("Failed to enqueue track: {}", e));
                 }
             }
-            CommandAction::QueueNext { track_id, requested_by } => {
-                if let Err(e) = self.db.enqueue_track_next_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
+            CommandAction::QueueNext {
+                track_id,
+                requested_by,
+            } => {
+                if let Err(e) = self.db.enqueue_track_next_with_meta(
+                    &track_id,
+                    requested_by.as_deref(),
+                    cabin_id,
+                ) {
                     return Err(format!("Failed to enqueue track next: {}", e));
                 }
             }
-            CommandAction::PlayNow { track_id, requested_by } => {
+            CommandAction::PlayNow {
+                track_id,
+                requested_by,
+            } => {
                 *self.position_ms.lock().await = 0;
-                match self.db.play_now_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
+                match self
+                    .db
+                    .play_now_with_meta(&track_id, requested_by.as_deref(), cabin_id)
+                {
                     Ok(entry) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
-                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
-                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
+                            self.check_and_emit_track_cache_alert(cabin_id, &record)
+                                .await;
+                            let _ = self.db.record_playback_history(
+                                cabin_id,
+                                &record.id,
+                                entry.requested_by.as_deref(),
+                            );
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -451,13 +512,24 @@ impl PlaybackHub {
                     Err(e) => return Err(format!("Failed to play track now: {}", e)),
                 }
             }
-            CommandAction::StartRadio { track_id, requested_by } => {
+            CommandAction::StartRadio {
+                track_id,
+                requested_by,
+            } => {
                 *self.position_ms.lock().await = 0;
-                match self.db.start_radio_with_meta(&track_id, requested_by.as_deref(), cabin_id) {
+                match self
+                    .db
+                    .start_radio_with_meta(&track_id, requested_by.as_deref(), cabin_id)
+                {
                     Ok(entry) => {
                         if let Ok(Some(record)) = self.db.get_track(&entry.track_id) {
-                            self.check_and_emit_track_cache_alert(cabin_id, &record).await;
-                            let _ = self.db.record_playback_history(cabin_id, &record.id, entry.requested_by.as_deref());
+                            self.check_and_emit_track_cache_alert(cabin_id, &record)
+                                .await;
+                            let _ = self.db.record_playback_history(
+                                cabin_id,
+                                &record.id,
+                                entry.requested_by.as_deref(),
+                            );
                             let track = Track {
                                 id: record.id.clone(),
                                 title: record.title,
@@ -540,7 +612,11 @@ impl PlaybackHub {
             let tid_opt = if cabin_playing_tid.is_some() {
                 cabin_playing_tid
             } else if cabin_id == "default" {
-                self.current_track.lock().await.as_ref().map(|t| t.id.clone())
+                self.current_track
+                    .lock()
+                    .await
+                    .as_ref()
+                    .map(|t| t.id.clone())
             } else {
                 None
             };
@@ -557,7 +633,12 @@ impl PlaybackHub {
                 let _ = self.db.save_cabin_state(cabin_id, Some(tid), pos, st);
             } else if is_seek {
                 if let Ok(Some(existing)) = self.db.get_cabin_state(cabin_id) {
-                    let _ = self.db.save_cabin_state(cabin_id, existing.track_id.as_deref(), pos, &existing.playback_state);
+                    let _ = self.db.save_cabin_state(
+                        cabin_id,
+                        existing.track_id.as_deref(),
+                        pos,
+                        &existing.playback_state,
+                    );
                 }
             }
         }
@@ -597,8 +678,15 @@ impl PlaybackHub {
 
                     if *pos % 5000 == 0 {
                         let cid = self.cabin_id.lock().await.clone();
-                        let tid = self.current_track.lock().await.as_ref().map(|t| t.id.clone());
-                        let _ = self.db.save_cabin_state(&cid, tid.as_deref(), *pos, "playing");
+                        let tid = self
+                            .current_track
+                            .lock()
+                            .await
+                            .as_ref()
+                            .map(|t| t.id.clone());
+                        let _ = self
+                            .db
+                            .save_cabin_state(&cid, tid.as_deref(), *pos, "playing");
                     }
                 }
 
@@ -637,7 +725,9 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
 
     // Check role from token if provided (strictly no automatic pilot fallback)
     let role = if let Some(ref tok) = params.token {
-        hub.db.validate_token(&cabin_id, tok, master_key.as_deref()).unwrap_or(None)
+        hub.db
+            .validate_token(&cabin_id, tok, master_key.as_deref())
+            .unwrap_or(None)
     } else {
         None
     };
@@ -702,13 +792,21 @@ pub async fn handle_socket(socket: WebSocket, hub: Arc<PlaybackHub>, params: WsP
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             match serde_json::from_str::<WsMessage>(&text) {
                 Ok(WsMessage::Command(cmd)) => {
-                    info!("WebSocket Hub: dispatching command {:?} on cabin {} with role {:?}", cmd.payload, cabin_id_clone, role);
-                    let _ = hub_clone.dispatch_command_with_role(cmd.payload, &cabin_id_clone, role).await;
+                    info!(
+                        "WebSocket Hub: dispatching command {:?} on cabin {} with role {:?}",
+                        cmd.payload, cabin_id_clone, role
+                    );
+                    let _ = hub_clone
+                        .dispatch_command_with_role(cmd.payload, &cabin_id_clone, role)
+                        .await;
                 }
                 Ok(WsMessage::StateUpdate(_)) => {
                     warn!("Client sent unexpected StateUpdate, ignoring");
                 }
-                Ok(WsMessage::CrewUpdate(_)) | Ok(WsMessage::Ejected(_)) | Ok(WsMessage::CabinLocked(_)) | Ok(WsMessage::CacheAlert(_)) => {
+                Ok(WsMessage::CrewUpdate(_))
+                | Ok(WsMessage::Ejected(_))
+                | Ok(WsMessage::CabinLocked(_))
+                | Ok(WsMessage::CacheAlert(_)) => {
                     // Outgoing notifications ignored from client input
                 }
                 Err(e) => {
@@ -795,7 +893,9 @@ mod tests {
         };
         db.upsert_track(&track2).unwrap();
         let q_id = db.enqueue_track("trk_beta").unwrap();
-        hub.dispatch_command(CommandAction::Jump { queue_id: q_id }).await.unwrap();
+        hub.dispatch_command(CommandAction::Jump { queue_id: q_id })
+            .await
+            .unwrap();
         let received4 = rx.recv().await.unwrap();
         match received4 {
             WsMessage::StateUpdate(u) => {
@@ -820,7 +920,9 @@ mod tests {
         hub.dispatch_command(CommandAction::PlayNow {
             track_id: "trk_now".into(),
             requested_by: Some("PILOTO".into()),
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
         let received5 = rx.recv().await.unwrap();
         match received5 {
             WsMessage::StateUpdate(u) => {
@@ -845,11 +947,18 @@ mod tests {
         hub.dispatch_command(CommandAction::QueueNext {
             track_id: "trk_next".into(),
             requested_by: Some("@Mari".into()),
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
         let received6 = rx.recv().await.unwrap();
         match received6 {
             WsMessage::StateUpdate(u) => {
-                let upcoming: Vec<_> = u.payload.queue.iter().filter(|q| q.state != "playing").collect();
+                let upcoming: Vec<_> = u
+                    .payload
+                    .queue
+                    .iter()
+                    .filter(|q| q.state != "playing")
+                    .collect();
                 assert!(!upcoming.is_empty());
                 assert_eq!(upcoming[0].title, "Tempo Perdido");
             }
@@ -870,7 +979,9 @@ mod tests {
         hub.dispatch_command(CommandAction::StartRadio {
             track_id: "trk_radio".into(),
             requested_by: Some("PILOTO".into()),
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
         let received7_alert = rx.recv().await.unwrap();
         match received7_alert {
             WsMessage::CacheAlert(a) => {
@@ -885,7 +996,12 @@ mod tests {
                 assert_eq!(u.payload.playback.state, PlaybackState::Playing);
                 assert!(u.payload.track.is_some());
                 assert_eq!(u.payload.track.unwrap().title, "Construção");
-                let upcoming: Vec<_> = u.payload.queue.iter().filter(|q| q.state != "playing").collect();
+                let upcoming: Vec<_> = u
+                    .payload
+                    .queue
+                    .iter()
+                    .filter(|q| q.state != "playing")
+                    .collect();
                 assert!(upcoming.is_empty());
             }
             _ => panic!("Expected StateUpdate for StartRadio"),
@@ -1075,7 +1191,10 @@ mod tests {
         .unwrap();
 
         // Check SQLite persistence
-        let persisted = db.get_cabin_state("cab_persisted").unwrap().expect("State must be persisted in SQLite");
+        let persisted = db
+            .get_cabin_state("cab_persisted")
+            .unwrap()
+            .expect("State must be persisted in SQLite");
         assert_eq!(persisted.track_id.as_deref(), Some("trk_persist"));
         assert_eq!(persisted.position_ms, 25000);
 
@@ -1086,9 +1205,15 @@ mod tests {
 
         match state_resumed {
             WsMessage::StateUpdate(u) => {
-                assert!(u.payload.track.is_some(), "Restored cabin state must include last track");
+                assert!(
+                    u.payload.track.is_some(),
+                    "Restored cabin state must include last track"
+                );
                 assert_eq!(u.payload.track.unwrap().id, "trk_persist");
-                assert_eq!(u.payload.playback.position_ms, 25000, "Restored cabin position must match SQLite");
+                assert_eq!(
+                    u.payload.playback.position_ms, 25000,
+                    "Restored cabin position must match SQLite"
+                );
             }
             _ => panic!("Expected StateUpdate on resumed cabin"),
         }
@@ -1123,7 +1248,9 @@ mod tests {
         .await
         .unwrap();
 
-        let history = db.get_playback_history(Some("cab_history_test"), None, 10).unwrap();
+        let history = db
+            .get_playback_history(Some("cab_history_test"), None, 10)
+            .unwrap();
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].track_id, "trk_hist_1");
         assert_eq!(history[0].passenger_name.as_deref(), Some("PASSENGER_ALEX"));
@@ -1150,9 +1277,15 @@ mod tests {
         db.upsert_track(&uncached).unwrap();
 
         let alert = hub.evaluate_cache_status("trk_cloud");
-        assert!(alert.is_some(), "Uncached track must produce starvation alert");
+        assert!(
+            alert.is_some(),
+            "Uncached track must produce starvation alert"
+        );
         let alert = alert.unwrap();
-        assert_eq!(alert.starvation_type, CacheStarvationType::LocalCacheMissing);
+        assert_eq!(
+            alert.starvation_type,
+            CacheStarvationType::LocalCacheMissing
+        );
         assert!(alert.message.contains("CACHE LOCAL"));
 
         // 2. Cached track
@@ -1168,7 +1301,10 @@ mod tests {
         db.upsert_track(&cached).unwrap();
 
         let alert_cached = hub.evaluate_cache_status("trk_local");
-        assert!(alert_cached.is_none(), "Cached track must have no local cache missing alert");
+        assert!(
+            alert_cached.is_none(),
+            "Cached track must have no local cache missing alert"
+        );
 
         // 3. Emit remote buffer starvation alert
         hub.emit_cache_alert(
@@ -1192,7 +1328,10 @@ mod tests {
 
         // 4. Nonexistent/Uncataloged track edge case
         let alert_unknown = hub.evaluate_cache_status("trk_nonexistent");
-        assert!(alert_unknown.is_some(), "Uncataloged track must yield starvation alert");
+        assert!(
+            alert_unknown.is_some(),
+            "Uncataloged track must yield starvation alert"
+        );
         assert!(alert_unknown.unwrap().message.contains("NÃO CATALOGADA"));
 
         // 5. Emit clear alert (active: false)
@@ -1215,4 +1354,3 @@ mod tests {
         }
     }
 }
-

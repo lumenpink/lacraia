@@ -272,7 +272,8 @@ impl VisualizerState {
             if target > *amp {
                 *amp = target;
             } else {
-                *amp = (*amp * self.peak_decay_rate + target * (1.0 - self.peak_decay_rate)).clamp(0.0, 1.0);
+                *amp = (*amp * self.peak_decay_rate + target * (1.0 - self.peak_decay_rate))
+                    .clamp(0.0, 1.0);
             }
         }
     }
@@ -423,7 +424,10 @@ mod tests {
         });
         state.handle_ws_message(eject_msg);
         assert!(state.is_ejected);
-        assert_eq!(state.ejection_reason.as_deref(), Some("Chute da cabine pelo piloto"));
+        assert_eq!(
+            state.ejection_reason.as_deref(),
+            Some("Chute da cabine pelo piloto")
+        );
 
         // Test CacheAlert message
         let alert_msg = WsMessage::CacheAlert(lacraia_shared::CacheAlertNotification {
@@ -435,8 +439,14 @@ mod tests {
         });
         state.handle_ws_message(alert_msg);
         assert!(state.cache_alert.is_some());
-        assert_eq!(state.cache_alert.as_ref().unwrap().starvation_type, lacraia_shared::CacheStarvationType::LocalCacheMissing);
-        assert_eq!(state.cache_alert.as_ref().unwrap().message, "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM");
+        assert_eq!(
+            state.cache_alert.as_ref().unwrap().starvation_type,
+            lacraia_shared::CacheStarvationType::LocalCacheMissing
+        );
+        assert_eq!(
+            state.cache_alert.as_ref().unwrap().message,
+            "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM"
+        );
 
         // Test clear CacheAlert message
         let alert_clear = WsMessage::CacheAlert(lacraia_shared::CacheAlertNotification {
@@ -502,7 +512,11 @@ mod tests {
         vis.update_amplitudes(&silence);
 
         for amp in &vis.amplitudes {
-            assert!(*amp < 1.0 && *amp > 0.8, "Amplitude should decay smoothly: {}", amp);
+            assert!(
+                *amp < 1.0 && *amp > 0.8,
+                "Amplitude should decay smoothly: {}",
+                amp
+            );
         }
 
         // Reset clears all
@@ -512,4 +526,3 @@ mod tests {
         }
     }
 }
-

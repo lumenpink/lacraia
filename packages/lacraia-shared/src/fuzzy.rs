@@ -13,17 +13,8 @@ pub fn is_title_clean(title: &str, seed_title: &str) -> bool {
     let seed_lower = seed_title.to_lowercase();
 
     let noise_terms = [
-        "live",
-        "ao vivo",
-        "en vivo",
-        "cover",
-        "tribute",
-        "10 hours",
-        "1 hour",
-        "slowed",
-        "reverb",
-        "parody",
-        "paródia",
+        "live", "ao vivo", "en vivo", "cover", "tribute", "10 hours", "1 hour", "slowed", "reverb",
+        "parody", "paródia",
     ];
 
     for term in noise_terms {
@@ -100,21 +91,41 @@ mod tests {
 
     #[test]
     fn test_title_filter() {
-        assert!(is_title_clean("David Bowie - Rebel Rebel (Official Audio)", "Rebel Rebel"));
-        assert!(!is_title_clean("David Bowie - Rebel Rebel (Live at Wembley)", "Rebel Rebel"));
-        assert!(!is_title_clean("Rebel Rebel (Cover by John)", "Rebel Rebel"));
-        assert!(!is_title_clean("Rebel Rebel (10 Hours Loop)", "Rebel Rebel"));
+        assert!(is_title_clean(
+            "David Bowie - Rebel Rebel (Official Audio)",
+            "Rebel Rebel"
+        ));
+        assert!(!is_title_clean(
+            "David Bowie - Rebel Rebel (Live at Wembley)",
+            "Rebel Rebel"
+        ));
+        assert!(!is_title_clean(
+            "Rebel Rebel (Cover by John)",
+            "Rebel Rebel"
+        ));
+        assert!(!is_title_clean(
+            "Rebel Rebel (10 Hours Loop)",
+            "Rebel Rebel"
+        ));
         assert!(!is_title_clean("Rebel Rebel Remix 2024", "Rebel Rebel"));
         // Allowed if seed requested remix
-        assert!(is_title_clean("Rebel Rebel (Club Remix)", "Rebel Rebel Remix"));
+        assert!(is_title_clean(
+            "Rebel Rebel (Club Remix)",
+            "Rebel Rebel Remix"
+        ));
     }
 
     #[test]
     fn test_title_matching() {
-        assert!(is_title_matching("Bonde do Tigrão feat MC Serginho - Vai Lacraia", "Vai Lacraia"));
-        assert!(is_title_matching("Construção | Chico Buarque (Vídeo Oficial)", "Construcao"));
+        assert!(is_title_matching(
+            "Bonde do Tigrão feat MC Serginho - Vai Lacraia",
+            "Vai Lacraia"
+        ));
+        assert!(is_title_matching(
+            "Construção | Chico Buarque (Vídeo Oficial)",
+            "Construcao"
+        ));
         assert!(!is_title_matching("RIO", "lacraia"));
         assert!(!is_title_matching("Random Song", "Tempo Perdido"));
     }
 }
-

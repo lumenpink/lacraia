@@ -24,24 +24,49 @@ fn test_search_sanitization_and_operator_safety() {
     let title = "LACRAIA";
     let clean_artist = strip_accents(artist)
         .chars()
-        .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() || c.is_whitespace() {
+                c
+            } else {
+                ' '
+            }
+        })
         .collect::<String>();
     let clean_title = strip_accents(title)
         .chars()
-        .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() || c.is_whitespace() {
+                c
+            } else {
+                ' '
+            }
+        })
         .collect::<String>();
-    let query = format!("ytsearch5:{} {} audio", clean_artist.trim(), clean_title.trim());
+    let query = format!(
+        "ytsearch5:{} {} audio",
+        clean_artist.trim(),
+        clean_title.trim()
+    );
 
     assert_eq!(query, "ytsearch5:sexcorp lacraia audio");
-    assert!(!query.contains('-'), "Query must never contain '-' operator which negates search terms");
+    assert!(
+        !query.contains('-'),
+        "Query must never contain '-' operator which negates search terms"
+    );
 
     // 3. Rejection of false-positive candidates
     assert!(!is_title_matching("RIO", "lacraia"));
     assert!(!is_title_matching("Totally Unrelated Track", "Construcao"));
 
     // 4. Acceptance of valid fuzzy candidates
-    assert!(is_title_matching("Construção | Chico Buarque (Vídeo Oficial)", "Construcao"));
-    assert!(is_title_matching("Bonde do Tigrão - Vai Lacraia (Ao Vivo)", "Vai Lacraia"));
+    assert!(is_title_matching(
+        "Construção | Chico Buarque (Vídeo Oficial)",
+        "Construcao"
+    ));
+    assert!(is_title_matching(
+        "Bonde do Tigrão - Vai Lacraia (Ao Vivo)",
+        "Vai Lacraia"
+    ));
 }
 
 #[tokio::test]
@@ -112,7 +137,9 @@ async fn test_end_to_end_api_resolve_and_cache_serving() {
     // Create a mock cached audio file in the temp cache directory
     let dummy_audio = b"OPUS_MOCK_STREAM_BYTES_FOR_INTEGRATION_TEST";
     let test_cache_file = cache_dir.join("test_artist_test_track.opus");
-    tokio::fs::write(&test_cache_file, dummy_audio).await.unwrap();
+    tokio::fs::write(&test_cache_file, dummy_audio)
+        .await
+        .unwrap();
 
     let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
     let resolver = Arc::new(MediaResolver::new(cache_dir.clone(), db.clone()));
@@ -145,7 +172,9 @@ async fn test_end_to_end_api_resolve_and_cache_serving() {
         .unwrap();
     let track_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
 
-    let stream_url = track_json["streamUrl"].as_str().expect("streamUrl must be present");
+    let stream_url = track_json["streamUrl"]
+        .as_str()
+        .expect("streamUrl must be present");
     assert_eq!(stream_url, "/cache/test_artist_test_track.opus");
 
     // 2. Fetch the stream directly from /cache static mount
@@ -187,7 +216,10 @@ async fn test_real_resolver_download_with_android_client() {
             assert!(file_path.exists(), "Cache file must exist on disk");
 
             let metadata = std::fs::metadata(&file_path).unwrap();
-            assert!(metadata.len() > 100_000, "Downloaded Opus file must be substantial (>100KB)");
+            assert!(
+                metadata.len() > 100_000,
+                "Downloaded Opus file must be substantial (>100KB)"
+            );
 
             // Second resolution must be instantaneous Tier 1 hit
             let start = std::time::Instant::now();
@@ -198,7 +230,10 @@ async fn test_real_resolver_download_with_android_client() {
             let elapsed = start.elapsed();
 
             assert_eq!(cached_resolution.stream_url, track.stream_url);
-            assert!(elapsed.as_millis() < 50, "Tier 1 cache hit must take < 50ms");
+            assert!(
+                elapsed.as_millis() < 50,
+                "Tier 1 cache hit must take < 50ms"
+            );
         }
         Err(e) => {
             // If offline or network restricted, verify error is clean and properly typed
@@ -212,7 +247,8 @@ async fn test_autopilot_infinite_lookahead_maintenance() {
     let db = Database::open_in_memory().unwrap();
     db.seed_defaults_if_empty().unwrap();
 
-    let cache_dir = std::env::temp_dir().join(format!("lacraia_test_autopilot_{}", uuid::Uuid::new_v4()));
+    let cache_dir =
+        std::env::temp_dir().join(format!("lacraia_test_autopilot_{}", uuid::Uuid::new_v4()));
     let _ = std::fs::create_dir_all(&cache_dir);
     let resolver = Arc::new(MediaResolver::new(cache_dir, db.clone()));
     let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
@@ -232,7 +268,10 @@ async fn test_autopilot_infinite_lookahead_maintenance() {
     let pre_queue = db.get_queue().unwrap();
     assert!(pre_queue.is_empty(), "Queue must start empty");
     let enqueued = daemon.maintain_autopilot_queue("default", 5).await.unwrap();
-    assert_eq!(enqueued, 0, "Dormant daemon must not enqueue anything on idle cabin");
+    assert_eq!(
+        enqueued, 0,
+        "Dormant daemon must not enqueue anything on idle cabin"
+    );
     assert!(db.get_queue().unwrap().is_empty());
 
     // 2. User enqueues the first seed track and starts playback
@@ -246,11 +285,18 @@ async fn test_autopilot_infinite_lookahead_maintenance() {
 
     // 3. Autopilot maintenance detects active playback with 0 tracks ahead (target: 5), adding 5 similar tracks
     let added = daemon.maintain_autopilot_queue("default", 5).await.unwrap();
-    assert_eq!(added, 5, "Autopilot must add 5 tracks ahead of active playing track");
+    assert_eq!(
+        added, 5,
+        "Autopilot must add 5 tracks ahead of active playing track"
+    );
 
     let full_queue = db.get_queue().unwrap();
     // 1 playing + 5 upcoming = 6 total entries
-    assert_eq!(full_queue.len(), 6, "Queue must contain 1 playing + 5 tracks ahead");
+    assert_eq!(
+        full_queue.len(),
+        6,
+        "Queue must contain 1 playing + 5 tracks ahead"
+    );
     for entry in &full_queue[1..] {
         assert_eq!(entry.0.requested_by.as_deref(), Some("AUTOPILOT"));
     }
@@ -262,7 +308,10 @@ async fn test_autopilot_infinite_lookahead_maintenance() {
 
     // 5. Autopilot maintenance runs again: only 4 tracks ahead, fills 1 more to keep 5 ahead
     let replenished = daemon.maintain_autopilot_queue("default", 5).await.unwrap();
-    assert_eq!(replenished, 1, "Autopilot must replenish 1 track to maintain 5 ahead");
+    assert_eq!(
+        replenished, 1,
+        "Autopilot must replenish 1 track to maintain 5 ahead"
+    );
 
     let queue_active = db.get_queue().unwrap();
     // 1 playing + 5 upcoming = 6 total entries with state != 'played'
@@ -271,13 +320,17 @@ async fn test_autopilot_infinite_lookahead_maintenance() {
         .iter()
         .filter(|(e, _)| e.state == QueueState::Pending || e.state == QueueState::Cached)
         .count();
-    assert_eq!(upcoming_count, 5, "Autopilot must maintain 5 upcoming tracks ahead forever");
+    assert_eq!(
+        upcoming_count, 5,
+        "Autopilot must maintain 5 upcoming tracks ahead forever"
+    );
 }
 
 #[tokio::test]
 async fn test_config_api_endpoints_get_and_post() {
     let db = Database::open_in_memory().unwrap();
-    let cache_dir = std::env::temp_dir().join(format!("lacraia_test_config_{}", uuid::Uuid::new_v4()));
+    let cache_dir =
+        std::env::temp_dir().join(format!("lacraia_test_config_{}", uuid::Uuid::new_v4()));
     let _ = std::fs::create_dir_all(&cache_dir);
 
     let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
@@ -314,11 +367,22 @@ async fn test_config_api_endpoints_get_and_post() {
     let get_resp = app.clone().oneshot(get_req).await.unwrap();
     assert_eq!(get_resp.status(), StatusCode::OK);
 
-    let body_bytes = axum::body::to_bytes(get_resp.into_body(), usize::MAX).await.unwrap();
+    let body_bytes = axum::body::to_bytes(get_resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let config_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-    assert_eq!(config_json["targetQueueDurationSec"], 7200, "Default targetQueueDurationSec must be 7200s (2h, #25)");
-    assert_eq!(config_json["targetCacheDurationSec"], 3600, "Default targetCacheDurationSec must be 3600s (1h)");
-    assert_eq!(config_json["maxDiskCacheMb"], 1024, "Default maxDiskCacheMb must be 1024");
+    assert_eq!(
+        config_json["targetQueueDurationSec"], 7200,
+        "Default targetQueueDurationSec must be 7200s (2h, #25)"
+    );
+    assert_eq!(
+        config_json["targetCacheDurationSec"], 3600,
+        "Default targetCacheDurationSec must be 3600s (1h)"
+    );
+    assert_eq!(
+        config_json["maxDiskCacheMb"], 1024,
+        "Default maxDiskCacheMb must be 1024"
+    );
 
     // 2. POST /api/config: update values and verify daemon dynamic update
     let update_payload = serde_json::json!({

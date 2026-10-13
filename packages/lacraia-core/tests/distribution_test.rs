@@ -21,10 +21,9 @@ fn test_distribution_manifest_version_json() {
         "site/version.json deve existir para autodescoberta pelo Obtainium"
     );
 
-    let content = fs::read_to_string(&version_json_path)
-        .expect("Leitura de site/version.json");
-    let manifest: Value = serde_json::from_str(&content)
-        .expect("site/version.json deve ser JSON válido");
+    let content = fs::read_to_string(&version_json_path).expect("Leitura de site/version.json");
+    let manifest: Value =
+        serde_json::from_str(&content).expect("site/version.json deve ser JSON válido");
 
     let version = manifest["version"]
         .as_str()
@@ -54,8 +53,7 @@ fn test_obtainium_html_autodiscovery() {
     let repo_root = get_repo_root();
     let index_html_path = repo_root.join("site/index.html");
 
-    let html = fs::read_to_string(&index_html_path)
-        .expect("Leitura de site/index.html");
+    let html = fs::read_to_string(&index_html_path).expect("Leitura de site/index.html");
 
     // Validação de links diretos servidos em lacraia.2lp.in
     assert!(
@@ -87,8 +85,7 @@ fn test_site_headers_for_apk_and_manifest() {
     let repo_root = get_repo_root();
     let headers_path = repo_root.join("site/_headers");
 
-    let headers = fs::read_to_string(&headers_path)
-        .expect("Leitura de site/_headers");
+    let headers = fs::read_to_string(&headers_path).expect("Leitura de site/_headers");
 
     assert!(
         headers.contains("application/vnd.android.package-archive"),
@@ -104,10 +101,10 @@ fn test_site_headers_for_apk_and_manifest() {
 fn test_android_gradle_canonical_package_ids() {
     let repo_root = get_repo_root();
     let app_gradle_path = repo_root.join("packages/lacraia-android/app/build.gradle.kts");
-    let simbiotyka_gradle_path = repo_root.join("packages/lacraia-android/simbiotyka/build.gradle.kts");
+    let simbiotyka_gradle_path =
+        repo_root.join("packages/lacraia-android/simbiotyka/build.gradle.kts");
 
-    let app_gradle = fs::read_to_string(&app_gradle_path)
-        .expect("Leitura de app/build.gradle.kts");
+    let app_gradle = fs::read_to_string(&app_gradle_path).expect("Leitura de app/build.gradle.kts");
     let simbiotyka_gradle = fs::read_to_string(&simbiotyka_gradle_path)
         .expect("Leitura de simbiotyka/build.gradle.kts");
 
@@ -126,8 +123,7 @@ fn test_ci_workflow_apk_publishing_step() {
     let repo_root = get_repo_root();
     let ci_yaml_path = repo_root.join(".forgejo/workflows/ci.yml");
 
-    let ci_yaml = fs::read_to_string(&ci_yaml_path)
-        .expect("Leitura de .forgejo/workflows/ci.yml");
+    let ci_yaml = fs::read_to_string(&ci_yaml_path).expect("Leitura de .forgejo/workflows/ci.yml");
 
     assert!(
         ci_yaml.contains("android-apks"),

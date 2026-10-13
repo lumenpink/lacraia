@@ -51,7 +51,11 @@ pub struct TrackSearchResult {
     #[serde(rename = "durationSec")]
     pub duration_sec: u64,
     pub cached: bool,
-    #[serde(rename = "streamUrl", alias = "stream_url", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "streamUrl",
+        alias = "stream_url",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub stream_url: Option<String>,
     pub genres: Option<String>,
 }
@@ -67,7 +71,11 @@ pub struct RadioQuery {
 pub struct ResolveQuery {
     pub artist: String,
     pub title: String,
-    #[serde(alias = "expected_duration_sec", rename = "expectedDurationSec", default = "default_resolve_duration")]
+    #[serde(
+        alias = "expected_duration_sec",
+        rename = "expectedDurationSec",
+        default = "default_resolve_duration"
+    )]
     pub expected_duration_sec: u64,
 }
 
@@ -203,13 +211,20 @@ pub async fn handle_cabin_join(
     }
 
     let cabin = state.db.get_cabin(&payload.cabin_id).map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("DB error: {}", e),
+        )
     })?;
 
     if let Some(cab) = cabin {
         if !cab.passenger_key.is_empty() {
             let provided = payload.key.as_deref().unwrap_or_default();
-            if !state.db.verify_passenger_key(&payload.cabin_id, provided).unwrap_or(false) {
+            if !state
+                .db
+                .verify_passenger_key(&payload.cabin_id, provided)
+                .unwrap_or(false)
+            {
                 return Err((
                     StatusCode::FORBIDDEN,
                     "INVALID_KEY: Chave de embarque inválida ou expirada".into(),
@@ -223,16 +238,30 @@ pub async fn handle_cabin_join(
         ));
     }
 
-    let token = format!("psg_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
-    match state.db.add_passenger(&payload.cabin_id, &payload.name, payload.device.as_deref(), &token) {
+    let token = format!(
+        "psg_{}",
+        &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+    );
+    match state.db.add_passenger(
+        &payload.cabin_id,
+        &payload.name,
+        payload.device.as_deref(),
+        &token,
+    ) {
         Ok(record) => {
-            let passengers = state.db.get_active_passengers(&payload.cabin_id).unwrap_or_default();
+            let passengers = state
+                .db
+                .get_active_passengers(&payload.cabin_id)
+                .unwrap_or_default();
             let is_locked = state.db.is_cabin_locked(&payload.cabin_id).unwrap_or(false);
-            let _ = state.hub.tx.send(WsMessage::CrewUpdate(lacraia_shared::CrewUpdate {
-                cabin_id: payload.cabin_id.clone(),
-                is_locked,
-                passengers,
-            }));
+            let _ = state
+                .hub
+                .tx
+                .send(WsMessage::CrewUpdate(lacraia_shared::CrewUpdate {
+                    cabin_id: payload.cabin_id.clone(),
+                    is_locked,
+                    passengers,
+                }));
 
             Ok(Json(CabinJoinResponse {
                 token: record.token,
@@ -257,8 +286,8 @@ pub async fn handle_cabin_create(
     State(state): State<AppState>,
     Json(payload): Json<CabinCreateRequest>,
 ) -> Result<Json<CabinCreateResponse>, (StatusCode, String)> {
-    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
-        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let configured_master =
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
     let provided_master = payload.master_key.as_deref().unwrap_or_default();
 
     if !is_valid_master(provided_master, &configured_master) {
@@ -273,10 +302,19 @@ pub async fn handle_cabin_create(
         return Err((StatusCode::BAD_REQUEST, "ID da cabine inválido".into()));
     }
 
-    let pilot_token = format!("plt_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..16]);
-    let passenger_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+    let pilot_token = format!(
+        "plt_{}",
+        &uuid::Uuid::new_v4().to_string().replace('-', "")[..16]
+    );
+    let passenger_key = format!(
+        "key_{}",
+        &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+    );
 
-    match state.db.create_cabin(&cabin_id, &payload.name, &pilot_token, &passenger_key) {
+    match state
+        .db
+        .create_cabin(&cabin_id, &payload.name, &pilot_token, &passenger_key)
+    {
         Ok(rec) => Ok(Json(CabinCreateResponse {
             cabin_id: rec.id.clone(),
             name: rec.name,
@@ -296,12 +334,19 @@ pub async fn handle_cabin_rotate_key(
     State(state): State<AppState>,
     Json(payload): Json<CabinRotateKeyRequest>,
 ) -> Result<Json<CabinRotateKeyResponse>, (StatusCode, String)> {
-    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
-        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
-    let is_master = is_valid_master(payload.master_key.as_deref().unwrap_or_default(), &configured_master);
+    let configured_master =
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let is_master = is_valid_master(
+        payload.master_key.as_deref().unwrap_or_default(),
+        &configured_master,
+    );
 
     let is_pilot = if let Some(ref tok) = payload.token {
-        state.db.validate_token(&payload.cabin_id, tok, Some(&configured_master)).unwrap_or(None) == Some(lacraia_shared::Role::Pilot)
+        state
+            .db
+            .validate_token(&payload.cabin_id, tok, Some(&configured_master))
+            .unwrap_or(None)
+            == Some(lacraia_shared::Role::Pilot)
     } else {
         false
     };
@@ -313,7 +358,10 @@ pub async fn handle_cabin_rotate_key(
         ));
     }
 
-    let new_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+    let new_key = format!(
+        "key_{}",
+        &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+    );
     match state.db.rotate_passenger_key(&payload.cabin_id, &new_key) {
         Ok(()) => Ok(Json(CabinRotateKeyResponse {
             cabin_id: payload.cabin_id,
@@ -355,8 +403,8 @@ pub async fn handle_list_cabins(
 pub async fn handle_master_auth(
     Json(payload): Json<MasterAuthRequest>,
 ) -> Result<Json<MasterAuthResponse>, (StatusCode, String)> {
-    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
-        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let configured_master =
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
     if is_valid_master(&payload.master_key, &configured_master) {
         Ok(Json(MasterAuthResponse {
             valid: true,
@@ -375,27 +423,40 @@ pub async fn handle_cabin_info(
     AxumPath(cabin_id): AxumPath<String>,
     Query(query): Query<CabinInfoQuery>,
 ) -> Result<Json<CabinDetailsResponse>, (StatusCode, String)> {
-    let configured_master = std::env::var("LACRAIA_MASTER_KEY")
-        .unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let configured_master =
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
     let role = if let Some(ref tok) = query.token {
-        state.db.validate_token(&cabin_id, tok, Some(&configured_master)).unwrap_or(None)
+        state
+            .db
+            .validate_token(&cabin_id, tok, Some(&configured_master))
+            .unwrap_or(None)
     } else {
         None
     };
 
     let is_pilot = role == Some(lacraia_shared::Role::Pilot);
     let cabin = state.db.get_cabin(&cabin_id).map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("DB error: {}", e),
+        )
     })?;
 
     if let Some(c) = cabin {
-        let passengers = state.db.get_active_passengers(&cabin_id).unwrap_or_default();
+        let passengers = state
+            .db
+            .get_active_passengers(&cabin_id)
+            .unwrap_or_default();
         Ok(Json(CabinDetailsResponse {
             id: c.id,
             name: c.name,
             is_locked: c.is_locked,
             passengers_count: passengers.len(),
-            passenger_key: if is_pilot { Some(c.passenger_key) } else { None },
+            passenger_key: if is_pilot {
+                Some(c.passenger_key)
+            } else {
+                None
+            },
             is_pilot: Some(is_pilot),
         }))
     } else {
@@ -487,9 +548,16 @@ pub async fn handle_radio(
     Query(query): Query<RadioQuery>,
 ) -> Result<Json<Vec<Track>>, (StatusCode, String)> {
     let limit = query.limit.unwrap_or(20);
-    info!("Radio query for artist={}, track={}", query.artist, query.track);
+    info!(
+        "Radio query for artist={}, track={}",
+        query.artist, query.track
+    );
 
-    match state.similarity.find_similar(&query.artist, &query.track, limit).await {
+    match state
+        .similarity
+        .find_similar(&query.artist, &query.track, limit)
+        .await
+    {
         Ok(candidates) => {
             let tracks: Vec<Track> = candidates
                 .into_iter()
@@ -586,9 +654,16 @@ pub async fn handle_queue_append(
             &cabin_id,
         ),
         "PLAY_NOW" => {
-            let _ = state.db.record_playback_history(&cabin_id, &payload.track_id, payload.requested_by.as_deref());
+            let _ = state.db.record_playback_history(
+                &cabin_id,
+                &payload.track_id,
+                payload.requested_by.as_deref(),
+            );
             if let Ok(Some(ref record)) = state.db.get_track(&payload.track_id) {
-                state.hub.check_and_emit_track_cache_alert(&cabin_id, record).await;
+                state
+                    .hub
+                    .check_and_emit_track_cache_alert(&cabin_id, record)
+                    .await;
             }
             if cabin_id == "default" {
                 if let Ok(Some(record)) = state.db.get_track(&payload.track_id) {
@@ -605,16 +680,26 @@ pub async fn handle_queue_append(
                     *state.hub.playback_state.lock().await = lacraia_shared::PlaybackState::Playing;
                 }
             }
-            state.db.play_now_with_meta(
-                &payload.track_id,
-                payload.requested_by.as_deref(),
-                &cabin_id,
-            ).map(|e| e.id)
+            state
+                .db
+                .play_now_with_meta(
+                    &payload.track_id,
+                    payload.requested_by.as_deref(),
+                    &cabin_id,
+                )
+                .map(|e| e.id)
         }
         "START_RADIO" => {
-            let _ = state.db.record_playback_history(&cabin_id, &payload.track_id, payload.requested_by.as_deref());
+            let _ = state.db.record_playback_history(
+                &cabin_id,
+                &payload.track_id,
+                payload.requested_by.as_deref(),
+            );
             if let Ok(Some(ref record)) = state.db.get_track(&payload.track_id) {
-                state.hub.check_and_emit_track_cache_alert(&cabin_id, record).await;
+                state
+                    .hub
+                    .check_and_emit_track_cache_alert(&cabin_id, record)
+                    .await;
             }
             if cabin_id == "default" {
                 if let Ok(Some(record)) = state.db.get_track(&payload.track_id) {
@@ -631,11 +716,14 @@ pub async fn handle_queue_append(
                     *state.hub.playback_state.lock().await = lacraia_shared::PlaybackState::Playing;
                 }
             }
-            state.db.start_radio_with_meta(
-                &payload.track_id,
-                payload.requested_by.as_deref(),
-                &cabin_id,
-            ).map(|e| e.id)
+            state
+                .db
+                .start_radio_with_meta(
+                    &payload.track_id,
+                    payload.requested_by.as_deref(),
+                    &cabin_id,
+                )
+                .map(|e| e.id)
         }
         _ => state.db.enqueue_track_with_meta(
             &payload.track_id,
@@ -673,7 +761,10 @@ pub async fn handle_history(
     Query(params): Query<HistoryQuery>,
 ) -> Result<Json<Vec<lacraia_shared::PlaybackHistoryEntry>>, (StatusCode, String)> {
     let limit = params.limit.unwrap_or(20).clamp(1, 100);
-    match state.db.get_playback_history(params.cabin.as_deref(), params.user.as_deref(), limit) {
+    match state
+        .db
+        .get_playback_history(params.cabin.as_deref(), params.user.as_deref(), limit)
+    {
         Ok(entries) => Ok(Json(entries)),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -751,7 +842,10 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
     let cache_dir = state.cache_dir.clone();
     let mut app = Router::new()
         .route("/health", get(health_check))
-        .route("/api/config", get(handle_get_config).post(handle_update_config))
+        .route(
+            "/api/config",
+            get(handle_get_config).post(handle_update_config),
+        )
         .route("/api/search", get(handle_search))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))

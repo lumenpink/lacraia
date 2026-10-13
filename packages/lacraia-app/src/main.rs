@@ -504,7 +504,11 @@ fn App() -> Element {
     let gain_11 = format_gain_11(current_vol);
     let formatted_pos = format_time(pos_ms);
     let formatted_dur = format_time(dur_ms);
-    let play_icon = if is_playing { "⏸ PAUSAR" } else { "▶ TOCAR" };
+    let play_icon = if is_playing {
+        "⏸ PAUSAR"
+    } else {
+        "▶ TOCAR"
+    };
     let active_station = player_state.read().active_station.clone();
     let available_stations = player_state.read().available_stations.clone();
     let is_vis_active = visualizer_state.read().is_active();

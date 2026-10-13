@@ -13,7 +13,10 @@ impl From<&Track> for AudioMetadata {
         Self {
             title: t.title.clone(),
             artist: t.artist.clone(),
-            album: t.album.clone().unwrap_or_else(|| "La Craia Radio".to_string()),
+            album: t
+                .album
+                .clone()
+                .unwrap_or_else(|| "La Craia Radio".to_string()),
             cover_url: t.cover_url.clone(),
         }
     }
@@ -125,7 +128,12 @@ impl AudioEngine {
             if let Ok(meta) = web_sys::MediaMetadata::new() {
                 meta.set_title(&track.title);
                 meta.set_artist(&track.artist);
-                meta.set_album(&track.album.clone().unwrap_or_else(|| "La Craia".to_string()));
+                meta.set_album(
+                    &track
+                        .album
+                        .clone()
+                        .unwrap_or_else(|| "La Craia".to_string()),
+                );
                 media_session.set_metadata(Some(&meta));
             }
         }
@@ -197,6 +205,9 @@ mod tests {
         assert_eq!(meta.title, "Heroes");
         assert_eq!(meta.artist, "David Bowie");
         assert_eq!(meta.album, "La Craia Radio");
-        assert_eq!(meta.cover_url.as_deref(), Some("https://example.com/cover.jpg"));
+        assert_eq!(
+            meta.cover_url.as_deref(),
+            Some("https://example.com/cover.jpg")
+        );
     }
 }

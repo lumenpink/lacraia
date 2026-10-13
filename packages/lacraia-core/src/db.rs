@@ -161,7 +161,6 @@ pub struct Database {
 
 impl Database {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, DbError> {
-
         let conn = Connection::open(path)?;
         let db = Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -315,8 +314,14 @@ impl Database {
         )?;
 
         // Ensure backwards compatibility with earlier database versions
-        let _ = conn.execute("ALTER TABLE cabins ADD COLUMN passenger_key TEXT NOT NULL DEFAULT ''", []);
-        let _ = conn.execute("ALTER TABLE queue ADD COLUMN cabin_id TEXT NOT NULL DEFAULT 'default'", []);
+        let _ = conn.execute(
+            "ALTER TABLE cabins ADD COLUMN passenger_key TEXT NOT NULL DEFAULT ''",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE queue ADD COLUMN cabin_id TEXT NOT NULL DEFAULT 'default'",
+            [],
+        );
         let _ = conn.execute("ALTER TABLE queue ADD COLUMN requested_by TEXT", []);
 
         // Seed default cabin if not exists
@@ -457,10 +462,10 @@ impl Database {
                 .then_with(|| a.1.title.to_lowercase().cmp(&b.1.title.to_lowercase()))
         });
 
-        let results: Vec<TrackRecord> = scored.into_iter().take(limit).map(|(_, trk)| trk).collect();
+        let results: Vec<TrackRecord> =
+            scored.into_iter().take(limit).map(|(_, trk)| trk).collect();
         Ok(results)
     }
-
 
     pub fn seed_defaults_if_empty(&self) -> Result<(), DbError> {
         let conn = self.conn.lock().unwrap();
@@ -470,17 +475,83 @@ impl Database {
         }
 
         let seeds = [
-            ("mc serginho:vai lacraia", "MC Serginho", "Vai Lacraia", 240, "funk carioca, proibidão, paredão"),
-            ("chico buarque:construcao", "Chico Buarque", "Construção", 258, "mpb, samba"),
-            ("elis regina & tom jobim:aguas de marco", "Elis Regina & Tom Jobim", "Águas de Março", 212, "bossa nova, mpb"),
-            ("joao gilberto:chega de saudade", "João Gilberto", "Chega de Saudade", 121, "bossa nova, samba"),
-            ("jorge ben jor:taj mahal", "Jorge Ben Jor", "Taj Mahal", 184, "samba rock, mpb"),
-            ("tim maia:descobridor dos sete mares", "Tim Maia", "O Descobridor dos Sete Mares", 262, "soul brasileiro, mpb"),
-            ("cartola:as rosas nao falam", "Cartola", "As Rosas Não Falam", 175, "samba de raiz"),
-            ("daft punk:one more time", "Daft Punk", "One More Time", 320, "french house, electronic"),
-            ("kraftwerk:autobahn", "Kraftwerk", "Autobahn", 1360, "electronic, krautrock"),
-            ("new order:blue monday", "New Order", "Blue Monday", 449, "synth-pop, new wave"),
-            ("raul seixas:metamorfose ambulante", "Raul Seixas", "Metamorfose Ambulante", 230, "rock brasileiro, mpb"),
+            (
+                "mc serginho:vai lacraia",
+                "MC Serginho",
+                "Vai Lacraia",
+                240,
+                "funk carioca, proibidão, paredão",
+            ),
+            (
+                "chico buarque:construcao",
+                "Chico Buarque",
+                "Construção",
+                258,
+                "mpb, samba",
+            ),
+            (
+                "elis regina & tom jobim:aguas de marco",
+                "Elis Regina & Tom Jobim",
+                "Águas de Março",
+                212,
+                "bossa nova, mpb",
+            ),
+            (
+                "joao gilberto:chega de saudade",
+                "João Gilberto",
+                "Chega de Saudade",
+                121,
+                "bossa nova, samba",
+            ),
+            (
+                "jorge ben jor:taj mahal",
+                "Jorge Ben Jor",
+                "Taj Mahal",
+                184,
+                "samba rock, mpb",
+            ),
+            (
+                "tim maia:descobridor dos sete mares",
+                "Tim Maia",
+                "O Descobridor dos Sete Mares",
+                262,
+                "soul brasileiro, mpb",
+            ),
+            (
+                "cartola:as rosas nao falam",
+                "Cartola",
+                "As Rosas Não Falam",
+                175,
+                "samba de raiz",
+            ),
+            (
+                "daft punk:one more time",
+                "Daft Punk",
+                "One More Time",
+                320,
+                "french house, electronic",
+            ),
+            (
+                "kraftwerk:autobahn",
+                "Kraftwerk",
+                "Autobahn",
+                1360,
+                "electronic, krautrock",
+            ),
+            (
+                "new order:blue monday",
+                "New Order",
+                "Blue Monday",
+                449,
+                "synth-pop, new wave",
+            ),
+            (
+                "raul seixas:metamorfose ambulante",
+                "Raul Seixas",
+                "Metamorfose Ambulante",
+                230,
+                "rock brasileiro, mpb",
+            ),
         ];
 
         for (id, artist, title, dur, genres) in seeds {
@@ -495,7 +566,6 @@ impl Database {
 
         Ok(())
     }
-
 
     pub fn insert_edge(
         &self,
@@ -608,7 +678,9 @@ impl Database {
         for r in rows.flatten() {
             if !exclude_ids.contains(&r.id)
                 && r.id != seed_id
-                && !results.iter().any(|existing: &TrackRecord| existing.id == r.id)
+                && !results
+                    .iter()
+                    .any(|existing: &TrackRecord| existing.id == r.id)
             {
                 results.push(r);
                 if results.len() >= limit {
@@ -643,7 +715,9 @@ impl Database {
             })?;
             for r in artist_rows.flatten() {
                 if !exclude_ids.contains(&r.id)
-                    && !results.iter().any(|existing: &TrackRecord| existing.id == r.id)
+                    && !results
+                        .iter()
+                        .any(|existing: &TrackRecord| existing.id == r.id)
                 {
                     results.push(r);
                     if results.len() >= limit {
@@ -670,7 +744,9 @@ impl Database {
         })?;
         for r in all_rows.flatten() {
             if !exclude_ids.contains(&r.id)
-                && !results.iter().any(|existing: &TrackRecord| existing.id == r.id)
+                && !results
+                    .iter()
+                    .any(|existing: &TrackRecord| existing.id == r.id)
             {
                 results.push(r);
                 if results.len() >= limit {
@@ -697,7 +773,8 @@ impl Database {
 
         // 1. Traverse similarity edges from graph across all seed tracks,
         // accumulating edge weights and count of seeds connected to each candidate.
-        let mut candidate_scores: std::collections::HashMap<String, (TrackRecord, f64, usize)> = std::collections::HashMap::new();
+        let mut candidate_scores: std::collections::HashMap<String, (TrackRecord, f64, usize)> =
+            std::collections::HashMap::new();
 
         for seed_id in seed_ids {
             let mut stmt = conn.prepare(
@@ -726,7 +803,9 @@ impl Database {
             })?;
             for (record, weight) in rows.flatten() {
                 if !exclude_ids.contains(&record.id) && !seed_ids.contains(&record.id) {
-                    let entry = candidate_scores.entry(record.id.clone()).or_insert_with(|| (record, 0.0, 0));
+                    let entry = candidate_scores
+                        .entry(record.id.clone())
+                        .or_insert_with(|| (record, 0.0, 0));
                     entry.1 += weight;
                     entry.2 += 1;
                 }
@@ -991,7 +1070,10 @@ impl Database {
         self.play_now_with_meta(track_id, requested_by, cabin_id)
     }
 
-    pub fn get_upcoming_queue_for_cabin(&self, cabin_id: &str) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
+    pub fn get_upcoming_queue_for_cabin(
+        &self,
+        cabin_id: &str,
+    ) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"
@@ -1016,8 +1098,12 @@ impl Database {
             };
             let track = TrackRecord {
                 id: entry.track_id.clone(),
-                artist: row.get::<_, Option<String>>(7)?.unwrap_or_else(|| "Desconhecido".into()),
-                title: row.get::<_, Option<String>>(8)?.unwrap_or_else(|| entry.track_id.clone()),
+                artist: row
+                    .get::<_, Option<String>>(7)?
+                    .unwrap_or_else(|| "Desconhecido".into()),
+                title: row
+                    .get::<_, Option<String>>(8)?
+                    .unwrap_or_else(|| entry.track_id.clone()),
                 duration_sec: row.get::<_, Option<u64>>(9)?.unwrap_or(210),
                 cached_path: row.get(10)?,
                 genres: row.get(11)?,
@@ -1046,7 +1132,10 @@ impl Database {
         self.get_queue_for_cabin("default")
     }
 
-    pub fn get_queue_for_cabin(&self, cabin_id: &str) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
+    pub fn get_queue_for_cabin(
+        &self,
+        cabin_id: &str,
+    ) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"
@@ -1153,7 +1242,11 @@ impl Database {
         }
     }
 
-    pub fn jump_queue_for_cabin(&self, queue_id: i64, cabin_id: &str) -> Result<Option<QueueEntry>, DbError> {
+    pub fn jump_queue_for_cabin(
+        &self,
+        queue_id: i64,
+        cabin_id: &str,
+    ) -> Result<Option<QueueEntry>, DbError> {
         let conn = self.conn.lock().unwrap();
         let exists: bool = conn
             .query_row(
@@ -1246,10 +1339,18 @@ impl Database {
         })
     }
 
-    pub fn get_or_create_cabin(&self, id: &str, name: &str, pilot_token: &str) -> Result<CabinRecord, DbError> {
+    pub fn get_or_create_cabin(
+        &self,
+        id: &str,
+        name: &str,
+        pilot_token: &str,
+    ) -> Result<CabinRecord, DbError> {
         let conn = self.conn.lock().unwrap();
         let now = Utc::now().timestamp();
-        let default_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+        let default_key = format!(
+            "key_{}",
+            &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+        );
         conn.execute(
             r#"
             INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, created_at)
@@ -1349,7 +1450,7 @@ impl Database {
             SELECT DISTINCT cabin_id FROM queue
             UNION
             SELECT DISTINCT cabin_id FROM cabin_playback_state
-            "#
+            "#,
         )?;
         let rows = stmt.query_map([], |row| row.get(0))?;
         let mut list = Vec::new();
@@ -1370,8 +1471,14 @@ impl Database {
         )?;
         if rows == 0 {
             let now = Utc::now().timestamp();
-            let default_key = format!("key_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
-            let pilot_tok = format!("pilot_{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
+            let default_key = format!(
+                "key_{}",
+                &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+            );
+            let pilot_tok = format!(
+                "pilot_{}",
+                &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+            );
             let name = format!("Cabine {}", cabin_id);
             conn.execute(
                 r#"
@@ -1379,7 +1486,14 @@ impl Database {
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                 ON CONFLICT(id) DO UPDATE SET is_locked = ?3
                 "#,
-                params![cabin_id, name, if locked { 1 } else { 0 }, pilot_tok, default_key, now],
+                params![
+                    cabin_id,
+                    name,
+                    if locked { 1 } else { 0 },
+                    pilot_tok,
+                    default_key,
+                    now
+                ],
             )?;
         }
         Ok(())
@@ -1446,9 +1560,16 @@ impl Database {
         }
     }
 
-    pub fn record_resolution_attempt(&self, attempt: &CacheResolutionAttempt) -> Result<i64, DbError> {
+    pub fn record_resolution_attempt(
+        &self,
+        attempt: &CacheResolutionAttempt,
+    ) -> Result<i64, DbError> {
         let conn = self.conn.lock().unwrap();
-        let now = if attempt.created_at > 0 { attempt.created_at } else { Utc::now().timestamp() };
+        let now = if attempt.created_at > 0 {
+            attempt.created_at
+        } else {
+            Utc::now().timestamp()
+        };
 
         let (def_artist, def_title) = if let Some((a, t)) = attempt.track_id.split_once(':') {
             (a.trim().to_string(), t.trim().to_string())
@@ -1493,7 +1614,10 @@ impl Database {
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn get_resolution_attempts_for_track(&self, track_id: &str) -> Result<Vec<CacheResolutionAttempt>, DbError> {
+    pub fn get_resolution_attempts_for_track(
+        &self,
+        track_id: &str,
+    ) -> Result<Vec<CacheResolutionAttempt>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"
@@ -1536,8 +1660,16 @@ impl Database {
 
     pub fn upsert_cache_entry(&self, entry: &CacheEntry) -> Result<(), DbError> {
         let conn = self.conn.lock().unwrap();
-        let now = if entry.created_at > 0 { entry.created_at } else { Utc::now().timestamp() };
-        let last_served = if entry.last_served_at > 0 { entry.last_served_at } else { now };
+        let now = if entry.created_at > 0 {
+            entry.created_at
+        } else {
+            Utc::now().timestamp()
+        };
+        let last_served = if entry.last_served_at > 0 {
+            entry.last_served_at
+        } else {
+            now
+        };
 
         let (def_artist, def_title) = if let Some((a, t)) = entry.track_id.split_once(':') {
             (a.trim().to_string(), t.trim().to_string())
@@ -1626,7 +1758,9 @@ impl Database {
         Ok(())
     }
 
-    pub fn get_attempts_success_distribution(&self) -> Result<Vec<AttemptsSuccessDistribution>, DbError> {
+    pub fn get_attempts_success_distribution(
+        &self,
+    ) -> Result<Vec<AttemptsSuccessDistribution>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"
@@ -1689,7 +1823,10 @@ impl Database {
         Ok(list)
     }
 
-    pub fn get_top_resolution_errors(&self, limit: usize) -> Result<Vec<ResolutionErrorDiagnostic>, DbError> {
+    pub fn get_top_resolution_errors(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<ResolutionErrorDiagnostic>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"
@@ -1901,7 +2038,8 @@ impl Database {
     ) -> Result<Option<Role>, DbError> {
         // 1. Master Key has universal Pilot authority on any cabin
         if let Some(mk) = master_key {
-            if !mk.is_empty() && (token == mk || token == "lacraia_master_2011" || token == "2011") {
+            if !mk.is_empty() && (token == mk || token == "lacraia_master_2011" || token == "2011")
+            {
                 return Ok(Some(Role::Pilot));
             }
         }
@@ -2038,8 +2176,10 @@ mod tests {
         db.upsert_track(&track2).unwrap();
         db.upsert_track(&track3).unwrap();
 
-        db.insert_edge("trk_seed", "trk_sim1", 0.95, "lastfm").unwrap();
-        db.insert_edge("trk_seed", "trk_sim2_uncached", 0.88, "listenbrainz").unwrap();
+        db.insert_edge("trk_seed", "trk_sim1", 0.95, "lastfm")
+            .unwrap();
+        db.insert_edge("trk_seed", "trk_sim2_uncached", 0.88, "listenbrainz")
+            .unwrap();
 
         // Online query (returns both)
         let online = db.get_similar_tracks("trk_seed", false, 10).unwrap();
@@ -2076,7 +2216,10 @@ mod tests {
         db.mark_cached("trk_1", "/cache/autobahn.opus").unwrap();
         let queue = db.get_queue().unwrap();
         assert_eq!(queue[0].0.state, QueueState::Cached);
-        assert_eq!(queue[0].1.cached_path.as_deref(), Some("/cache/autobahn.opus"));
+        assert_eq!(
+            queue[0].1.cached_path.as_deref(),
+            Some("/cache/autobahn.opus")
+        );
 
         let advanced = db.advance_queue().unwrap();
         assert!(advanced.is_some());
@@ -2088,15 +2231,21 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
 
         // 1. QueueAppend A and B
-        let _q1 = db.enqueue_track_with_meta("trk_a", Some("PILOTO"), "cab1").unwrap();
-        let _q2 = db.enqueue_track_with_meta("trk_b", Some("PILOTO"), "cab1").unwrap();
+        let _q1 = db
+            .enqueue_track_with_meta("trk_a", Some("PILOTO"), "cab1")
+            .unwrap();
+        let _q2 = db
+            .enqueue_track_with_meta("trk_b", Some("PILOTO"), "cab1")
+            .unwrap();
         let q = db.get_queue_for_cabin("cab1").unwrap();
         assert_eq!(q.len(), 2);
         assert_eq!(q[0].1.id, "trk_a");
         assert_eq!(q[1].1.id, "trk_b");
 
         // 2. QueueNext C (inserts C before A and B)
-        let _q3 = db.enqueue_track_next_with_meta("trk_c", Some("PILOTO"), "cab1").unwrap();
+        let _q3 = db
+            .enqueue_track_next_with_meta("trk_c", Some("PILOTO"), "cab1")
+            .unwrap();
         let q = db.get_queue_for_cabin("cab1").unwrap();
         assert_eq!(q.len(), 3);
         assert_eq!(q[0].1.id, "trk_c");
@@ -2104,12 +2253,16 @@ mod tests {
         assert_eq!(q[2].1.id, "trk_b");
 
         // 3. PlayNow D (sets D as active playing track immediately)
-        let played = db.play_now_with_meta("trk_d", Some("PILOTO"), "cab1").unwrap();
+        let played = db
+            .play_now_with_meta("trk_d", Some("PILOTO"), "cab1")
+            .unwrap();
         assert_eq!(played.track_id, "trk_d");
         assert_eq!(played.state, QueueState::Playing);
 
         // 4. StartRadio E (clears pending upcoming tracks, plays E)
-        let radio = db.start_radio_with_meta("trk_e", Some("PILOTO"), "cab1").unwrap();
+        let radio = db
+            .start_radio_with_meta("trk_e", Some("PILOTO"), "cab1")
+            .unwrap();
         assert_eq!(radio.track_id, "trk_e");
         assert_eq!(radio.state, QueueState::Playing);
         let q_pending = db.get_upcoming_queue_for_cabin("cab1").unwrap();
@@ -2121,46 +2274,78 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
 
         // 1. Create cabin with high entropy passenger key
-        let cabin = db.create_cabin("van-furacao", "Van Furacão", "pilot-secret-123", "key-furacao-42").unwrap();
+        let cabin = db
+            .create_cabin(
+                "van-furacao",
+                "Van Furacão",
+                "pilot-secret-123",
+                "key-furacao-42",
+            )
+            .unwrap();
         assert_eq!(cabin.id, "van-furacao");
         assert_eq!(cabin.name, "Van Furacão");
         assert_eq!(cabin.passenger_key, "key-furacao-42");
         assert!(!cabin.is_locked);
 
         // Verify passenger key
-        assert!(db.verify_passenger_key("van-furacao", "key-furacao-42").unwrap());
+        assert!(db
+            .verify_passenger_key("van-furacao", "key-furacao-42")
+            .unwrap());
         assert!(!db.verify_passenger_key("van-furacao", "wrong-key").unwrap());
 
         // Rotate passenger key
-        db.rotate_passenger_key("van-furacao", "key-furacao-new-99").unwrap();
-        assert!(!db.verify_passenger_key("van-furacao", "key-furacao-42").unwrap());
-        assert!(db.verify_passenger_key("van-furacao", "key-furacao-new-99").unwrap());
+        db.rotate_passenger_key("van-furacao", "key-furacao-new-99")
+            .unwrap();
+        assert!(!db
+            .verify_passenger_key("van-furacao", "key-furacao-42")
+            .unwrap());
+        assert!(db
+            .verify_passenger_key("van-furacao", "key-furacao-new-99")
+            .unwrap());
 
         // 2. Validate pilot token
-        let role = db.validate_token("van-furacao", "pilot-secret-123", None).unwrap();
+        let role = db
+            .validate_token("van-furacao", "pilot-secret-123", None)
+            .unwrap();
         assert_eq!(role, Some(Role::Pilot));
 
         // Master key grants pilot authority on any cabin
-        let master_role = db.validate_token("van-furacao", "master-overlord-key", Some("master-overlord-key")).unwrap();
+        let master_role = db
+            .validate_token(
+                "van-furacao",
+                "master-overlord-key",
+                Some("master-overlord-key"),
+            )
+            .unwrap();
         assert_eq!(master_role, Some(Role::Pilot));
 
         // Token of cabin A is NOT valid in cabin B (cross-cabin isolation)
-        let cabin2 = db.create_cabin("sala-vip", "Sala VIP", "pilot-vip-777", "key-vip-00").unwrap();
+        let cabin2 = db
+            .create_cabin("sala-vip", "Sala VIP", "pilot-vip-777", "key-vip-00")
+            .unwrap();
         assert_eq!(cabin2.id, "sala-vip");
-        let cross_role = db.validate_token("sala-vip", "pilot-secret-123", None).unwrap();
+        let cross_role = db
+            .validate_token("sala-vip", "pilot-secret-123", None)
+            .unwrap();
         assert_eq!(cross_role, None);
 
         // 3. Add passenger
-        let passenger = db.add_passenger("van-furacao", "Mari", Some("iPhone 14"), "psg-token-999").unwrap();
+        let passenger = db
+            .add_passenger("van-furacao", "Mari", Some("iPhone 14"), "psg-token-999")
+            .unwrap();
         assert_eq!(passenger.name, "Mari");
         assert!(passenger.is_active);
 
         // 4. Validate passenger token
-        let pass_role = db.validate_token("van-furacao", "psg-token-999", None).unwrap();
+        let pass_role = db
+            .validate_token("van-furacao", "psg-token-999", None)
+            .unwrap();
         assert_eq!(pass_role, Some(Role::Passenger));
 
         // Passenger of cabin A is NOT valid in cabin B
-        let cross_passenger = db.validate_token("sala-vip", "psg-token-999", None).unwrap();
+        let cross_passenger = db
+            .validate_token("sala-vip", "psg-token-999", None)
+            .unwrap();
         assert_eq!(cross_passenger, None);
 
         // 5. Active passengers count
@@ -2178,7 +2363,9 @@ mod tests {
         assert_eq!(remaining.len(), 0);
 
         // Token should now be invalid
-        let invalid_role = db.validate_token("van-furacao", "psg-token-999", None).unwrap();
+        let invalid_role = db
+            .validate_token("van-furacao", "psg-token-999", None)
+            .unwrap();
         assert_eq!(invalid_role, None);
     }
 
@@ -2269,16 +2456,26 @@ mod tests {
         assert!(state.is_none());
 
         // Save state for cab_test
-        db.save_cabin_state("cab_test", Some("mc serginho:vai lacraia"), 45000, "playing").unwrap();
+        db.save_cabin_state(
+            "cab_test",
+            Some("mc serginho:vai lacraia"),
+            45000,
+            "playing",
+        )
+        .unwrap();
 
-        let state = db.get_cabin_state("cab_test").unwrap().expect("State should exist");
+        let state = db
+            .get_cabin_state("cab_test")
+            .unwrap()
+            .expect("State should exist");
         assert_eq!(state.cabin_id, "cab_test");
         assert_eq!(state.track_id.as_deref(), Some("mc serginho:vai lacraia"));
         assert_eq!(state.position_ms, 45000);
         assert_eq!(state.playback_state, "playing");
 
         // Update state with pause and position advance
-        db.save_cabin_state("cab_test", Some("mc serginho:vai lacraia"), 90000, "paused").unwrap();
+        db.save_cabin_state("cab_test", Some("mc serginho:vai lacraia"), 90000, "paused")
+            .unwrap();
         let state2 = db.get_cabin_state("cab_test").unwrap().unwrap();
         assert_eq!(state2.position_ms, 90000);
         assert_eq!(state2.playback_state, "paused");
@@ -2315,9 +2512,12 @@ mod tests {
         db.upsert_track(&trk2).unwrap();
 
         // 3. Record playback history entries
-        db.record_playback_history("cab_alpha", "trk_h1", Some("@Mari")).unwrap();
-        db.record_playback_history("cab_alpha", "trk_h2", Some("@Lumen")).unwrap();
-        db.record_playback_history("cab_beta", "trk_h1", Some("@Mari")).unwrap();
+        db.record_playback_history("cab_alpha", "trk_h1", Some("@Mari"))
+            .unwrap();
+        db.record_playback_history("cab_alpha", "trk_h2", Some("@Lumen"))
+            .unwrap();
+        db.record_playback_history("cab_beta", "trk_h1", Some("@Mari"))
+            .unwrap();
 
         // 4. Query all history
         let all = db.get_playback_history(None, None, 10).unwrap();
@@ -2327,7 +2527,9 @@ mod tests {
         assert_eq!(all[0].track_id, "trk_h1");
 
         // 5. Query filtered by cabin
-        let cab_alpha = db.get_playback_history(Some("cab_alpha"), None, 10).unwrap();
+        let cab_alpha = db
+            .get_playback_history(Some("cab_alpha"), None, 10)
+            .unwrap();
         assert_eq!(cab_alpha.len(), 2);
 
         // 6. Query filtered by user
@@ -2335,7 +2537,9 @@ mod tests {
         assert_eq!(user_mari.len(), 2);
 
         // 7. Query filtered by cabin AND user
-        let both = db.get_playback_history(Some("cab_alpha"), Some("@Mari"), 10).unwrap();
+        let both = db
+            .get_playback_history(Some("cab_alpha"), Some("@Mari"), 10)
+            .unwrap();
         assert_eq!(both.len(), 1);
         assert_eq!(both[0].title, "Vai Lacraia");
     }
@@ -2416,16 +2620,27 @@ mod tests {
         db.insert_edge("s1", "c2", 0.70, "test").unwrap();
 
         let seeds = vec!["s1".to_string(), "s2".to_string(), "s3".to_string()];
-        let recs = db.get_recommendations_for_multi_seeds(&seeds, &["s1".into(), "s2".into(), "s3".into()], 3).unwrap();
+        let recs = db
+            .get_recommendations_for_multi_seeds(
+                &seeds,
+                &["s1".into(), "s2".into(), "s3".into()],
+                3,
+            )
+            .unwrap();
 
         assert!(!recs.is_empty(), "Multi-seed query must return candidates");
         // Candidate 1 must be first due to highest combined edge affinity across seeds
-        assert_eq!(recs[0].id, "c1", "Candidate with multi-seed edge affinity must rank #1");
+        assert_eq!(
+            recs[0].id, "c1",
+            "Candidate with multi-seed edge affinity must rank #1"
+        );
     }
 
     #[test]
     fn test_cache_inventory_and_resolution_attempt_logging() {
-        use lacraia_shared::models::{CacheEntry, CacheResolutionAttempt, ResolutionTier, ValidationStatus};
+        use lacraia_shared::models::{
+            CacheEntry, CacheResolutionAttempt, ResolutionTier, ValidationStatus,
+        };
 
         let db = Database::open_in_memory().unwrap();
 
@@ -2470,7 +2685,9 @@ mod tests {
         db.record_resolution_attempt(&attempt2).unwrap();
 
         // Query attempts for this track
-        let attempts = db.get_resolution_attempts_for_track("trk_telemetry").unwrap();
+        let attempts = db
+            .get_resolution_attempts_for_track("trk_telemetry")
+            .unwrap();
         assert_eq!(attempts.len(), 2, "Must return exactly 2 attempts");
         assert_eq!(attempts[0].attempt_number, 1);
         assert!(!attempts[0].success);
@@ -2493,7 +2710,10 @@ mod tests {
         };
         db.upsert_cache_entry(&entry).unwrap();
 
-        let retrieved = db.get_cache_entry("trk_telemetry").unwrap().expect("Cache entry must exist");
+        let retrieved = db
+            .get_cache_entry("trk_telemetry")
+            .unwrap()
+            .expect("Cache entry must exist");
         assert_eq!(retrieved.file_size_bytes, 5242880);
         assert_eq!(retrieved.hit_count, 1);
 
@@ -2527,7 +2747,8 @@ mod tests {
             validation_status: ValidationStatus::Valid.as_str().into(),
             cabin_id: None,
             created_at: 100,
-        }).unwrap();
+        })
+        .unwrap();
 
         // Track B: attempt 1 fails (Tier 1, HTTP_403), attempt 2 succeeds (Tier 3)
         db.record_resolution_attempt(&CacheResolutionAttempt {
@@ -2546,7 +2767,8 @@ mod tests {
             validation_status: ValidationStatus::NetworkError.as_str().into(),
             cabin_id: None,
             created_at: 110,
-        }).unwrap();
+        })
+        .unwrap();
 
         db.record_resolution_attempt(&CacheResolutionAttempt {
             id: 0,
@@ -2564,7 +2786,8 @@ mod tests {
             validation_status: ValidationStatus::Valid.as_str().into(),
             cabin_id: None,
             created_at: 112,
-        }).unwrap();
+        })
+        .unwrap();
 
         // Track C: attempt 1 fails (Tier 1, HTTP_403), attempt 2 fails (Tier 2, BOT_DETECT), attempt 3 succeeds (Tier 3)
         db.record_resolution_attempt(&CacheResolutionAttempt {
@@ -2583,7 +2806,8 @@ mod tests {
             validation_status: ValidationStatus::NetworkError.as_str().into(),
             cabin_id: None,
             created_at: 120,
-        }).unwrap();
+        })
+        .unwrap();
 
         db.record_resolution_attempt(&CacheResolutionAttempt {
             id: 0,
@@ -2601,7 +2825,8 @@ mod tests {
             validation_status: ValidationStatus::NetworkError.as_str().into(),
             cabin_id: None,
             created_at: 122,
-        }).unwrap();
+        })
+        .unwrap();
 
         db.record_resolution_attempt(&CacheResolutionAttempt {
             id: 0,
@@ -2619,11 +2844,16 @@ mod tests {
             validation_status: ValidationStatus::Valid.as_str().into(),
             cabin_id: None,
             created_at: 124,
-        }).unwrap();
+        })
+        .unwrap();
 
         // 1. Verify Distribution of Successful Attempts
         let dist = db.get_attempts_success_distribution().unwrap();
-        assert_eq!(dist.len(), 3, "Must report stats for 1st, 2nd, and 3rd attempt successes");
+        assert_eq!(
+            dist.len(),
+            3,
+            "Must report stats for 1st, 2nd, and 3rd attempt successes"
+        );
         assert_eq!(dist[0].attempt_number, 1);
         assert_eq!(dist[0].count, 1, "1 track succeeded on 1st attempt (trk_a)");
         assert_eq!(dist[1].attempt_number, 2);
@@ -2633,12 +2863,18 @@ mod tests {
 
         // 2. Verify Tier Success Rates
         let tier_rates = db.get_tier_success_rates().unwrap();
-        let t1 = tier_rates.iter().find(|t| t.tier == "tier_1_direct").expect("Tier 1 rate must exist");
+        let t1 = tier_rates
+            .iter()
+            .find(|t| t.tier == "tier_1_direct")
+            .expect("Tier 1 rate must exist");
         assert_eq!(t1.total_attempts, 3);
         assert_eq!(t1.successes, 1);
         assert_eq!(t1.failures, 2);
 
-        let t3 = tier_rates.iter().find(|t| t.tier == "tier_3_ytdlp_android").expect("Tier 3 rate must exist");
+        let t3 = tier_rates
+            .iter()
+            .find(|t| t.tier == "tier_3_ytdlp_android")
+            .expect("Tier 3 rate must exist");
         assert_eq!(t3.total_attempts, 2);
         assert_eq!(t3.successes, 2);
         assert_eq!(t3.failures, 0);
@@ -2656,9 +2892,18 @@ mod tests {
 
         // 1. Default settings: 7200s (2h queue, Issue #25), 3600s cache, 1024MB disk
         let defaults = db.get_system_settings().unwrap();
-        assert_eq!(defaults.target_queue_duration_sec, 7200, "Default queue duration must be 2 hours (7200s)");
-        assert_eq!(defaults.target_cache_duration_sec, 3600, "Default cache duration must be 1 hour (3600s)");
-        assert_eq!(defaults.max_disk_cache_mb, 1024, "Default disk cache budget must be 1024 MB");
+        assert_eq!(
+            defaults.target_queue_duration_sec, 7200,
+            "Default queue duration must be 2 hours (7200s)"
+        );
+        assert_eq!(
+            defaults.target_cache_duration_sec, 3600,
+            "Default cache duration must be 1 hour (3600s)"
+        );
+        assert_eq!(
+            defaults.max_disk_cache_mb, 1024,
+            "Default disk cache budget must be 1024 MB"
+        );
 
         // 2. Update settings and verify persistence (Issue #26)
         let updated = SystemSettings {
@@ -2669,9 +2914,9 @@ mod tests {
         db.update_system_settings(&updated).unwrap();
 
         let loaded = db.get_system_settings().unwrap();
-        assert_eq!(loaded, updated, "Settings must persist across database calls");
+        assert_eq!(
+            loaded, updated,
+            "Settings must persist across database calls"
+        );
     }
 }
-
-
-

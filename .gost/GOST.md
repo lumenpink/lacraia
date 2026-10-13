@@ -299,7 +299,24 @@ Todo repositório GOST **DEVE** manter uma vitrine pública de documentação es
    - `Referrer-Policy: strict-origin-when-cross-origin`
 3. **Publicação Contínua:** A documentação **DEVE** ser publicada automaticamente via pipeline de CI/CD a cada push no branch principal (`main`).
 
-### 8.1 Segregação Canônica: Vitrine Estática vs. Serviços Dinâmicos
+### 8.1 Tipologia de Vitrines Web (`site_type: doc` vs `site_type: app`)
+A norma GOST reconhece a distinção categórica entre repositórios cujo artefato público é a documentação técnica e repositórios cuja vitrine hospeda a própria aplicação gráfica/interativa:
+
+1. **Repositórios de Documentação / Bibliotecas / CLI (`site_type: doc`):**
+   - O diretório `./site/` serve diretamente a vitrine de documentação do software.
+   - O arquivo `./site/index.html` apresenta a documentação técnica, tutoriais ou especificação do projeto.
+2. **Repositórios de Aplicação Web / SPA / WASM (`site_type: app`):**
+   - O diretório `./site/` hospeda o próprio software em execução no cliente (ex: bundles WASM em Dioxus, SPAs interativas como Navalha, Joaju ou KokoroSim).
+   - O arquivo `./site/index.html` atua como ponto de montagem da interface gráfica do usuário (`<div id="main"></div>`).
+   - A documentação de usuário, manuais, guias de presets e help **DEVEM** residir sob o subdiretório `./site/doc/` (ex: `https://<app>.2lp.in/doc`), preservando a raiz limpa para a experiência da aplicação.
+
+### 8.2 Single Source of Truth para Documentação e Proibição de Duplicação
+Para eliminar a divergência crônica entre READMEs, arquivos de especificação e páginas web estáticas:
+1. **Redação Exclusiva em Markdown:** Todo conteúdo documental, manuais de usuário, presets e especificações de engenharia **DEVEM** ser mantidos e versionados exclusivamente em arquivos Markdown (`README.md`, `SPEC.md`, `profile.md`, `CUSTOM.md` ou diretório `docs/`).
+2. **Proibição de Duplicação Manual em HTML:** É expressamente vedado manter cópias manuais de textos longos em arquivos HTML estáticos. A documentação web (seja em `site/index.html` para `site_type: doc` ou em `site/doc/` para `site_type: app`) **DEVE** consumir, referenciar ou compilar automaticamente os arquivos Markdown fonte através do pipeline do CCCP ou de micro-renderizadores client-side ultra-leves.
+3. **README da Raiz como Portal Enxuto:** Em repositórios com documentação web abrangente, o `README.md` na raiz do repositório deve operar como portal conciso (até 50 linhas com propósito, badges, como iniciar e links para a vitrine oficial), evitando duplicar manuais completos que já habitam a vitrine.
+
+### 8.3 Segregação Canônica: Vitrine Estática vs. Serviços Dinâmicos
 * **Papel do `./site`:** A vitrine pública estática (publicada em `*.2lp.in` via Cloudflare Workers / Pages) destina-se estritamente à documentação, tutoriais e interfaces de demonstração estáticas.
 * **Isolamento de Backends:** Aplicações dinâmicas, APIs, REPLs e daemons locais **NÃO DEVEM** expor credenciais, chaves ou sockets diretamente no diretório estático.
 * **Guia de Conectividade:** A documentação estática de projetos dinâmicos **DEVE** conter uma seção clara descrevendo como acessar o serviço vivo (portas padrão, variáveis de ambiente e topologia de acesso).
@@ -589,6 +606,24 @@ Para conciliar padrões organizacionais com necessidades personalizadas de proje
    - Caso uma diretiva não seja declarada no filho, a regra do pai é aplicada automaticamente.
 3. **Resolução na Ponta:** Projetos declaram em seu arquivo `GOSTVER` exclusivamente a URL do perfil folha (`GOST_PROFILE_URL`). As ferramentas de auditoria e conformidade (`cccp gost sync`, `gost-conform.sh`) resolvem a cadeia recursiva de herança garantindo conformidade uniforme.
 
+### 14.2 Cascata de Especificações por Linguagem e Matriz de Regras (`rules.json`)
+A herança em cascata estende-se simetricamente aos guias de linguagem e às matrizes de regras:
+
+1. **Especificações de Linguagem (`.gost/languages/<lang>.md`):**
+   - A especificação base é herdada da norma central (`specs/languages/<lang>.md`).
+   - Perfis intermediários (Kollontai) e derivados (Lumen) especializam ferramentas, compiladores e linters (ex: Rust 1.99, PHP 8.5/Pest, Biome, Shellspec).
+   - O compilador do perfil anexa e sobrepõe essas camadas em ordem de precedência.
+2. **Matriz de Regras de Conformidade (`.gost/rules.json`):**
+   - O arquivo de regras é fundido via *deep merge* por identificador (`id`).
+   - Se um perfil filho redefinir uma regra existente (ex: alterando `threshold` de cobertura de testes em `GOST-06-TEST-COVERAGE` de 90% para 95%), a definição do perfil filho sobrepõe o pai.
+   - Regras inéditas adicionadas por perfis são integradas ao conjunto executado pela auditoria do CCCP.
+
+### 14.3 Sobreposição Soberana Local do Repositório (`CUSTOM.md` e `custom_rules.json`)
+Quando um repositório necessitar de regras estritas exclusivas que não pertencem a nenhum perfil compartilhado:
+1. **Regras Documentais (`CUSTOM.md`):** Qualquer arquivo `CUSTOM.md` presente na raiz do projeto é anexado como camada final soberana na compilação do `.gost/GOST.md`.
+2. **Exceções e Calibragens Locais:** Orientações presentes no `CUSTOM.md` (como idioma oficial do projeto, exceções justificadas de arquitetura ou diretrizes específicas de empacotamento) possuem precedência máxima sobre todos os perfis herdados.
+3. **Regras de Validação Locais (`custom_rules.json`):** Se presente, aplica o merge final sobre o `.gost/rules.json`.
+
 ---
 
 <!-- ===================================================================== -->
@@ -739,6 +774,16 @@ Todos os artefatos de release são enviados diretamente para buckets Cloudflare 
 
 ### 4.6 Topologia de Serviços Dinâmicos no Perfil Kollontai
 Para repositórios que implementam serviços web dinâmicos, daemons ou REPLs (como o Matraca):
+
+### 4.7 Tipologia de Vitrines (`site_type: doc` vs `site_type: app`)
+No perfil Kollontai:
+- **Repositórios de Bibliotecas, Daemons, Ferramentas e Perfis (`site_type: doc`):** A raiz `site/index.html` expõe diretamente a vitrine de documentação do software.
+- **Repositórios de Aplicações Gráficas / Dioxus / WASM (`site_type: app`):** A raiz `site/index.html` hospeda o binário/SPA da aplicação (ex: Navalha, Joaju). A documentação, guias de usuário e presets residem obrigatoriamente sob `site/doc/`.
+
+### 4.8 Single Source of Truth para Documentação
+- Todo conteúdo autoral reside exclusivamente em Markdown (`docs/`, `SPEC.md`, `profile.md`, `CUSTOM.md`).
+- A documentação em `site/` consome ou compila os arquivos Markdown fonte automaticamente, proibindo edição manual de HTML concorrente.
+- O `README.md` funciona como portal conciso (até 50 linhas), delegando manuais extensos para a vitrine oficial `*.2lp.in`.
 1. **Camada Privada Primária (Mesh VPN):**
    - Acesso via **Tailscale** (`http://100.x.y.z:<porta>`).
    - Todo tráfego entre smartphones, laptops e estações de desenvolvimento permanece criptografado ponto a ponto na rede WireGuard privada sem abertura de portas no firewall.

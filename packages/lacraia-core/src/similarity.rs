@@ -252,12 +252,19 @@ impl MetaBrainzProvider {
         limit: usize,
     ) -> Result<Vec<SimilarityCandidate>, SimilarityError> {
         let clean = query.replace(['"', '\\'], "");
-        let query_str = format!("recording:\"{}\"^3 OR artist:\"{}\"^2 OR \"{}\"", clean, clean, clean);
+        let query_str = format!(
+            "recording:\"{}\"^3 OR artist:\"{}\"^2 OR \"{}\"",
+            clean, clean, clean
+        );
         let url = "https://musicbrainz.org/ws/2/recording";
         let resp = self
             .client
             .get(url)
-            .query(&[("query", query_str.as_str()), ("fmt", "json"), ("limit", &limit.to_string())])
+            .query(&[
+                ("query", query_str.as_str()),
+                ("fmt", "json"),
+                ("limit", &limit.to_string()),
+            ])
             .send()
             .await?;
 
@@ -397,7 +404,9 @@ pub struct CompositeSimilarityEngine {
 
 impl CompositeSimilarityEngine {
     pub fn new(lastfm_key: Option<String>, db: Database) -> Self {
-        let lastfm = lastfm_key.filter(|k| !k.is_empty()).map(LastFmProvider::new);
+        let lastfm = lastfm_key
+            .filter(|k| !k.is_empty())
+            .map(LastFmProvider::new);
         let metabrainz = MetaBrainzProvider::new();
         Self {
             lastfm,
@@ -407,11 +416,7 @@ impl CompositeSimilarityEngine {
     }
 
     /// Automatically indexes discovered similarity candidates and edges into SQLite
-    pub fn persist_candidates(
-        &self,
-        seed_id: &str,
-        candidates: &[SimilarityCandidate],
-    ) {
+    pub fn persist_candidates(&self, seed_id: &str, candidates: &[SimilarityCandidate]) {
         for c in candidates {
             let record = TrackRecord {
                 id: c.id.clone(),
@@ -427,7 +432,10 @@ impl CompositeSimilarityEngine {
                 warn!("Failed to index track {}: {}", c.id, e);
             }
 
-            if let Err(e) = self.db.insert_edge(seed_id, &c.id, c.match_score, &c.provider) {
+            if let Err(e) = self
+                .db
+                .insert_edge(seed_id, &c.id, c.match_score, &c.provider)
+            {
                 warn!("Failed to index edge {} -> {}: {}", seed_id, c.id, e);
             }
         }
@@ -493,13 +501,24 @@ impl CompositeSimilarityEngine {
             return Err(SimilarityError::NoResults);
         }
 
-        let mut candidate_map: std::collections::HashMap<String, (SimilarityCandidate, f64, usize)> = std::collections::HashMap::new();
+        let mut candidate_map: std::collections::HashMap<
+            String,
+            (SimilarityCandidate, f64, usize),
+        > = std::collections::HashMap::new();
         let mut seed_filter = std::collections::HashSet::new();
         for (artist, title, id) in seeds {
             seed_filter.insert(id.to_lowercase());
             seed_filter.insert(crate::db::strip_accents(&id.to_lowercase()));
-            seed_filter.insert(format!("{}:{}", artist.to_lowercase(), title.to_lowercase()));
-            seed_filter.insert(crate::db::strip_accents(&format!("{}:{}", artist.to_lowercase(), title.to_lowercase())));
+            seed_filter.insert(format!(
+                "{}:{}",
+                artist.to_lowercase(),
+                title.to_lowercase()
+            ));
+            seed_filter.insert(crate::db::strip_accents(&format!(
+                "{}:{}",
+                artist.to_lowercase(),
+                title.to_lowercase()
+            )));
             seed_filter.insert(title.to_lowercase());
             seed_filter.insert(crate::db::strip_accents(&title.to_lowercase()));
         }
@@ -515,7 +534,9 @@ impl CompositeSimilarityEngine {
                         && !seed_filter.contains(&c.title.to_lowercase())
                         && !seed_filter.contains(&norm_title)
                     {
-                        let entry = candidate_map.entry(c.id.clone()).or_insert_with(|| (c.clone(), 0.0, 0));
+                        let entry = candidate_map
+                            .entry(c.id.clone())
+                            .or_insert_with(|| (c.clone(), 0.0, 0));
                         entry.1 += c.match_score;
                         entry.2 += 1;
                     }
@@ -525,7 +546,10 @@ impl CompositeSimilarityEngine {
 
         let seed_ids: Vec<String> = seeds.iter().map(|(_, _, id)| id.clone()).collect();
         // 2. Also check local SQLite graph across all seeds
-        if let Ok(local_recs) = self.db.get_recommendations_for_multi_seeds(&seed_ids, &seed_ids, limit * 2) {
+        if let Ok(local_recs) =
+            self.db
+                .get_recommendations_for_multi_seeds(&seed_ids, &seed_ids, limit * 2)
+        {
             for (idx, r) in local_recs.into_iter().enumerate() {
                 let norm_id = crate::db::strip_accents(&r.id.to_lowercase());
                 let norm_title = crate::db::strip_accents(&r.title.to_lowercase());
@@ -535,19 +559,21 @@ impl CompositeSimilarityEngine {
                     && !seed_filter.contains(&norm_title)
                 {
                     let score = 0.95 - (idx as f64 * 0.05).min(0.5);
-                    let entry = candidate_map.entry(r.id.clone()).or_insert_with(|| (
-                        SimilarityCandidate {
-                            id: r.id.clone(),
-                            artist: r.artist,
-                            title: r.title,
-                            match_score: score,
-                            mbid: None,
-                            provider: "local_multi_seed".to_string(),
-                            duration_sec: Some(r.duration_sec),
-                        },
-                        0.0,
-                        0,
-                    ));
+                    let entry = candidate_map.entry(r.id.clone()).or_insert_with(|| {
+                        (
+                            SimilarityCandidate {
+                                id: r.id.clone(),
+                                artist: r.artist,
+                                title: r.title,
+                                match_score: score,
+                                mbid: None,
+                                provider: "local_multi_seed".to_string(),
+                                duration_sec: Some(r.duration_sec),
+                            },
+                            0.0,
+                            0,
+                        )
+                    });
                     entry.1 += score;
                     entry.2 += 1;
                 }
@@ -567,7 +593,11 @@ impl CompositeSimilarityEngine {
             })
             .collect();
 
-        scored_candidates.sort_by(|a, b| b.match_score.partial_cmp(&a.match_score).unwrap_or(std::cmp::Ordering::Equal));
+        scored_candidates.sort_by(|a, b| {
+            b.match_score
+                .partial_cmp(&a.match_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scored_candidates.truncate(limit);
         Ok(scored_candidates)
     }
@@ -623,12 +653,18 @@ impl SimilarityEngine for CompositeSimilarityEngine {
                 warn!("MetaBrainz returned empty results, falling back to local DB");
             }
             Err(e) => {
-                warn!("MetaBrainz provider failed: {}, falling back to local DB", e);
+                warn!(
+                    "MetaBrainz provider failed: {}, falling back to local DB",
+                    e
+                );
             }
         }
 
         // 3. 100% Offline Mode: Fallback to local similarity graph in SQLite
-        info!("Executing local offline similarity graph search for '{}'", seed_id);
+        info!(
+            "Executing local offline similarity graph search for '{}'",
+            seed_id
+        );
         let local_matches = self.db.get_similar_tracks(&seed_id, false, limit)?;
         if !local_matches.is_empty() {
             let candidates = local_matches
@@ -680,7 +716,13 @@ mod tests {
 
         db.upsert_track(&seed).unwrap();
         db.upsert_track(&sim).unwrap();
-        db.insert_edge("joy division:disorder", "new order:ceremony", 0.94, "lastfm").unwrap();
+        db.insert_edge(
+            "joy division:disorder",
+            "new order:ceremony",
+            0.94,
+            "lastfm",
+        )
+        .unwrap();
 
         // Create engine with invalid key so online fails, forcing offline DB fallback
         let engine = CompositeSimilarityEngine::new(None, db);
@@ -730,17 +772,33 @@ mod tests {
         db.upsert_track(&s1).unwrap();
         db.upsert_track(&s2).unwrap();
         db.upsert_track(&rec1).unwrap();
-        db.insert_edge("mc:vai_lacraia", "valesca:beijinho", 0.90, "test").unwrap();
-        db.insert_edge("tigrao:cerol", "valesca:beijinho", 0.85, "test").unwrap();
+        db.insert_edge("mc:vai_lacraia", "valesca:beijinho", 0.90, "test")
+            .unwrap();
+        db.insert_edge("tigrao:cerol", "valesca:beijinho", 0.85, "test")
+            .unwrap();
 
         let engine = CompositeSimilarityEngine::new(None, db);
         let seeds = vec![
-            ("MC Serginho".to_string(), "Vai Lacraia".to_string(), "mc:vai_lacraia".to_string()),
-            ("Bonde do Tigrao".to_string(), "Cerol na Mao".to_string(), "tigrao:cerol".to_string()),
+            (
+                "MC Serginho".to_string(),
+                "Vai Lacraia".to_string(),
+                "mc:vai_lacraia".to_string(),
+            ),
+            (
+                "Bonde do Tigrao".to_string(),
+                "Cerol na Mao".to_string(),
+                "tigrao:cerol".to_string(),
+            ),
         ];
 
         let results = engine.find_similar_multi(&seeds, 5).await.unwrap();
-        assert!(!results.is_empty(), "find_similar_multi must return candidates from seeds");
-        assert!(results.iter().any(|c| c.title == "Beijinho no Ombro"), "Candidates must include Beijinho no Ombro");
+        assert!(
+            !results.is_empty(),
+            "find_similar_multi must return candidates from seeds"
+        );
+        assert!(
+            results.iter().any(|c| c.title == "Beijinho no Ombro"),
+            "Candidates must include Beijinho no Ombro"
+        );
     }
 }

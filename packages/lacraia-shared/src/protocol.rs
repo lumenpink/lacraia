@@ -213,11 +213,14 @@ mod tests {
         let json_lock = r#"{"type":"COMMAND","payload":{"action":"LOCK_CABIN","locked":true}}"#;
         let msg_lock: WsMessage = serde_json::from_str(json_lock).unwrap();
         match msg_lock {
-            WsMessage::Command(cmd) => assert_eq!(cmd.payload, CommandAction::LockCabin { locked: true }),
+            WsMessage::Command(cmd) => {
+                assert_eq!(cmd.payload, CommandAction::LockCabin { locked: true })
+            }
             _ => panic!("Expected LockCabin"),
         }
 
-        let json_eject = r#"{"type":"COMMAND","payload":{"action":"EJECT_PASSENGER","passengerId":"psg_42"}}"#;
+        let json_eject =
+            r#"{"type":"COMMAND","payload":{"action":"EJECT_PASSENGER","passengerId":"psg_42"}}"#;
         let msg_eject: WsMessage = serde_json::from_str(json_eject).unwrap();
         match msg_eject {
             WsMessage::Command(cmd) => assert_eq!(
@@ -245,10 +248,9 @@ mod tests {
         let json_remove = r#"{"type":"COMMAND","payload":{"action":"QUEUE_REMOVE","queueId":42}}"#;
         let msg_remove: WsMessage = serde_json::from_str(json_remove).unwrap();
         match msg_remove {
-            WsMessage::Command(cmd) => assert_eq!(
-                cmd.payload,
-                CommandAction::QueueRemove { queue_id: 42 }
-            ),
+            WsMessage::Command(cmd) => {
+                assert_eq!(cmd.payload, CommandAction::QueueRemove { queue_id: 42 })
+            }
             _ => panic!("Expected QueueRemove"),
         }
 
@@ -423,4 +425,3 @@ mod tests {
         assert!(json_attempt.contains("\"errorCode\":\"HTTP_403\""));
     }
 }
-

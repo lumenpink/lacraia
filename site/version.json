@@ -1,10 +1,10 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.0-dev.68+20260927.6b34e0c",
   "min_compatible_version": "0.1.0",
   "package_id": "in.twolp.lacraia.app",
   "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
   "release_notes": "Compilação soberana e contínua do ecossistema La Craia para Android.",
-  "published_at": "2026-10-13T17:00:00Z",
+  "published_at": "2026-10-13T20:12:33Z",
   "apps": {
     "lacraia-app": {
       "package_id": "in.twolp.lacraia.app",

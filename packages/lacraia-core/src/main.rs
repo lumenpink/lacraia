@@ -16,7 +16,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    let cache_dir = PathBuf::from(std::env::var("LACRAIA_CACHE_DIR").unwrap_or_else(|_| "./cache".into()));
+    let cache_dir =
+        PathBuf::from(std::env::var("LACRAIA_CACHE_DIR").unwrap_or_else(|_| "./cache".into()));
     tokio::fs::create_dir_all(&cache_dir).await?;
 
     let db_path = std::env::var("LACRAIA_DB_PATH").unwrap_or_else(|_| "./lacraia.sqlite".into());
@@ -50,14 +51,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         daemon: Some(daemon.clone()),
     };
 
-    let site_dir = std::env::var("LACRAIA_SITE_DIR").map(PathBuf::from).ok().or_else(|| {
-        let default_dir = PathBuf::from("./site");
-        if default_dir.exists() {
-            Some(default_dir)
-        } else {
-            None
-        }
-    });
+    let site_dir = std::env::var("LACRAIA_SITE_DIR")
+        .map(PathBuf::from)
+        .ok()
+        .or_else(|| {
+            let default_dir = PathBuf::from("./site");
+            if default_dir.exists() {
+                Some(default_dir)
+            } else {
+                None
+            }
+        });
 
     let app = build_app(state, site_dir);
 
