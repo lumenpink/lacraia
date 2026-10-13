@@ -59,3 +59,20 @@ impl Default for PlaybackState {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlaybackHistoryEntry {
+    pub id: i64,
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    #[serde(rename = "trackId")]
+    pub track_id: String,
+    pub title: String,
+    pub artist: String,
+    #[serde(rename = "passengerName")]
+    pub passenger_name: Option<String>,
+    #[serde(rename = "playedAt")]
+    pub played_at: i64,
+    #[serde(rename = "durationSec")]
+    pub duration_sec: u64,
+}
+
