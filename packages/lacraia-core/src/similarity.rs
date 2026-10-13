@@ -251,7 +251,7 @@ impl MetaBrainzProvider {
         query: &str,
         limit: usize,
     ) -> Result<Vec<SimilarityCandidate>, SimilarityError> {
-        let clean = query.replace('"', "").replace('\\', "");
+        let clean = query.replace(['"', '\\'], "");
         let query_str = format!("recording:\"{}\"^3 OR artist:\"{}\"^2 OR \"{}\"", clean, clean, clean);
         let url = "https://musicbrainz.org/ws/2/recording";
         let resp = self

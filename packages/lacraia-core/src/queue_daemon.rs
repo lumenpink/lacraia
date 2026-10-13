@@ -237,7 +237,7 @@ impl QueueDaemon {
                 last_played_at: None,
             };
             let _ = self.db.upsert_track(&record);
-            if let Ok(_) = self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id) {
+            if self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id).is_ok() {
                 enqueued += 1;
             }
         }
@@ -330,10 +330,8 @@ impl QueueDaemon {
         // Determine seed track: last track in queue, or current playing track in hub
         let seed: Option<(String, String, String)> = if let Some((_, last_track)) = queue.last() {
             Some((last_track.artist.clone(), last_track.title.clone(), last_track.id.clone()))
-        } else if let Some(ref current) = current_track_in_hub {
-            Some((current.artist.clone(), current.title.clone(), current.id.clone()))
         } else {
-            None
+            current_track_in_hub.as_ref().map(|current| (current.artist.clone(), current.title.clone(), current.id.clone()))
         };
 
         let (seed_artist, seed_title, seed_id) = match seed {
@@ -390,7 +388,7 @@ impl QueueDaemon {
                 last_played_at: None,
             };
             let _ = self.db.upsert_track(&record);
-            if let Ok(_) = self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id) {
+            if self.db.enqueue_track_with_meta(&id, Some("AUTOPILOT"), cabin_id).is_ok() {
                 enqueued += 1;
             }
         }
