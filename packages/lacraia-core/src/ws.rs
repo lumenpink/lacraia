@@ -69,8 +69,29 @@ impl PlaybackHub {
             requested_by: q.requested_by.clone(),
         });
 
+        let persisted_state = self.db.get_cabin_state(cabin_id).ok().flatten();
+
         let track = if playing_track.is_some() {
             playing_track
+        } else if let Some(ref pers) = persisted_state {
+            if let Some(ref tid) = pers.track_id {
+                if let Ok(Some(record)) = self.db.get_track(tid) {
+                    Some(Track {
+                        id: record.id.clone(),
+                        title: record.title,
+                        artist: record.artist,
+                        album: None,
+                        duration_ms: record.duration_sec * 1000,
+                        cover_url: None,
+                        stream_url: record.cached_path.as_deref().map(clean_stream_url),
+                        requested_by: Some("CABINE".into()),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         } else if cabin_id == "default" {
             self.current_track.lock().await.clone()
         } else {
@@ -78,12 +99,28 @@ impl PlaybackHub {
         };
 
         let state = if track.is_some() {
-            *self.playback_state.lock().await
+            if let Some(ref pers) = persisted_state {
+                match pers.playback_state.as_str() {
+                    "playing" => PlaybackState::Playing,
+                    "paused" => PlaybackState::Paused,
+                    _ => *self.playback_state.lock().await,
+                }
+            } else {
+                *self.playback_state.lock().await
+            }
         } else {
             PlaybackState::Stopped
         };
 
-        let pos = *self.position_ms.lock().await;
+        let pos = if let Some(ref pers) = persisted_state {
+            if *self.position_ms.lock().await == 0 && pers.position_ms > 0 {
+                pers.position_ms
+            } else {
+                *self.position_ms.lock().await
+            }
+        } else {
+            *self.position_ms.lock().await
+        };
         let is_locked = self.db.is_cabin_locked(cabin_id).unwrap_or(false);
 
         let queue: Vec<lacraia_shared::QueueItem> = queue_entries
@@ -346,6 +383,20 @@ impl PlaybackHub {
                     passengers: vec![],
                 }));
             }
+        }
+
+        // Persist cabin playback state to SQLite
+        {
+            let curr_t = self.current_track.lock().await;
+            let tid = curr_t.as_ref().map(|t| t.id.as_str());
+            let pos = *self.position_ms.lock().await;
+            let st = match *self.playback_state.lock().await {
+                PlaybackState::Playing => "playing",
+                PlaybackState::Paused => "paused",
+                PlaybackState::Buffering => "buffering",
+                PlaybackState::Stopped => "stopped",
+            };
+            let _ = self.db.save_cabin_state(cabin_id, tid, pos, st);
         }
 
         let update = self.build_state_update_for_cabin(cabin_id).await;
