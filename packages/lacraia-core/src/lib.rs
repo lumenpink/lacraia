@@ -585,6 +585,22 @@ pub async fn handle_queue_append(
             &cabin_id,
         ),
         "PLAY_NOW" => {
+            let _ = state.db.record_playback_history(&cabin_id, &payload.track_id, payload.requested_by.as_deref());
+            if cabin_id == "default" {
+                if let Ok(Some(record)) = state.db.get_track(&payload.track_id) {
+                    *state.hub.current_track.lock().await = Some(Track {
+                        id: record.id.clone(),
+                        title: record.title,
+                        artist: record.artist,
+                        album: None,
+                        duration_ms: record.duration_sec * 1000,
+                        cover_url: None,
+                        stream_url: record.cached_path.as_deref().map(ws::clean_stream_url),
+                        requested_by: payload.requested_by.clone(),
+                    });
+                    *state.hub.playback_state.lock().await = lacraia_shared::PlaybackState::Playing;
+                }
+            }
             state.db.play_now_with_meta(
                 &payload.track_id,
                 payload.requested_by.as_deref(),
@@ -592,6 +608,22 @@ pub async fn handle_queue_append(
             ).map(|e| e.id)
         }
         "START_RADIO" => {
+            let _ = state.db.record_playback_history(&cabin_id, &payload.track_id, payload.requested_by.as_deref());
+            if cabin_id == "default" {
+                if let Ok(Some(record)) = state.db.get_track(&payload.track_id) {
+                    *state.hub.current_track.lock().await = Some(Track {
+                        id: record.id.clone(),
+                        title: record.title,
+                        artist: record.artist,
+                        album: None,
+                        duration_ms: record.duration_sec * 1000,
+                        cover_url: None,
+                        stream_url: record.cached_path.as_deref().map(ws::clean_stream_url),
+                        requested_by: payload.requested_by.clone(),
+                    });
+                    *state.hub.playback_state.lock().await = lacraia_shared::PlaybackState::Playing;
+                }
+            }
             state.db.start_radio_with_meta(
                 &payload.track_id,
                 payload.requested_by.as_deref(),

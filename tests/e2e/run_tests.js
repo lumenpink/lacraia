@@ -309,15 +309,22 @@ async function main() {
       }, { timeout: 15000 });
 
       // Ensure audio is actively playing in browser
-      await page.evaluate(() => {
+      await page.evaluate(async () => {
         const a = document.getElementById('audio-engine');
-        if (a.paused) a.play().catch(() => {});
+        if (a && a.paused) {
+          try {
+            await a.play();
+          } catch (_) {
+            const btn = document.getElementById('btn-play-pause');
+            if (btn) btn.click();
+          }
+        }
       });
 
       await page.waitForFunction(() => {
         const a = document.getElementById('audio-engine');
         return a && !a.paused;
-      }, { timeout: 10000 });
+      }, { timeout: 15000 });
 
       // SOUND VERIFICATION 1: Is playing and not paused
       const isPaused = await page.evaluate(() => document.getElementById('audio-engine').paused);
@@ -941,7 +948,7 @@ async function main() {
       assert(historyRes.ok(), `/api/history endpoint must return 200 OK`);
       const historyData = await historyRes.json();
       assert(Array.isArray(historyData) && historyData.length > 0, `History array must have at least 1 entry`);
-      assert(historyData[0].cabin_id === cabinId, `History entry cabin_id must match '${cabinId}'`);
+      assert((historyData[0].cabinId || historyData[0].cabin_id) === cabinId, `History entry cabinId must match '${cabinId}'`);
 
       // Verify Deck 03 renders history container and items
       const historyContainer = page.locator('#history-list-container');

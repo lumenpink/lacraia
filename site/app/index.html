@@ -568,6 +568,52 @@
       line-height: 1;
     }
 
+    /* History Deck Styling */
+    .history-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid var(--borda-chassi);
+      background: var(--asfalto-frio);
+      padding: 8px;
+    }
+
+    .history-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background: var(--ferro-bate-pedra);
+      border-left: 3px solid var(--alerta-solavanco);
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .history-item-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .history-item-title {
+      font-weight: bold;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-item-meta {
+      font-size: 10px;
+      color: var(--chumbo);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
     /* Queue Deck Styling */
     .queue-panel {
       grid-column: 1 / -1;
@@ -1341,6 +1387,19 @@
           </div>
         </div>
 
+        <!-- Cabin Playback History -->
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; font-weight: 900; color: var(--chumbo);">HISTÓRICO DA CABINE</span>
+            <span id="history-count" style="font-size: 10px; color: var(--veneno-eletrico); font-weight: bold;">0 TOCADAS</span>
+          </div>
+          <div class="history-container" id="history-list-container">
+            <div style="font-size: 10px; color: var(--chumbo); padding: 8px; text-align: center;">
+              [ NENHUMA CANTIGA TOCADA RECENTEMENTE ]
+            </div>
+          </div>
+        </div>
+
         <!-- Emergency Eject All Lever -->
         <button class="btn btn-danger" id="btn-eject-all">
           💥 EJETAR TODOS OS PASSAGEIROS
@@ -1514,6 +1573,7 @@
       const pilotTokenParam = urlParams.get("pilot_token");
       const masterKeyParam = urlParams.get("master_key");
       const keyParam = urlParams.get("key");
+      const userParam = urlParams.get("user") || urlParams.get("passenger");
 
       if (masterKeyParam) {
         localStorage.setItem("lacraia_master_key", masterKeyParam);
@@ -1523,6 +1583,9 @@
       }
       if (keyParam) {
         localStorage.setItem("lacraia_passenger_key_" + cabinParam, keyParam);
+      }
+      if (userParam) {
+        localStorage.setItem("lacraia_vulgo", userParam);
       }
       localStorage.setItem("lacraia_active_cabin", cabinParam);
 
@@ -1553,7 +1616,7 @@
         isLocked: false,
         role: initialAuth.role,
         myToken: initialAuth.token,
-        myPassengerName: localStorage.getItem("lacraia_vulgo") || "",
+        myPassengerName: userParam || localStorage.getItem("lacraia_vulgo") || "",
         crew: [],
         queue: [],
         station: "MPB & Samba",
@@ -1680,6 +1743,8 @@
       const ejectionScreen = document.getElementById("ejection-screen");
       const btnConfigWs = document.getElementById("btn-config-ws");
       const coreUrlDisplay = document.getElementById("core-url-display");
+      const historyListContainer = document.getElementById("history-list-container");
+      const historyCountEl = document.getElementById("history-count");
 
 
       // Time formatter
@@ -2264,6 +2329,82 @@
         } catch (_) {}
       }
 
+      async function fetchCabinHistory() {
+        if (!historyListContainer) return;
+        try {
+          const cid = state.cabinId || 'default';
+          const resp = await fetch(`${targetHttpUrl}/api/history?cabin=${encodeURIComponent(cid)}&limit=15`);
+          if (resp.ok) {
+            const hist = await resp.json();
+            if (Array.isArray(hist)) {
+              renderHistory(hist);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch cabin history:", e);
+        }
+      }
+
+      function renderHistory(items) {
+        if (!historyListContainer) return;
+        if (historyCountEl) {
+          historyCountEl.textContent = `${items.length} TOCADA${items.length === 1 ? '' : 'S'}`;
+        }
+        if (!items || items.length === 0) {
+          historyListContainer.innerHTML = `
+            <div style="font-size: 10px; color: var(--chumbo); padding: 8px; text-align: center;">
+              [ NENHUMA CANTIGA TOCADA RECENTEMENTE ]
+            </div>
+          `;
+          return;
+        }
+
+        historyListContainer.innerHTML = "";
+        items.forEach(item => {
+          const row = document.createElement("div");
+          row.className = "history-item-row";
+
+          const trackId = item.trackId || item.track_id;
+          const pName = item.passengerName || item.passenger_name;
+          const durSec = item.durationSec || item.duration_sec || 210;
+
+          const infoDiv = document.createElement("div");
+          infoDiv.className = "history-item-info";
+
+          const titleEl = document.createElement("div");
+          titleEl.className = "history-item-title";
+          titleEl.textContent = `${item.title || trackId}${item.artist ? ' - ' + item.artist : ''}`;
+
+          const metaEl = document.createElement("div");
+          metaEl.className = "history-item-meta";
+          const reqText = pName ? `@${pName}` : "[PILOTO]";
+          metaEl.textContent = `${reqText} • ${formatTime(durSec * 1000)}`;
+
+          infoDiv.appendChild(titleEl);
+          infoDiv.appendChild(metaEl);
+
+          const btnReplay = document.createElement("button");
+          btnReplay.className = "btn btn-action-icon";
+          btnReplay.dataset.action = "replay";
+          btnReplay.dataset.trackId = trackId;
+          btnReplay.title = "Tocar novamente";
+          btnReplay.innerHTML = "🔁";
+          btnReplay.onclick = (e) => {
+            e.stopPropagation();
+            enqueueCandidate({
+              id: trackId,
+              title: item.title,
+              artist: item.artist,
+              durationSec: durSec
+            }, "enqueue");
+          };
+
+          row.appendChild(infoDiv);
+          row.appendChild(btnReplay);
+          historyListContainer.appendChild(row);
+        });
+      }
+
       function enqueueCandidate(candidate, actionType = "enqueue") {
         cacheTrackStreamUrl(candidate);
         const reqUser = (state.role === "PILOTO" || state.role === "MASTER") ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
@@ -2274,6 +2415,10 @@
         if (actionType === "play_now") {
           actionCmd = "PLAY_NOW";
           toastMsg = `▶ TOCANDO "${candidate.title.toUpperCase()}" AGORA!`;
+          state.currentTrack = candidate;
+          state.isPlaying = true;
+          state.positionMs = 0;
+          renderState();
           syncAudioEngineWithTrack(candidate);
         } else if (actionType === "play_next") {
           actionCmd = "QUEUE_NEXT";
@@ -2281,6 +2426,10 @@
         } else if (actionType === "start_radio") {
           actionCmd = "START_RADIO";
           toastMsg = `📻 RÁDIO INICIADA: "${candidate.title.toUpperCase()}"!`;
+          state.currentTrack = candidate;
+          state.isPlaying = true;
+          state.positionMs = 0;
+          renderState();
           syncAudioEngineWithTrack(candidate);
         }
 
@@ -2833,6 +2982,7 @@
         renderState();
         syncCabinInfo();
         syncQueue();
+        fetchCabinHistory();
         reconnectWs();
         showToast(`Sintonizado na cabine: ${state.cabinName.toUpperCase()}`);
       }
@@ -3211,6 +3361,7 @@
                   state.queue = msg.payload.queue.map(enrichTrackStreamUrl);
                 }
                 renderState();
+                fetchCabinHistory();
               } else if (type === "CREW_UPDATE") {
                 state.crew = msg.passengers || state.crew;
                 if (msg.isLocked !== undefined) state.isLocked = msg.isLocked;
@@ -3248,6 +3399,8 @@
       renderState();
       startPlaybackLoop();
       syncCabinInfo();
+      syncQueue();
+      fetchCabinHistory();
       connectWs();
     })();
   </script>

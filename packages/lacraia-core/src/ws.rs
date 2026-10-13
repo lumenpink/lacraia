@@ -35,7 +35,7 @@ pub struct PlaybackHub {
     pub cabin_id: Arc<Mutex<String>>,
 }
 
-fn clean_stream_url(path: &str) -> String {
+pub fn clean_stream_url(path: &str) -> String {
     let filename = std::path::Path::new(path)
         .file_name()
         .and_then(|n| n.to_str())
