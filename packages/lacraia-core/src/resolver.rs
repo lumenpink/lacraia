@@ -89,6 +89,15 @@ impl MediaResolver {
         true
     }
 
+    /// Returns ffmpeg transcoding/remuxing arguments based on whether the input audio stream is already Opus.
+    pub fn ffmpeg_audio_codec_args(is_opus: bool) -> Vec<&'static str> {
+        if is_opus {
+            vec!["-c:a", "copy"]
+        } else {
+            vec!["-c:a", "libopus", "-b:a", "128k"]
+        }
+    }
+
     /// Primary resolver attempt using native Rust crate (RustyPipe)
     async fn resolve_via_rustypipe(
         &self,
@@ -164,18 +173,22 @@ impl MediaResolver {
             .ok_or_else(|| "No suitable audio stream found in RustyPipe response".to_string())?;
 
         let stream_url = audio_stream.url;
+        let is_opus = audio_stream.codec == AudioCodec::Opus;
+        let codec_args = Self::ffmpeg_audio_codec_args(is_opus);
+        info!("RustyPipe saving stream to target (is_opus={}, codec_args={:?})", is_opus, codec_args);
 
-        // Transcode stream directly to target Opus file using ffmpeg with browser User-Agent and headers
-        let child = TokioCommand::new("ffmpeg")
-            .args([
-                "-y",
-                "-headers", "Referer: https://music.youtube.com/\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36\r\n",
-                "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-                "-i", &stream_url,
-                "-c:a", "libopus",
-                "-b:a", "128k",
-                target_path.to_str().unwrap(),
-            ])
+        // Remux or transcode stream to target Opus file using ffmpeg with browser User-Agent and headers
+        let mut ffmpeg_cmd = TokioCommand::new("ffmpeg");
+        ffmpeg_cmd.args([
+            "-y",
+            "-headers", "Referer: https://music.youtube.com/\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36\r\n",
+            "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "-i", &stream_url,
+        ]);
+        ffmpeg_cmd.args(&codec_args);
+        ffmpeg_cmd.arg(target_path.to_str().unwrap());
+
+        let child = ffmpeg_cmd
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
@@ -273,6 +286,8 @@ impl MediaResolver {
 
         let dl_output = TokioCommand::new(&self.ytdlp_bin)
             .args([
+                "-f",
+                "ba[acodec=opus]/ba/bestaudio",
                 "-x",
                 "--audio-format",
                 "opus",
