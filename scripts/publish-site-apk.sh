@@ -94,7 +94,18 @@ cat <<EOF > "$SITE_DIR/version.json"
 }
 EOF
 
-# 5. Publicar via Wrangler se solicitado ou configurado
+# 5. Sincronizar com A Pratilera na Banca se o repositório irmão banca existir
+BANCA_DIR="$(cd "$REPO_ROOT/../banca" 2>/dev/null && pwd || true)"
+if [ -n "$BANCA_DIR" ] && [ -d "$BANCA_DIR/site/pratilera" ]; then
+    echo "-> Sincronizando APKs com A Pratilera na Banca ($BANCA_DIR)..."
+    [ -f "$REPO_ROOT/dist/lacraia-app.apk" ] && cp "$REPO_ROOT/dist/lacraia-app.apk" "$BANCA_DIR/site/pratilera/"
+    [ -f "$REPO_ROOT/dist/simbiotyka.apk" ] && cp "$REPO_ROOT/dist/simbiotyka.apk" "$BANCA_DIR/site/pratilera/"
+    if [ -f "$BANCA_DIR/scripts/gerar-pratilera.py" ]; then
+        python3 "$BANCA_DIR/scripts/gerar-pratilera.py" || true
+    fi
+fi
+
+# 6. Publicar via Wrangler se solicitado ou configurado
 if [ "${1:-}" = "--deploy" ]; then
     echo "-> Publicando no Cloudflare Workers..."
     cd "$REPO_ROOT"
