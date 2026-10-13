@@ -431,6 +431,12 @@ impl PlaybackHub {
                         let _ = self.dispatch_command(CommandAction::Next).await;
                         continue;
                     }
+
+                    if *pos % 5000 == 0 {
+                        let cid = self.cabin_id.lock().await.clone();
+                        let tid = self.current_track.lock().await.as_ref().map(|t| t.id.clone());
+                        let _ = self.db.save_cabin_state(&cid, tid.as_deref(), *pos, "playing");
+                    }
                 }
 
                 // Broadcast state update to active cabins and default
