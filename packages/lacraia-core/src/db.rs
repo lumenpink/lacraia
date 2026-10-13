@@ -1,6 +1,7 @@
 use chrono::Utc;
 use lacraia_shared::{PassengerInfo, Role};
 use rusqlite::{params, Connection, Result};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -87,6 +88,15 @@ pub struct QueueEntry {
     pub created_at: i64,
     pub cabin_id: String,
     pub requested_by: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CabinPlaybackState {
+    pub cabin_id: String,
+    pub track_id: Option<String>,
+    pub position_ms: u64,
+    pub playback_state: String,
+    pub updated_at: i64,
 }
 
 pub fn strip_accents(input: &str) -> String {
@@ -189,6 +199,14 @@ impl Database {
                 cabin_id TEXT NOT NULL DEFAULT 'default',
                 requested_by TEXT,
                 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS cabin_playback_state (
+                cabin_id TEXT PRIMARY KEY,
+                track_id TEXT,
+                position_ms INTEGER NOT NULL DEFAULT 0,
+                playback_state TEXT NOT NULL DEFAULT 'stopped',
+                updated_at INTEGER NOT NULL
             );
 
             CREATE INDEX IF NOT EXISTS idx_queue_pos 
@@ -1104,6 +1122,55 @@ impl Database {
             )
             .ok();
         Ok(locked.unwrap_or(0) == 1)
+    }
+
+    pub fn save_cabin_state(
+        &self,
+        cabin_id: &str,
+        track_id: Option<&str>,
+        position_ms: u64,
+        playback_state: &str,
+    ) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+        conn.execute(
+            r#"
+            INSERT INTO cabin_playback_state (cabin_id, track_id, position_ms, playback_state, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5)
+            ON CONFLICT(cabin_id) DO UPDATE SET
+                track_id = excluded.track_id,
+                position_ms = excluded.position_ms,
+                playback_state = excluded.playback_state,
+                updated_at = excluded.updated_at
+            "#,
+            params![cabin_id, track_id, position_ms as i64, playback_state, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_cabin_state(&self, cabin_id: &str) -> Result<Option<CabinPlaybackState>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT cabin_id, track_id, position_ms, playback_state, updated_at
+            FROM cabin_playback_state
+            WHERE cabin_id = ?1
+            "#,
+        )?;
+
+        let mut rows = stmt.query(params![cabin_id])?;
+        if let Some(row) = rows.next()? {
+            let pos: i64 = row.get(2)?;
+            Ok(Some(CabinPlaybackState {
+                cabin_id: row.get(0)?,
+                track_id: row.get(1)?,
+                position_ms: pos.max(0) as u64,
+                playback_state: row.get(3)?,
+                updated_at: row.get(4)?,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn add_passenger(
