@@ -1149,6 +1149,39 @@ mod tests {
     }
 
     #[test]
+    fn test_queue_four_actions() {
+        let db = Database::open_in_memory().unwrap();
+
+        // 1. QueueAppend A and B
+        let _q1 = db.enqueue_track_with_meta("trk_a", Some("PILOTO"), "cab1").unwrap();
+        let _q2 = db.enqueue_track_with_meta("trk_b", Some("PILOTO"), "cab1").unwrap();
+        let q = db.get_queue_for_cabin("cab1").unwrap();
+        assert_eq!(q.len(), 2);
+        assert_eq!(q[0].1.id, "trk_a");
+        assert_eq!(q[1].1.id, "trk_b");
+
+        // 2. QueueNext C (inserts C before A and B)
+        let _q3 = db.enqueue_track_next_with_meta("trk_c", Some("PILOTO"), "cab1").unwrap();
+        let q = db.get_queue_for_cabin("cab1").unwrap();
+        assert_eq!(q.len(), 3);
+        assert_eq!(q[0].1.id, "trk_c");
+        assert_eq!(q[1].1.id, "trk_a");
+        assert_eq!(q[2].1.id, "trk_b");
+
+        // 3. PlayNow D (sets D as active playing track immediately)
+        let played = db.play_now_with_meta("trk_d", Some("PILOTO"), "cab1").unwrap();
+        assert_eq!(played.track_id, "trk_d");
+        assert_eq!(played.state, QueueState::Playing);
+
+        // 4. StartRadio E (clears pending upcoming tracks, plays E)
+        let radio = db.start_radio_with_meta("trk_e", Some("PILOTO"), "cab1").unwrap();
+        assert_eq!(radio.track_id, "trk_e");
+        assert_eq!(radio.state, QueueState::Playing);
+        let q_pending = db.get_upcoming_queue_for_cabin("cab1").unwrap();
+        assert_eq!(q_pending.len(), 0);
+    }
+
+    #[test]
     fn test_db_cabin_and_passenger_operations() {
         let db = Database::open_in_memory().unwrap();
 
