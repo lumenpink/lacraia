@@ -21,7 +21,7 @@ pub mod resolver;
 pub mod similarity;
 pub mod ws;
 
-pub use db::{Database, QueueEntry, QueueState, TrackRecord};
+pub use db::{CabinPlaybackState, Database, QueueEntry, QueueState, TrackRecord};
 pub use queue_daemon::QueueDaemon;
 pub use resolver::{MediaResolver, ResolverError, TrackResolution};
 pub use similarity::{CompositeSimilarityEngine, SimilarityEngine};
