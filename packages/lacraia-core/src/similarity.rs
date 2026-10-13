@@ -481,6 +481,17 @@ impl CompositeSimilarityEngine {
             }
         }
     }
+
+    /// Queries similarities across multiple seed tracks (artist, title, id),
+    /// combining and ranking candidates according to collective affinity.
+    pub async fn find_similar_multi(
+        &self,
+        _seeds: &[(String, String, String)],
+        _limit: usize,
+    ) -> Result<Vec<SimilarityCandidate>, SimilarityError> {
+        // Red test stub
+        Err(SimilarityError::NoResults)
+    }
 }
 
 #[async_trait]
@@ -603,5 +614,54 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].0.title, "Ceremony");
         assert_eq!(results[0].1, 0.94);
+    }
+
+    #[tokio::test]
+    async fn test_composite_engine_multi_seed_query() {
+        let db = Database::open_in_memory().unwrap();
+
+        let s1 = TrackRecord {
+            id: "mc:vai_lacraia".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 240,
+            cached_path: None,
+            genres: Some("funk".into()),
+            last_played_at: None,
+        };
+        let s2 = TrackRecord {
+            id: "tigrao:cerol".into(),
+            artist: "Bonde do Tigrao".into(),
+            title: "Cerol na Mao".into(),
+            duration_sec: 180,
+            cached_path: None,
+            genres: Some("funk".into()),
+            last_played_at: None,
+        };
+        let rec1 = TrackRecord {
+            id: "valesca:beijinho".into(),
+            artist: "Valesca Popozuda".into(),
+            title: "Beijinho no Ombro".into(),
+            duration_sec: 170,
+            cached_path: None,
+            genres: Some("funk".into()),
+            last_played_at: None,
+        };
+
+        db.upsert_track(&s1).unwrap();
+        db.upsert_track(&s2).unwrap();
+        db.upsert_track(&rec1).unwrap();
+        db.insert_edge("mc:vai_lacraia", "valesca:beijinho", 0.90, "test").unwrap();
+        db.insert_edge("tigrao:cerol", "valesca:beijinho", 0.85, "test").unwrap();
+
+        let engine = CompositeSimilarityEngine::new(None, db);
+        let seeds = vec![
+            ("MC Serginho".to_string(), "Vai Lacraia".to_string(), "mc:vai_lacraia".to_string()),
+            ("Bonde do Tigrao".to_string(), "Cerol na Mao".to_string(), "tigrao:cerol".to_string()),
+        ];
+
+        let results = engine.find_similar_multi(&seeds, 5).await.unwrap();
+        assert!(!results.is_empty(), "find_similar_multi must return candidates from seeds");
+        assert_eq!(results[0].title, "Beijinho no Ombro");
     }
 }

@@ -597,6 +597,18 @@ impl Database {
         Ok(results)
     }
 
+    /// Fetches recommendation candidates considering multiple seed tracks (e.g. recent playlist history),
+    /// aggregating similarity edges, common genres, and artist affinities to preserve playlist mood.
+    pub fn get_recommendations_for_multi_seeds(
+        &self,
+        _seed_ids: &[String],
+        _exclude_ids: &[String],
+        _limit: usize,
+    ) -> Result<Vec<TrackRecord>, DbError> {
+        // Red test stub
+        Err(DbError::TrackNotFound("multi-seed not yet implemented".into()))
+    }
+
     pub fn enqueue_track(&self, track_id: &str) -> Result<i64, DbError> {
         self.enqueue_track_with_meta(track_id, None, "default")
     }
@@ -1750,6 +1762,89 @@ mod tests {
         let both = db.get_playback_history(Some("cab_alpha"), Some("@Mari"), 10).unwrap();
         assert_eq!(both.len(), 1);
         assert_eq!(both[0].title, "Vai Lacraia");
+    }
+
+    #[test]
+    fn test_get_recommendations_for_multi_seeds() {
+        let db = Database::open_in_memory().unwrap();
+
+        // 3 seed tracks representing a funk playlist session
+        let s1 = TrackRecord {
+            id: "s1".into(),
+            artist: "MC Serginho".into(),
+            title: "Vai Lacraia".into(),
+            duration_sec: 240,
+            cached_path: None,
+            genres: Some("funk carioca, paredao".into()),
+            last_played_at: None,
+        };
+        let s2 = TrackRecord {
+            id: "s2".into(),
+            artist: "Bonde do Tigrao".into(),
+            title: "Cerol na Mao".into(),
+            duration_sec: 180,
+            cached_path: None,
+            genres: Some("funk carioca".into()),
+            last_played_at: None,
+        };
+        let s3 = TrackRecord {
+            id: "s3".into(),
+            artist: "Mr. Catra".into(),
+            title: "Uh Papai Chegou".into(),
+            duration_sec: 210,
+            cached_path: None,
+            genres: Some("funk carioca".into()),
+            last_played_at: None,
+        };
+
+        // Candidate 1: connected to BOTH s1 and s2 (high multi-seed affinity)
+        let c1 = TrackRecord {
+            id: "c1".into(),
+            artist: "Valesca Popozuda".into(),
+            title: "Beijinho no Ombro".into(),
+            duration_sec: 170,
+            cached_path: None,
+            genres: Some("funk carioca".into()),
+            last_played_at: None,
+        };
+        // Candidate 2: connected only to s1
+        let c2 = TrackRecord {
+            id: "c2".into(),
+            artist: "Anitta".into(),
+            title: "Show das Poderosas".into(),
+            duration_sec: 150,
+            cached_path: None,
+            genres: Some("funk pop".into()),
+            last_played_at: None,
+        };
+        // Candidate 3: unrelated electronic track
+        let c3 = TrackRecord {
+            id: "c3".into(),
+            artist: "Kraftwerk".into(),
+            title: "Autobahn".into(),
+            duration_sec: 600,
+            cached_path: None,
+            genres: Some("electronic".into()),
+            last_played_at: None,
+        };
+
+        db.upsert_track(&s1).unwrap();
+        db.upsert_track(&s2).unwrap();
+        db.upsert_track(&s3).unwrap();
+        db.upsert_track(&c1).unwrap();
+        db.upsert_track(&c2).unwrap();
+        db.upsert_track(&c3).unwrap();
+
+        db.insert_edge("s1", "c1", 0.90, "test").unwrap();
+        db.insert_edge("s2", "c1", 0.85, "test").unwrap();
+        db.insert_edge("s1", "c2", 0.70, "test").unwrap();
+
+        let seeds = vec!["s1".to_string(), "s2".to_string(), "s3".to_string()];
+        let recs = db.get_recommendations_for_multi_seeds(&seeds, &["s1".into(), "s2".into(), "s3".into()], 3).unwrap();
+
+        assert!(!recs.is_empty(), "Multi-seed query must return candidates");
+        // Candidate 1 must be first due to highest combined edge affinity across seeds
+        assert_eq!(recs[0].id, "c1", "Candidate with multi-seed edge affinity must rank #1");
     }
 }
 
