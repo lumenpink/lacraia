@@ -117,3 +117,37 @@ windowManager.addView(floatingView, params)
 * **Minimalist Karaoke (`TextSwitcher`):** Displays strictly the current active lyric line with a 150ms vertical slide transition. Automatically falls back to marquee-scrolling `{Artist} - {Title}` for instrumental or unindexed songs.
 * **Vertical Drag Gesture:** Supports smooth vertical touch dragging (`ACTION_DOWN` / `ACTION_MOVE` updating `LayoutParams.y`) to avoid obscuring navigation alerts, speed limits, or turn arrows.
 
+---
+
+## 5. Web Cockpit & Player Buffer Starvation HUD Overlay (Issue #20)
+
+Na interface do cockpit web (`site/app/index.html` e `packages/lacraia-app`), caso a reprodução sofra interrupção ou lentidão decorrente de cache ausente ou esgotamento de fluxo de dados, uma tarja de alerta tático cibernético (`#player-starvation-hud`) projeta-se sobre o chassi de reprodução do Deck 01.
+
+### 5.1 Tipologia de Estrangulamento (`CacheStarvationType`)
+
+1. **`local_cache_missing` (Cache Local em Falta):**
+   * Disparado quando uma faixa foi catalogada ou requisitada para execução imediata (`PLAY_NOW`, `START_RADIO`, `NEXT`), mas seus blocos de áudio Opus ainda não estão persistidos no disco local (`cached_path == None`).
+   * **Indicador Visual:** Badge âmbar `[ CACHE LOCAL ]`, legenda `"CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM"`.
+2. **`remote_buffer_starved` (Buffer Remoto Esgotado):**
+   * Disparado quando o elemento de áudio emite eventos nativos `waiting` ou `stalled` decorrente de jitter ou buffering na conexão remota com o provedor de streaming.
+   * **Indicador Visual:** Borda neon pulsante carmim `[ BUFFER REMOTO ]`, legenda `"BUFFER REMOTO ESGOTADO :: AGUARDANDO FLUXO"`.
+
+### 5.2 Protocolo de Telemetria WebSocket
+
+```json
+{
+  "type": "CACHE_ALERT",
+  "cabinId": "central",
+  "starvationType": "local_cache_missing",
+  "message": "CACHE LOCAL EM FALTA :: CARREGANDO DA NUVEM",
+  "trackId": "trk_vai_lacraia",
+  "active": true
+}
+```
+
+### 5.3 Resolução Autônoma e Acessibilidade
+
+* A tarja é dotada de `role="alert"` e `aria-live="polite"`.
+* É limpa e ocultada de forma automática no instante em que o fluxo volta a correr (`canplay`, `playing` ou mensagem WebSocket com `"active": false`).
+
+
