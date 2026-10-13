@@ -1,5 +1,5 @@
 use chrono::Utc;
-use lacraia_shared::{PassengerInfo, Role};
+use lacraia_shared::{PassengerInfo, PlaybackHistoryEntry, Role};
 use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -208,6 +208,21 @@ impl Database {
                 playback_state TEXT NOT NULL DEFAULT 'stopped',
                 updated_at INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS playback_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cabin_id TEXT NOT NULL,
+                track_id TEXT NOT NULL,
+                passenger_name TEXT,
+                played_at INTEGER NOT NULL,
+                duration_sec INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_history_cabin 
+                ON playback_history(cabin_id, played_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_history_passenger 
+                ON playback_history(passenger_name, played_at DESC);
 
             CREATE INDEX IF NOT EXISTS idx_queue_pos 
                 ON queue(cabin_id, position ASC, state);
@@ -1171,6 +1186,101 @@ impl Database {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn record_playback_history(
+        &self,
+        cabin_id: &str,
+        track_id: &str,
+        passenger_name: Option<&str>,
+    ) -> Result<i64, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().timestamp();
+        let duration_sec: u64 = conn
+            .query_row(
+                "SELECT duration_sec FROM tracks WHERE id = ?1",
+                params![track_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(210);
+
+        conn.execute(
+            r#"
+            INSERT INTO playback_history (cabin_id, track_id, passenger_name, played_at, duration_sec)
+            VALUES (?1, ?2, ?3, ?4, ?5)
+            "#,
+            params![cabin_id, track_id, passenger_name, now, duration_sec as i64],
+        )?;
+
+        // Update track's last_played_at
+        let _ = conn.execute(
+            "UPDATE tracks SET last_played_at = ?1 WHERE id = ?2",
+            params![now, track_id],
+        );
+
+        Ok(conn.last_insert_rowid())
+    }
+
+    pub fn get_playback_history(
+        &self,
+        cabin_id: Option<&str>,
+        passenger_name: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<PlaybackHistoryEntry>, DbError> {
+        let conn = self.conn.lock().unwrap();
+
+        let mut query = String::from(
+            r#"
+            SELECT h.id, h.cabin_id, h.track_id, t.title, t.artist, h.passenger_name, h.played_at, h.duration_sec
+            FROM playback_history h
+            LEFT JOIN tracks t ON t.id = h.track_id
+            WHERE 1=1
+            "#,
+        );
+
+        let mut params_vec: Vec<rusqlite::types::Value> = Vec::new();
+
+        if let Some(cid) = cabin_id {
+            query.push_str(" AND h.cabin_id = ?");
+            params_vec.push(rusqlite::types::Value::Text(cid.to_string()));
+        }
+
+        if let Some(pname) = passenger_name {
+            query.push_str(" AND h.passenger_name = ?");
+            params_vec.push(rusqlite::types::Value::Text(pname.to_string()));
+        }
+
+        query.push_str(" ORDER BY h.played_at DESC, h.id DESC LIMIT ?");
+        params_vec.push(rusqlite::types::Value::Integer(limit as i64));
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params_vec), |row| {
+            let id: i64 = row.get(0)?;
+            let cabin_id: String = row.get(1)?;
+            let track_id: String = row.get(2)?;
+            let title: String = row.get::<_, Option<String>>(3)?.unwrap_or_else(|| track_id.clone());
+            let artist: String = row.get::<_, Option<String>>(4)?.unwrap_or_else(|| "Desconhecido".into());
+            let passenger_name: Option<String> = row.get(5)?;
+            let played_at: i64 = row.get(6)?;
+            let duration_sec: u64 = row.get::<_, Option<u64>>(7)?.unwrap_or(210);
+
+            Ok(PlaybackHistoryEntry {
+                id,
+                cabin_id,
+                track_id,
+                title,
+                artist,
+                passenger_name,
+                played_at,
+                duration_sec,
+            })
+        })?;
+
+        let mut entries = Vec::new();
+        for r in rows {
+            entries.push(r?);
+        }
+        Ok(entries)
     }
 
     pub fn add_passenger(
