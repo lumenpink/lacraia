@@ -322,3 +322,24 @@ To eliminate generic default Android icons and ensure native, professional prese
 4. **Binary Verification:**
    - Final signed APKs in `dist/` must contain valid entries for `res/mipmap-*/ic_launcher.png` and `res/mipmap-*/ic_launcher_round.png`.
 
+---
+
+## 15. Exclusive Player Tab and Touch Gestures Isolation (Ticket #36)
+
+To prevent mobile gesture conflicts, swipe interference, and pointer cancellations across playback buttons:
+1. **Stationary & Exclusive Deck 01 Layout:**
+   - In mobile viewports (`<= 859px`), `#deck-01` operates as a dedicated, anchored panel.
+   - Enforce `overscroll-behavior: contain;` and `overflow-x: hidden;` to lock against unintentional lateral drags and pull-to-refresh disruptions.
+2. **Transport Controls Touch Shielding:**
+   - All interactive playback triggers (`.transport-controls .btn`, `#btn-play-pause`, `#btn-prev`, `#btn-next`, `#btn-toggle-nonstop`):
+     - `touch-action: manipulation;` ensuring zero tap delay without triggering horizontal or vertical gesture cancellation.
+     - `user-select: none; -webkit-user-select: none;` preventing text selection outlines during repeated touches.
+     - `-webkit-tap-highlight-color: transparent;` eliminating mobile gray tap flashes.
+     - Minimum tap target height of 48px on mobile for ergonomic reliability.
+3. **Seek Track & Gain Slider Calibration:**
+   - Volume / Gain slider (`.gain-slider`): explicit `touch-action: pan-x;` allowing horizontal volume adjustments without initiating accidental page scrolling.
+   - Seek progress bar (`.progress-track`): explicit `touch-action: none;` for discrete, instantaneous track seeking.
+4. **Explicit Tab Navigation Only:**
+   - Deck navigation between Deck 01 (Playback), Deck 02 (Queue), and Deck 03 (Cabin) is strictly bound to `#mobile-tabs` buttons (`.mobile-tab-btn`).
+   - No swipe listeners or gesture carousels are permitted across the player workspace.
+
