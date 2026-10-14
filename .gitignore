@@ -34,3 +34,4 @@ cache/
 *.sqlite-shm
 rustypipe_cache.json
 
+dist/

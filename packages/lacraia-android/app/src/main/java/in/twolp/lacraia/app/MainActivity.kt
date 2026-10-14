@@ -1,4 +1,4 @@
-package in._2lp.lacraia.app
+package `in`.twolp.lacraia.app
 
 import android.annotation.SuppressLint
 import android.os.Bundle

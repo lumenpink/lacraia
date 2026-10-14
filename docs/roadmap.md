@@ -155,10 +155,10 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
 
 ### Ticket #27: Workspace Android Multi-Módulo, APK de Produção La Craia App e Simbiótyka
 * **Package:** Android & CI (`packages/lacraia-android`, `.forgejo`, `site`, `docs`)
-* **Goal:** Migrar o projeto Android para uma estrutura multi-módulo oficial com pacotes derivados do domínio `lacraia.2lp.in` (`in._2lp.lacraia.app` e `in._2lp.lacraia.simbiotyka`), gerando APKs de produção (`lacraia-app.apk` e `simbiotyka.apk`), e atualizar o nome oficial do HUD para Simbiótyka com múltiplos cenários de uso na documentação.
+* **Goal:** Migrar o projeto Android para uma estrutura multi-módulo oficial com pacotes derivados do domínio `lacraia.2lp.in` (`in.twolp.lacraia.app` e `in.twolp.lacraia.simbiotyka`), gerando APKs de produção (`lacraia-app.apk` e `simbiotyka.apk`), e atualizar o nome oficial do HUD para Simbiótyka com múltiplos cenários de uso na documentação.
 * **Acceptance Criteria:**
-  - **Módulo `:app` (`in._2lp.lacraia.app`):** Aplicativo nativo completo para motorista/passageiro, com fullscreen imersivo, integração MediaSession e cockpit automotivo. Gera `lacraia-app.apk`.
-  - **Módulo `:simbiotyka` (`in._2lp.lacraia.simbiotyka`):** Serviço de HUD flutuante de letras sincronizadas sobre navegação GPS, renomeado para Simbiótyka (`SimbiotykaService`). Gera `simbiotyka.apk`.
+  - **Módulo `:app` (`in.twolp.lacraia.app`):** Aplicativo nativo completo para motorista/passageiro, com fullscreen imersivo, integração MediaSession e cockpit automotivo. Gera `lacraia-app.apk`.
+  - **Módulo `:simbiotyka` (`in.twolp.lacraia.simbiotyka`):** Serviço de HUD flutuante de letras sincronizadas sobre navegação GPS, renomeado para Simbiótyka (`SimbiotykaService`). Gera `simbiotyka.apk`.
   - **APKs de Produção:** Configuração de release signing no Gradle e pipeline do Forgejo (`ci.yml`) para compilar sem sufixo `.debug`.
   - **Hub de Downloads do Site:** Botões dedicados para `[ BAIXAR LA CRAIA APP ]` e `[ BAIXAR SIMBIÓTYKA ]`.
   - **Documentação de Casos de Uso:** Especificação expandida em `docs/hud.md` detalhando navegação em trânsito, viagens em van/caronas, karaokê offline de serra e captura agnóstica de reprodutores de áudio.

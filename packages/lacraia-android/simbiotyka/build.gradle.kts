@@ -1,10 +1,11 @@
+import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
 android {
-    namespace = "in._2lp.lacraia.simbiotyka"
+    namespace = "in.twolp.lacraia.simbiotyka"
     compileSdk = 34
 
     defaultConfig {
@@ -25,7 +26,7 @@ android {
             val debugKeystore = file("$userHome/.android/debug.keystore")
 
             if (keystoreProps.exists() && releaseKeystore.exists()) {
-                val props = java.util.Properties().apply {
+                val props = Properties().apply {
                     keystoreProps.inputStream().use { load(it) }
                 }
                 storeFile = releaseKeystore

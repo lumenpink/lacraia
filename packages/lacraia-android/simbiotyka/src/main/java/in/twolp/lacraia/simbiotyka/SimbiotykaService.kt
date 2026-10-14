@@ -1,4 +1,4 @@
-package in._2lp.lacraia.simbiotyka
+package `in`.twolp.lacraia.simbiotyka
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -11,7 +11,7 @@ import android.os.IBinder
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 
-class LacraiaHudService : Service() {
+class SimbiotykaService : Service() {
 
     private var windowManager: WindowManager? = null
     private var hudViewController: HudViewController? = null

@@ -1,7 +1,7 @@
 # Simbiótyka: Android HUD Micro-App (`packages/lacraia-android/simbiotyka`)
 
 * **Component:** Floating Heads-Up Display (HUD) overlay and GPS audio-ducking companion
-* **Package / Namespace:** `in._2lp.lacraia.simbiotyka`
+* **Package / Namespace:** `in.twolp.lacraia.simbiotyka`
 * **Artifact:** `simbiotyka.apk` (Production Release)
 * **Language:** Kotlin
 * **Compatibility:** Min SDK 26 (Android 8.0 Oreo) | Target SDK 34 (Android 14)

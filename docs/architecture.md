@@ -65,8 +65,8 @@ The repository is structured as a monorepo with Rust crates and an Android Kotli
 * **`packages/lacraia-core` (Rust Crate):** Backend orchestrator running on the Linux host server. Handles track resolution, disk caching in Opus, SQLite state storage, and WebSocket broadcasts.
 * **`packages/lacraia-app` (Rust / Dioxus Crate):** Soundwall console player supporting both native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets (WASM/PWA). Acts as the track library, playlist controller, and audio engine.
 * **`packages/lacraia-android` (Android Kotlin Multi-Module Workspace):**
-  * **`:app` (`in._2lp.lacraia.app`):** Native Android Console & Jukebox application (`lacraia-app.apk`) with high-contrast tactile immersion, MediaSession background playback, cabin onboarding and crew interaction.
-  * **`:simbiotyka` (`in._2lp.lacraia.simbiotyka`):** Floating HUD companion (`simbiotyka.apk`) running as an Android Foreground Service. Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD over any third-party app or navigation interface via `WindowManager`.
+  * **`:app` (`in.twolp.lacraia.app`):** Native Android Console & Jukebox application (`lacraia-app.apk`) with high-contrast tactile immersion, MediaSession background playback, cabin onboarding and crew interaction.
+  * **`:simbiotyka` (`in.twolp.lacraia.simbiotyka`):** Floating HUD companion (`simbiotyka.apk`) running as an Android Foreground Service. Intercepts system media notifications, fetches synced `.lrc` lyrics from LRCLIB, and renders a floating pill HUD over any third-party app or navigation interface via `WindowManager`.
 
 ---
 

@@ -1,4 +1,4 @@
-package in._2lp.lacraia.simbiotyka
+package `in`.twolp.lacraia.simbiotyka
 
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -27,9 +27,9 @@ class MediaCaptureListener : NotificationListenerService() {
 
     companion object {
         const val TAG = "MediaCaptureListener"
-        const val ACTION_TOGGLE_PLAYBACK = "in._2lp.lacraia.simbiotyka.ACTION_TOGGLE_PLAYBACK"
-        const val ACTION_NEXT_TRACK = "in._2lp.lacraia.simbiotyka.ACTION_NEXT_TRACK"
-        const val ACTION_UPDATE_HUD = "in._2lp.lacraia.simbiotyka.ACTION_UPDATE_HUD"
+        const val ACTION_TOGGLE_PLAYBACK = "in.twolp.lacraia.simbiotyka.ACTION_TOGGLE_PLAYBACK"
+        const val ACTION_NEXT_TRACK = "in.twolp.lacraia.simbiotyka.ACTION_NEXT_TRACK"
+        const val ACTION_UPDATE_HUD = "in.twolp.lacraia.simbiotyka.ACTION_UPDATE_HUD"
         const val EXTRA_DISPLAY_TEXT = "extra_display_text"
         const val EXTRA_IS_MARQUEE = "extra_is_marquee"
         const val EXTRA_IS_PLAYING = "extra_is_playing"

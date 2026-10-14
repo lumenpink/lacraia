@@ -1,4 +1,4 @@
-package in._2lp.lacraia.simbiotyka
+package `in`.twolp.lacraia.simbiotyka
 
 import android.content.ContentValues
 import android.content.Context
