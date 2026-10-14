@@ -91,6 +91,11 @@ The workspace is organized into modular Rust crates and an Android Kotlin multi-
   - `:app` (`in.twolp.lacraia.app`): Full-screen tactile console and crew jukebox (`lacraia-app.apk`).
   - `:simbiotyka` (`in.twolp.lacraia.simbiotyka`): Floating lyric HUD overlay companion running as a Foreground Service (`simbiotyka.apk`).
 
+### 3.4.1 Canonical Package Architecture & Build Pipeline
+- **Unified Identifier:** All Android components are canonically anchored under `in.twolp.*` (`in.twolp.lacraia.app` and `in.twolp.lacraia.simbiotyka`). Legacy references to `in._2lp.*` are formally deprecated and eliminated.
+- **Service Binding:** The companion HUD service is canonically declared and bound as `in.twolp.lacraia.simbiotyka.SimbiotykaService`.
+- **Packaging & Signing:** Automated via `./gradlew assembleRelease` signed with the sovereign keystore `~/.android/in_twolp_release.keystore` (alias `in_twolp`) via APK Signature Scheme v2.
+
 ---
 
 ## 4. SQLite Storage and Acoustic Similarity Graph
