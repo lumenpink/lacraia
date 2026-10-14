@@ -109,13 +109,27 @@ else
     FAILURES=$((FAILURES + 1))
 fi
 
-# 7. Verificar que os APKs compilados contêm os recursos mipmap
-echo -n "-> 7. Verificando presença de ic_launcher nos APKs compilados... "
+# 7. Verificar que os APKs compilados contêm os recursos de ícone dedicados
+echo -n "-> 7. Verificando presença de ícones nos APKs compilados... "
 APK_ICONS_FAIL=0
+AAPT_BIN="/usr/lib/android-sdk/build-tools/34.0.0/aapt"
+if [ ! -x "$AAPT_BIN" ]; then
+    AAPT_BIN=$(command -v aapt || true)
+fi
+
 if [ -f "$DIST_DIR/lacraia-app.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
-    if ! unzip -l "$DIST_DIR/lacraia-app.apk" | grep -q "res/mipmap-.*ic_launcher.*\.png" || \
-       ! unzip -l "$DIST_DIR/simbiotyka.apk" | grep -q "res/mipmap-.*ic_launcher.*\.png"; then
-        APK_ICONS_FAIL=1
+    if [ -n "$AAPT_BIN" ] && [ -x "$AAPT_BIN" ]; then
+        APP_ICONS=$("$AAPT_BIN" dump badging "$DIST_DIR/lacraia-app.apk" | grep -c "application-icon-" || true)
+        SIM_ICONS=$("$AAPT_BIN" dump badging "$DIST_DIR/simbiotyka.apk" | grep -c "application-icon-" || true)
+        if [ "$APP_ICONS" -eq 0 ] || [ "$SIM_ICONS" -eq 0 ]; then
+            APK_ICONS_FAIL=1
+        fi
+    else
+        APP_PNGS=$(unzip -l "$DIST_DIR/lacraia-app.apk" | grep -cE "res/.*\.png" || true)
+        SIM_PNGS=$(unzip -l "$DIST_DIR/simbiotyka.apk" | grep -cE "res/.*\.png" || true)
+        if [ "$APP_PNGS" -eq 0 ] || [ "$SIM_PNGS" -eq 0 ]; then
+            APK_ICONS_FAIL=1
+        fi
     fi
 else
     APK_ICONS_FAIL=1
