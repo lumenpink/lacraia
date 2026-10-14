@@ -298,3 +298,27 @@ To ensure autonomous, self-updating delivery across smartphones and vehicular so
    - MIME type headers configured via `site/_headers` (`application/vnd.android.package-archive` and `Access-Control-Allow-Origin: *`).
    - Version manifests (`site/version.json` and `site/version-nightly.json`) preserve compatibility with Obtainium and standalone JSON updaters.
 
+---
+
+## 14. Android Visual Identity and Launcher Metadata (Ticket #34)
+
+To eliminate generic default Android icons and ensure native, professional presentation across Android Launchers, App Drawers, and sovereign stores like Droid-ify / A Pratilera:
+1. **Dedicated Resource Hierarchy:**
+   - Both `packages/lacraia-android/app` (`in.twolp.lacraia.app`) and `packages/lacraia-android/simbiotyka` (`in.twolp.lacraia.simbiotyka`) must provide dedicated mipmap density assets under `src/main/res/`:
+     - `mipmap-mdpi`: 48 × 48 px (`ic_launcher.png`, `ic_launcher_round.png`)
+     - `mipmap-hdpi`: 72 × 72 px (`ic_launcher.png`, `ic_launcher_round.png`)
+     - `mipmap-xhdpi`: 96 × 96 px (`ic_launcher.png`, `ic_launcher_round.png`)
+     - `mipmap-xxhdpi`: 144 × 144 px (`ic_launcher.png`, `ic_launcher_round.png`)
+     - `mipmap-xxxhdpi`: 192 × 192 px (`ic_launcher.png`, `ic_launcher_round.png`)
+2. **Round Icon Masking:**
+   - Circular variants (`ic_launcher_round.png`) are cropped with an anti-aliased circular alpha mask to conform with Android 7.1+ launcher standards.
+3. **Manifest Integration:**
+   - `AndroidManifest.xml` in each module must declare:
+     ```xml
+     android:icon="@mipmap/ic_launcher"
+     android:roundIcon="@mipmap/ic_launcher_round"
+     ```
+   - Any reference to system placeholder `@android:drawable/sym_def_app_icon` is strictly prohibited.
+4. **Binary Verification:**
+   - Final signed APKs in `dist/` must contain valid entries for `res/mipmap-*/ic_launcher.png` and `res/mipmap-*/ic_launcher_round.png`.
+
