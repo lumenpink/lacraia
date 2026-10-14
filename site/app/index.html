@@ -458,6 +458,9 @@
       border: 1px solid var(--borda-chassi);
       position: relative;
       cursor: pointer;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .progress-fill {
@@ -503,6 +506,9 @@
       gap: 6px;
       transition: all 0.1s ease;
       touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .btn:active {
@@ -573,6 +579,7 @@
       background: var(--concreto-rachado);
       border: 1px solid var(--borda-chassi);
       outline: none;
+      touch-action: pan-x;
     }
 
     .gain-slider::-webkit-slider-thumb {
@@ -1009,6 +1016,11 @@
       z-index: 50;
     }
 
+    #deck-01 {
+      overscroll-behavior: contain;
+      overflow-x: hidden;
+    }
+
     @media (max-width: 859px) {
       .mobile-tabs {
         display: flex;
@@ -1016,8 +1028,17 @@
       .cockpit-panel.mobile-hidden {
         display: none !important;
       }
+      #deck-01 {
+        overscroll-behavior: contain;
+        overflow-x: hidden;
+        touch-action: pan-y;
+      }
+      .transport-controls .btn {
+        min-height: 48px;
+        font-size: 13px;
+      }
       .btn {
-        min-height: 44px;
+        min-height: 48px;
       }
       .enqueue-input {
         min-height: 44px;
