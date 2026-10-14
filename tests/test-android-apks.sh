@@ -64,6 +64,70 @@ else
     FAILURES=$((FAILURES + 1))
 fi
 
+# 5. Verificar recursos mipmap em todas as densidades para app e simbiotyka
+echo -n "-> 5. Verificando estrutura de mipmaps (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi)... "
+MIPMAP_FAIL=0
+for mod in "app" "simbiotyka"; do
+    for density in "mdpi" "hdpi" "xhdpi" "xxhdpi" "xxxhdpi"; do
+        for icon in "ic_launcher.png" "ic_launcher_round.png"; do
+            target="$ANDROID_DIR/$mod/src/main/res/mipmap-$density/$icon"
+            if [ ! -f "$target" ] || [ ! -s "$target" ]; then
+                MIPMAP_FAIL=1
+                break 3
+            fi
+        done
+    done
+done
+
+if [ "$MIPMAP_FAIL" -eq 0 ]; then
+    echo "✅ OK (todos os mipmaps presentes e não vazios)"
+else
+    echo "❌ FALHOU (mipmaps ausentes em app ou simbiotyka)"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# 6. Verificar que AndroidManifest.xml referencia @mipmap/ic_launcher e não o genérico
+echo -n "-> 6. Verificando AndroidManifest.xml dos módulos app e simbiotyka... "
+MANIFEST_FAIL=0
+for mod in "app" "simbiotyka"; do
+    manifest="$ANDROID_DIR/$mod/src/main/AndroidManifest.xml"
+    if grep -q "@android:drawable/sym_def_app_icon" "$manifest"; then
+        MANIFEST_FAIL=1
+    fi
+    if ! grep -q 'android:icon="@mipmap/ic_launcher"' "$manifest"; then
+        MANIFEST_FAIL=1
+    fi
+    if ! grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' "$manifest"; then
+        MANIFEST_FAIL=1
+    fi
+done
+
+if [ "$MANIFEST_FAIL" -eq 0 ]; then
+    echo "✅ OK (manifestos utilizam @mipmap/ic_launcher e @mipmap/ic_launcher_round)"
+else
+    echo "❌ FALHOU (manifestos ainda contêm ícones genéricos ou faltam declarações @mipmap)"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# 7. Verificar que os APKs compilados contêm os recursos mipmap
+echo -n "-> 7. Verificando presença de ic_launcher nos APKs compilados... "
+APK_ICONS_FAIL=0
+if [ -f "$DIST_DIR/lacraia-app.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
+    if ! unzip -l "$DIST_DIR/lacraia-app.apk" | grep -q "res/mipmap-.*ic_launcher.*\.png" || \
+       ! unzip -l "$DIST_DIR/simbiotyka.apk" | grep -q "res/mipmap-.*ic_launcher.*\.png"; then
+        APK_ICONS_FAIL=1
+    fi
+else
+    APK_ICONS_FAIL=1
+fi
+
+if [ "$APK_ICONS_FAIL" -eq 0 ]; then
+    echo "✅ OK (recursos de ícone embutidos nos binários APK)"
+else
+    echo "❌ FALHOU (recursos de ícone ausentes no pacote APK)"
+    FAILURES=$((FAILURES + 1))
+fi
+
 echo "================================================================="
 if [ $FAILURES -eq 0 ]; then
     echo "🎉 TODOS OS TESTES ANDROID PASSARAM!"
