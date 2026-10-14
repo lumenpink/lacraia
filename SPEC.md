@@ -343,3 +343,17 @@ To prevent mobile gesture conflicts, swipe interference, and pointer cancellatio
    - Deck navigation between Deck 01 (Playback), Deck 02 (Queue), and Deck 03 (Cabin) is strictly bound to `#mobile-tabs` buttons (`.mobile-tab-btn`).
    - No swipe listeners or gesture carousels are permitted across the player workspace.
 
+---
+
+## 16. Mobile Viewport Horizontal Containment and Overflow Prevention (Ticket #35)
+
+To prevent horizontal drift, layout distortion, and unwanted lateral scrolling across smartphones:
+1. **Global Viewport Boundary Constraints:**
+   - `html`, `body`, `header`, `main`, and `.cockpit-panel` must enforce `max-width: 100vw; overflow-x: hidden;` with `box-sizing: border-box`.
+2. **Intrinsic Flexbox Min-Width Reset:**
+   - To counteract CSS flex/grid default `min-width: auto`, all cockpit panels (`.cockpit-panel`), inner bodies (`.panel-body`), queue rows (`.queue-item-row`), and search wrappers (`.enqueue-box`, `.jukebox-search-wrapper`) must declare `min-width: 0; max-width: 100%`.
+3. **Adaptive Mobile Padding:**
+   - In viewports `<= 859px`, padding is bounded: `main` at 8px, `.panel-body` at 12px, protecting interactive usable width on narrow displays (down to 320px).
+4. **Zero-Overflow Validation Mandate:**
+   - Automated headless browser auditing across Deck 01, Deck 02, and Deck 03 at 320px, 360px, 375px, and 412px viewports must certify zero overflowing elements (`rect.right <= docWidth + 0.5`).
+
