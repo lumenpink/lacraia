@@ -806,6 +806,7 @@ fn App() -> Element {
                             for p in crew.iter() {
                                 {
                                     let pid = p.id.clone();
+                                    let pid_to_eject = pid.clone();
                                     let pname = p.name.clone();
                                     let device_name = p.device.clone().unwrap_or_else(|| "Dispositivo".into());
                                     rsx! {
@@ -816,7 +817,7 @@ fn App() -> Element {
                                             button {
                                                 class: "btn-eject",
                                                 onclick: move |_| {
-                                                    player_state.write().crew.retain(|item| item.id != pid);
+                                                    player_state.write().crew.retain(|item| item.id != pid_to_eject);
                                                 },
                                                 "[ 👢 CHUTAR ]"
                                             }

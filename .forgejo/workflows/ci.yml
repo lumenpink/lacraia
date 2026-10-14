@@ -87,10 +87,15 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: "Setup Keystore for Production Signing"
+      - name: "Verify Keystore for Production Signing"
         run: |
-          mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=LaCraia,C=BR" || true
+          if [ -f "$HOME/.android/in_twolp_release.keystore" ] && [ -f "$HOME/.android/in_twolp_release.properties" ]; then
+            echo "✅ Keystore soberana oficial detectada em $HOME/.android/in_twolp_release.keystore"
+          else
+            echo "::warning::Keystore soberana não detectada, criando keystore de desenvolvimento temporária"
+            mkdir -p ~/.android
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=LaCraia,C=BR" || true
+          fi
 
       - name: "Test & Assemble Production APKs"
         run: |
@@ -111,6 +116,10 @@ jobs:
             cp simbiotyka/build/outputs/apk/debug/simbiotyka-debug.apk ../../dist/simbiotyka.apk
           fi
           ls -lh ../../dist/*.apk
+          echo "Verificando assinaturas dos APKs:"
+          for apk in ../../dist/*.apk; do
+            apksigner verify --print-certs "$apk" || true
+          done
 
       - name: "Upload Android APK Artifacts"
         uses: actions/upload-artifact@v4
