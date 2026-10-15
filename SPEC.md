@@ -300,7 +300,7 @@ To ensure autonomous, self-updating delivery across smartphones and vehicular so
 
 ---
 
-## 14. Android Visual Identity and Launcher Metadata (Ticket #34)
+## 14. Android Visual Identity and Launcher Metadata (Tickets #34 & #44)
 
 To eliminate generic default Android icons and ensure native, professional presentation across Android Launchers, App Drawers, and sovereign stores like Droid-ify / A Pratilera:
 1. **Dedicated Resource Hierarchy:**
@@ -310,16 +310,20 @@ To eliminate generic default Android icons and ensure native, professional prese
      - `mipmap-xhdpi`: 96 × 96 px (`ic_launcher.png`, `ic_launcher_round.png`)
      - `mipmap-xxhdpi`: 144 × 144 px (`ic_launcher.png`, `ic_launcher_round.png`)
      - `mipmap-xxxhdpi`: 192 × 192 px (`ic_launcher.png`, `ic_launcher_round.png`)
-2. **Round Icon Masking:**
+2. **App-Specific Vector Visual Identities (Ticket #44):**
+   - **Lacraia (`in.twolp.lacraia.app`):** Canonical vector cyber-centipede avatar: dark graphite armor chassis (`#151618`), neon electric venom antennae (`#d4ff00`) with generous clearance/breathing room from outer boundaries, neon fuchsia pincer forcípulas (`#ff0055`), and fluorescent ocelli.
+   - **Simbiótyka (`in.twolp.lacraia.simbiotyka`):** Derived from the Lacraia avatar, augmented with frameless angular crimson red sunglasses inspired by Kamina (`#f50f26`) featuring a distinct four-pointed anime star flash gleam, replacing legacy mock HUD imagery.
+   - **Color Depth & Formats:** Strict 8-bit RGBA depth per channel (Android Skia / Coil compliant) without 16-bit color allocations.
+3. **Round Icon Masking:**
    - Circular variants (`ic_launcher_round.png`) are cropped with an anti-aliased circular alpha mask to conform with Android 7.1+ launcher standards.
-3. **Manifest Integration:**
+4. **Manifest Integration:**
    - `AndroidManifest.xml` in each module must declare:
      ```xml
      android:icon="@mipmap/ic_launcher"
      android:roundIcon="@mipmap/ic_launcher_round"
      ```
    - Any reference to system placeholder `@android:drawable/sym_def_app_icon` is strictly prohibited.
-4. **Binary Verification:**
+5. **Binary Verification:**
    - Final signed APKs in `dist/` must contain valid entries for `res/mipmap-*/ic_launcher.png` and `res/mipmap-*/ic_launcher_round.png`.
 
 ---
