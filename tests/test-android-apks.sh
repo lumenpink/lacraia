@@ -142,6 +142,76 @@ else
     FAILURES=$((FAILURES + 1))
 fi
 
+# 8. Verificar integridade e especificações visuais de alta definição dos ícones (Ticket #44)
+echo -n "-> 8. Verificando especificações visuais de alta definição e 8-bit RGBA (Ticket #44)... "
+PYTHON_ICON_TEST=$(python3 -c '
+import sys
+from PIL import Image
+from pathlib import Path
+
+repo_root = Path("'"$REPO_ROOT"'")
+android_dir = repo_root / "packages" / "lacraia-android"
+
+densities = {
+    "mdpi": (48, 48),
+    "hdpi": (72, 72),
+    "xhdpi": (96, 96),
+    "xxhdpi": (144, 144),
+    "xxxhdpi": (192, 192)
+}
+
+errors = []
+
+for mod in ["app", "simbiotyka"]:
+    for dens, size in densities.items():
+        for icon_name in ["ic_launcher.png", "ic_launcher_round.png"]:
+            path = android_dir / mod / "src" / "main" / "res" / f"mipmap-{dens}" / icon_name
+            if not path.exists():
+                errors.append(f"Missing: {path}")
+                continue
+            with Image.open(path) as im:
+                if im.size != size:
+                    errors.append(f"Bad size for {path}: expected {size}, got {im.size}")
+                if im.mode != "RGBA":
+                    errors.append(f"Bad mode for {path}: expected RGBA, got {im.mode}")
+
+# Verificar que Simbiótyka possui os óculos do Kamina em vermelho escarlate
+sim_path = android_dir / "simbiotyka" / "src" / "main" / "res" / "mipmap-xxhdpi" / "ic_launcher.png"
+if sim_path.exists():
+    with Image.open(sim_path) as im:
+        pixels = list(im.getdata())
+        # Procurar pixels vermelhos escarlate do Kamina (R > 220, G < 50, B < 60)
+        has_kamina_red = any(r > 220 and g < 50 and b < 60 and a > 200 for (r, g, b, a) in pixels)
+        if not has_kamina_red:
+            errors.append("Simbiotyka icon does not contain Kamina red lenses!")
+
+# Verificar que Lacraia app não é o mock minúsculo
+app_path = android_dir / "app" / "src" / "main" / "res" / "mipmap-xxhdpi" / "ic_launcher.png"
+if app_path.exists():
+    with Image.open(app_path) as im:
+        pixels = list(im.getdata())
+        # Verificar presença de amarelo veneno elétrico (#d4ff00)
+        has_venom = any(r > 190 and g > 230 and b < 40 and a > 200 for (r, g, b, a) in pixels)
+        # Verificar presença de fúcsia (#ff0055)
+        has_fucsia = any(r > 230 and g < 30 and b > 70 and a > 200 for (r, g, b, a) in pixels)
+        if not (has_venom and has_fucsia):
+            errors.append("Lacraia app icon missing venom yellow or fuchsia chitin elements!")
+
+if errors:
+    print("; ".join(errors[:3]))
+    sys.exit(1)
+else:
+    print("OK")
+    sys.exit(0)
+' || true)
+
+if [ "$PYTHON_ICON_TEST" = "OK" ]; then
+    echo "✅ OK (resoluções, 8-bit RGBA e paletas do Kamina e Lacraia conformes)"
+else
+    echo "❌ FALHOU ($PYTHON_ICON_TEST)"
+    FAILURES=$((FAILURES + 1))
+fi
+
 echo "================================================================="
 if [ $FAILURES -eq 0 ]; then
     echo "🎉 TODOS OS TESTES ANDROID PASSARAM!"
@@ -150,3 +220,4 @@ else
     echo "💥 $FAILURES TESTE(S) FALHARAM."
     exit 1
 fi
+
