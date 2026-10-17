@@ -361,3 +361,14 @@ To prevent horizontal drift, layout distortion, and unwanted lateral scrolling a
 4. **Zero-Overflow Validation Mandate:**
    - Automated headless browser auditing across Deck 01, Deck 02, and Deck 03 at 320px, 360px, 375px, and 412px viewports must certify zero overflowing elements (`rect.right <= docWidth + 0.5`).
 
+---
+
+## 17. Distribuição Automática no Cloudflare R2 e Notificação à Pratilera (Ticket #45)
+
+Para garantir que os binários da Lacraia e Simbiótyka sejam entregues soberanamente pelo bucket R2 e que a loja oficial Pratilera (`banca`) seja atualizada automaticamente a cada push na branch `main`:
+1. **Publicação no Bucket R2 (`twolp-bucket`)**:
+   - `dist/lacraia.apk` é publicado em `twolp-bucket/lacraia.apk`.
+   - `dist/simbiotyka.apk` é publicado em `twolp-bucket/simbiotyka.apk`.
+2. **Gatilho de Atualização da Pratilera**:
+   - O pipeline aciona a API de workflow dispatch da Banca via `POST https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches` com `CODEBERG_TOKEN`.
+
