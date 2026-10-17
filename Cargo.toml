@@ -10,7 +10,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 authors = ["Lumen Pink <hi@lumen.pink>"]
-license = "MIT"
+license = "GPL-3.0-or-later"
 repository = "https://codeberg.org/lumenpink/lacraia"
 
 [workspace.dependencies]
