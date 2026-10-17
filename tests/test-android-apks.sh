@@ -212,6 +212,23 @@ else
     FAILURES=$((FAILURES + 1))
 fi
 
+# 10. Verificar automação de publicação no R2 e dispatch da Banca no CI
+echo -n "-> 10. Verificando R2 (twolp-bucket) e dispatch da Banca no CI... "
+CI_WORKFLOW="$REPO_ROOT/.forgejo/workflows/ci.yml"
+if [ -f "$CI_WORKFLOW" ]; then
+    if grep -q "twolp-bucket" "$CI_WORKFLOW" && \
+       grep -q "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches" "$CI_WORKFLOW" && \
+       grep -q "CODEBERG_TOKEN" "$CI_WORKFLOW"; then
+        echo "✅ OK (R2 e dispatch configurados no CI)"
+    else
+        echo "❌ FALHOU (R2 twolp-bucket ou dispatch da banca ausentes no CI)"
+        FAILURES=$((FAILURES + 1))
+    fi
+else
+    echo "❌ FALHOU (.forgejo/workflows/ci.yml ausente)"
+    FAILURES=$((FAILURES + 1))
+fi
+
 echo "================================================================="
 if [ $FAILURES -eq 0 ]; then
     echo "🎉 TODOS OS TESTES ANDROID PASSARAM!"
