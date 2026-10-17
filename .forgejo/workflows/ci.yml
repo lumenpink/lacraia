@@ -206,6 +206,37 @@ jobs:
             npx wrangler deploy || echo "::warning::Cloudflare deployment failed, proceeding to Codeberg Pages fallback."
           fi
 
+      - name: "Upload APKs to Cloudflare R2"
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "Publishing APKs to Sovereign R2 Bucket (twolp-bucket / bucket.2lp.in)..."
+            if [ -f site/lacraia.apk ]; then
+              npx wrangler r2 object put "twolp-bucket/lacraia.apk" --file="site/lacraia.apk" --remote || true
+            elif [ -f dist/lacraia-app.apk ]; then
+              npx wrangler r2 object put "twolp-bucket/lacraia.apk" --file="dist/lacraia-app.apk" --remote || true
+            fi
+            if [ -f site/simbiotyka.apk ]; then
+              npx wrangler r2 object put "twolp-bucket/simbiotyka.apk" --file="site/simbiotyka.apk" --remote || true
+            elif [ -f dist/simbiotyka.apk ]; then
+              npx wrangler r2 object put "twolp-bucket/simbiotyka.apk" --file="dist/simbiotyka.apk" --remote || true
+            fi
+          fi
+
+      - name: "Trigger Pratilera Store Update"
+        env:
+          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+        run: |
+          if [ -n "$CODEBERG_TOKEN" ]; then
+            echo "-> Notificando a Pratilera (Banca) para atualizar o catálogo..."
+            curl -s -X POST \
+              -H "Authorization: token $CODEBERG_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches" \
+              -d '{"ref": "main"}' || true
+          else
+            echo "CODEBERG_TOKEN ausente, pulando disparo remoto da Pratilera."
+          fi
+
       - name: "Deploy to Codeberg Pages (Redundancy Fallback)"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
