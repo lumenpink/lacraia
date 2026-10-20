@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (ci) continuous deployment soberano no obizero sem watchtower (closes #53)
   - (updater) integrar publicacao na banca e auto-atualizacao opendesktop xdg (closes #52)
   - (spec) add GOST-compliant technical specification SPEC-01 (#29)
   - (audio) implement real-time 32-bar biomechanical spectrum visualizer (#16)
