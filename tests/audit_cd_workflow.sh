@@ -55,6 +55,16 @@ if grep -q "watchtower" "$TMP_MUTANT"; then
     echo "  [PASS] Mutante A (reintrodução de Watchtower) isolado"
 fi
 
+grep -v "prune -f" "$WORKFLOW" > "$TMP_MUTANT"
+if ! grep -q "prune -f" "$TMP_MUTANT"; then
+    echo "  [PASS] Mutante B (omissão de prune) isolado"
+fi
+
+grep -v "docker inspect" "$WORKFLOW" > "$TMP_MUTANT"
+if ! grep -q "docker inspect" "$TMP_MUTANT"; then
+    echo "  [PASS] Mutante C (omissão de healthcheck) isolado"
+fi
+
 if [ $FAILED -ne 0 ]; then
     echo "❌ [RED TEST] Auditoria falhou: workflow ainda contém Watchtower ou falta CD local."
     exit 1
