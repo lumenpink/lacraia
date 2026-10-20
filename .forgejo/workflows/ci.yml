@@ -331,28 +331,23 @@ jobs:
           git tag -a nightly -m "Nightly build - $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
           git push origin nightly
 
-      - name: "Publish Nightly Release"
+      - name: "Publish Nightly Release (Sovereign Banca Links, Zero Binaries in Git)"
         if: github.ref == 'refs/heads/main'
         uses: https://github.com/softprops/action-gh-release@v2
         with:
           tag_name: "nightly"
           name: "Nightly Build ($(git rev-parse --short HEAD))"
           prerelease: true
-          files: |
-            dist/lacraia-app.apk
-            dist/simbiotyka.apk
-            dist/lacraia-core-linux-x86_64
-            dist/lacraia-app-linux-x86_64
-            dist/*.tar.gz
-            dist/checksums.sha256
           body: |
             Automated rolling nightly build from branch `main` at commit `${{ github.sha }}`.
 
-            ### Download Direto dos Pacotes de Produção
-            * 📱 **La Craia App (Cockpit & Jukebox):** [`lacraia-app.apk`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-app.apk)
-            * 👁️ **Simbiótyka (HUD de Letras Sincronizadas):** [`simbiotyka.apk`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/simbiotyka.apk)
-            * 💻 **Desktop Linux (Cockpit Nativo):** [`lacraia-app-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-app-linux-x86_64)
-            * 🎛️ **Server Daemon (Debian/Alpine):** [`lacraia-core-linux-x86_64`](https://codeberg.org/${{ github.repository }}/releases/download/nightly/lacraia-core-linux-x86_64)
+            ### Download Direto dos Pacotes Soberanos na Banca (`banca.2lp.in`)
+            * 📱 **La Craia App (Cockpit & Jukebox APK):** [`lacraia-app.apk`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-app.apk)
+            * 👁️ **Simbiótyka (HUD de Letras Sincronizadas APK):** [`simbiotyka.apk`](https://banca.2lp.in/downloads/lacraia/nightly-latest/simbiotyka.apk)
+            * 💻 **Desktop Linux (Cockpit Nativo):** [`lacraia-app-linux-x86_64`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-app)
+            * 🎛️ **Server Daemon (Core Engine):** [`lacraia-core-linux-x86_64`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-core)
+            * 📦 **Tarball Completo:** [`lacraia-nightly-linux-x86_64.tar.gz`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-linux-x86_64.tar.gz)
+            * 📜 **Manifesto Atômico:** [`index.json`](https://banca.2lp.in/downloads/lacraia/index.json)
 
       # ── Official Release (Tags v*) ──
       - name: "Extract Release Notes"
@@ -381,19 +376,12 @@ jobs:
             echo "- La Craia production release $TAG with pre-cached audio engine and Simbiótyka companion HUD." > /tmp/release_notes.md
           fi
 
-      - name: "Publish Official Release"
+      - name: "Publish Official Release (Sovereign Banca Links, Zero Binaries in Git)"
         if: startsWith(github.ref, 'refs/tags/v')
         uses: https://github.com/softprops/action-gh-release@v2
         with:
           tag_name: "${{ github.ref_name }}"
           name: "${{ steps.notes.outputs.title }}"
-          files: |
-            dist/lacraia-app.apk
-            dist/simbiotyka.apk
-            dist/lacraia-core-linux-x86_64
-            dist/lacraia-app-linux-x86_64
-            dist/*.tar.gz
-            dist/checksums.sha256
           body_path: /tmp/release_notes.md
 
   # ─────────────────────────────────────────────────────────────────────────────

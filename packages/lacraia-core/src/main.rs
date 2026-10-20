@@ -1,3 +1,6 @@
+pub mod cli;
+
+use cli::{handle_cli_args, spawn_startup_check};
 use lacraia_core::{
     build_app, AppState, CompositeSimilarityEngine, Database, MediaResolver, PlaybackHub,
     QueueDaemon,
@@ -9,6 +12,11 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if handle_cli_args(&args).await? {
+        return Ok(());
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -70,6 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    spawn_startup_check();
     info!("La Craia Core listening on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

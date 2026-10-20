@@ -33,3 +33,6 @@ async-trait = "0.1"
 futures = "0.3"
 uuid = { version = "1.8", features = ["v4"] }
 rustypipe = "0.11"
+semver = { workspace = true }
+tempfile = { workspace = true }
+toml = { workspace = true }
