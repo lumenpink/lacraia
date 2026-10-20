@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Features
+  - (updater) integrar publicacao na banca e auto-atualizacao opendesktop xdg (closes #52)
   - (spec) add GOST-compliant technical specification SPEC-01 (#29)
   - (audio) implement real-time 32-bar biomechanical spectrum visualizer (#16)
   - (branding) decouple automotive focus and universalize soundwall ecosystem (#28)
