@@ -53,7 +53,11 @@ pub fn semver_is_newer(remote: &str, current: &str) -> bool {
 pub async fn cmd_check_update(channel_opt: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     let channel = resolve_channel(channel_opt, None, None);
     let (_, _, ver_url, n_ver_url, _) = get_distribution_endpoints();
-    let target_url = if channel == "nightly" { n_ver_url } else { ver_url };
+    let target_url = if channel == "nightly" {
+        n_ver_url
+    } else {
+        ver_url
+    };
 
     println!("⚡ La Craia Updater // Banca Soberana 2lp.in");
     println!("Canal de Distribuição : {}", channel);
@@ -123,12 +127,10 @@ pub async fn cmd_update(
     }
 
     let channel = resolve_channel(channel_opt, None, None);
-    let effective_pin = pin_opt.or_else(|| {
-        if !update_cfg.pin.is_empty() {
-            Some(update_cfg.pin.as_str())
-        } else {
-            None
-        }
+    let effective_pin = pin_opt.or(if !update_cfg.pin.is_empty() {
+        Some(update_cfg.pin.as_str())
+    } else {
+        None
     });
 
     let download_url = get_download_url_for_channel(&channel, effective_pin);
@@ -224,10 +226,7 @@ pub fn cmd_config(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         "pin" => {
-            let ver = args
-                .get(1)
-                .map(String::as_str)
-                .unwrap_or(CURRENT_VERSION);
+            let ver = args.get(1).map(String::as_str).unwrap_or(CURRENT_VERSION);
             update_config_pin(ver, None)?;
             println!("✔ Versão fixada em v{}", ver.trim_start_matches('v'));
         }
@@ -335,7 +334,11 @@ pub fn spawn_startup_check() {
 
         let channel = resolve_channel(None, None, None);
         let (_, _, ver_url, n_ver_url, _) = get_distribution_endpoints();
-        let target_url = if channel == "nightly" { n_ver_url } else { ver_url };
+        let target_url = if channel == "nightly" {
+            n_ver_url
+        } else {
+            ver_url
+        };
 
         let client = match reqwest::Client::builder()
             .timeout(Duration::from_secs(3))

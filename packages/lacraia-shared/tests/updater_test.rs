@@ -19,10 +19,7 @@ fn test_xdg_paths_resolution() {
     let config_path = get_default_config_path();
     let state_path = get_default_state_path();
 
-    assert_eq!(
-        config_path,
-        xdg_config.join("lacraia").join("config.toml")
-    );
+    assert_eq!(config_path, xdg_config.join("lacraia").join("config.toml"));
     assert_eq!(
         state_path,
         xdg_state.join("lacraia").join("update_check.json")
@@ -74,7 +71,10 @@ fn test_config_mutation_helpers() {
     let config_file = temp.path().join("config.toml");
 
     update_config_set_channel("nightly", Some(&config_file)).unwrap();
-    assert_eq!(load_config(Some(&config_file)).update.unwrap().channel, "nightly");
+    assert_eq!(
+        load_config(Some(&config_file)).update.unwrap().channel,
+        "nightly"
+    );
 
     update_config_pin("0.1.99", Some(&config_file)).unwrap();
     let pinned_cfg = load_config(Some(&config_file)).update.unwrap();
@@ -107,7 +107,10 @@ fn test_channel_resolution_hierarchy() {
 
     // 1. Fallback / config
     std::env::remove_var("LACRAIA_CHANNEL");
-    assert_eq!(resolve_channel(None, None, Some(&config_file)), "config_chan");
+    assert_eq!(
+        resolve_channel(None, None, Some(&config_file)),
+        "config_chan"
+    );
 
     // 2. Env overrides config
     std::env::set_var("LACRAIA_CHANNEL", "env_chan");
@@ -167,13 +170,17 @@ fn test_banca_endpoints() {
         n_ver,
         "https://banca.2lp.in/downloads/lacraia/nightly-version"
     );
-    assert_eq!(manifest, "https://banca.2lp.in/downloads/lacraia/index.json");
+    assert_eq!(
+        manifest,
+        "https://banca.2lp.in/downloads/lacraia/index.json"
+    );
 }
 
 #[test]
 fn test_notice_formatting() {
     let startup_notice = format_startup_notice("lacraia", "stable", "0.1.0", "0.2.0");
-    assert!(startup_notice.contains("💡 [lacraia] Nova versão disponível no canal stable: v0.1.0 -> v0.2.0"));
+    assert!(startup_notice
+        .contains("💡 [lacraia] Nova versão disponível no canal stable: v0.1.0 -> v0.2.0"));
     assert!(startup_notice.contains("Execute 'lacraia update' para atualizar"));
 
     let auto_notice = format_auto_update_notice("lacraia", "0.1.0", "0.2.0");
