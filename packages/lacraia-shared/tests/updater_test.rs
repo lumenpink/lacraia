@@ -187,3 +187,36 @@ fn test_notice_formatting() {
     assert!(auto_notice.contains("✨ [lacraia] Atualização automática aplicada: v0.1.0 -> v0.2.0"));
     assert!(auto_notice.contains("A nova versão estará ativa na sua próxima execução"));
 }
+
+#[test]
+fn test_mutation_resistance() {
+    // Mutant A: Pinning with empty pin string but pinned == true
+    let pinned_flag_only = UpdateConfig {
+        pinned: true,
+        pin: String::new(),
+        ..Default::default()
+    };
+    assert!(can_update(&pinned_flag_only, false).is_err());
+
+    // Mutant B: Pinning with non-empty pin string but pinned == false
+    let pin_str_only = UpdateConfig {
+        pinned: false,
+        pin: "0.9.0".to_string(),
+        ..Default::default()
+    };
+    assert!(can_update(&pin_str_only, false).is_err());
+
+    // Mutant C: Cache expiration boundary at exact 24h
+    let state = UpdateState {
+        last_check_epoch: 1000,
+        latest_version: "0.2.0".to_string(),
+        channel: "stable".to_string(),
+    };
+    assert!(is_cache_expired(&state, 24, 1000 + 86400));
+    assert!(!is_cache_expired(&state, 24, 1000 + 86399));
+
+    // Mutant D: Channel case insensitivity
+    std::env::set_var("LACRAIA_CHANNEL", "NIGHTLY");
+    assert_eq!(resolve_channel(None, None, None), "nightly");
+    std::env::remove_var("LACRAIA_CHANNEL");
+}
