@@ -177,6 +177,43 @@ jobs:
             npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia.exe" --file=target/x86_64-pc-windows-gnu/release/lacraia-core.exe --remote
           fi
 
+      - name: "Publish Android APKs & Version Manifest (android-apks)"
+        run: |
+          mkdir -p dist site
+          # Gerenciamento de android-apks (lacraia-app.apk e simbiotyka.apk)
+          if [ -f packages/lacraia-android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp packages/lacraia-android/app/build/outputs/apk/release/app-release.apk dist/lacraia-app.apk
+          fi
+          if [ -f packages/lacraia-android/simbiotyka/build/outputs/apk/release/simbiotyka-release.apk ]; then
+            cp packages/lacraia-android/simbiotyka/build/outputs/apk/release/simbiotyka-release.apk dist/simbiotyka.apk
+          fi
+
+          cat <<EOF > site/version.json
+          {
+            "version": "${{ steps.meta.outputs.version }}",
+            "package_id": "in.twolp.lacraia.app",
+            "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
+            "apps": {
+              "lacraia-app": {
+                "apk_url": "https://lacraia.2lp.in/lacraia-app.apk"
+              },
+              "simbiotyka": {
+                "apk_url": "https://lacraia.2lp.in/simbiotyka.apk"
+              }
+            }
+          }
+          EOF
+
+          if [ -f dist/lacraia-app.apk ]; then
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${{ steps.meta.outputs.channel }}/lacraia-app.apk" --file=dist/lacraia-app.apk --remote || true
+          fi
+          if [ -f dist/simbiotyka.apk ]; then
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${{ steps.meta.outputs.channel }}/simbiotyka.apk" --file=dist/simbiotyka.apk --remote || true
+          fi
+          if [ -f site/version.json ]; then
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/version.json" --file=site/version.json --remote || true
+          fi
+
       - name: "Update & Rotate Release Manifest in Banca Repo"
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
