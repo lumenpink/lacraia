@@ -5,9 +5,9 @@
 [![Normative Standard: GOST 1.0](https://img.shields.io/badge/GOST-SPEC--01-ff0055.svg)](SPEC.md)
 [![Docs](https://img.shields.io/badge/docs-lacraia.2lp.in-green.svg)](https://lacraia.2lp.in)
 
-> **Autonomous Soundwall, Acoustic Affinity Radio & Symbiotic Lyric Ecosystem**
+> **Paredão de Som Livre, Rádio Viva no Talo & Letras no Ritmo da Batida**
 
-La Craia is a dissident audio suite integrating acoustic similarity streaming, proactive audio caching, and synchronized lyrics projected line-by-line via the Simbiótyka floating companion over any application or interface. Engineered for universal operation across Linux desktop, home servers, soundwalls, web, mobile, vans, and road trips.
+A **La Craia** é um manifesto sonoro de rua: rádio comunitária infinita, paredão de som livre e o aplicativo flutuante Simbiótyka que projeta as letras no compasso exato da música sobre qualquer tela. Feito pra tocar sem parar no Linux desktop, no servidor de casa, nos paredões de som, na van, nas viagens de estrada e no celular.
 
 ---
 
@@ -31,12 +31,12 @@ Alongside MC Serginho in the early 2000s, Lacraia electrified national stages an
 
 Far from accepting sanitization or conforming to commercial expectations, she weaponized performance and humor as pure freedom. In her later years, she sustained this underground energy as a resident electronic music DJ in Rio and São Paulo nightclubs.
 
-### Why La Craia?
+### Por Que La Craia?
 
-Our software ecosystem inherits her spirit:
-- **Autonomous & Peripheral:** Operating outside centralized streaming silos and corporate telemetry, built from the street up like a sound wall (*paredão*).
-- **Radical Joy & Speed:** Fast, responsive, low-latency audio delivery engineered with Rust and WebAssembly.
-- **Unapologetic Sovereignty:** Independent, decentralized, and community-driven.
+Nosso ecossistema musical herda a energia de Lacraia:
+- **Autonomia & Periferia:** Fora dos cercados dos algoritmos comerciais, construído da rua pro mundo como um paredão de som comunitário.
+- **Alegria Radical & Batida Rápida:** Sem engasgo, sem travamento, tocando música no talo com resposta imediata.
+- **Música Livre:** Independente, descentralizada e feita pras pessoas e pra festa.
 
 ---
 
