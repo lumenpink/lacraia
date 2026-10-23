@@ -130,8 +130,8 @@ def render_lacraia(with_kamina=False) -> Image.Image:
 
     # 7. Óculos do Kamina
     if with_kamina:
-        left_lens = [(512, 530), (160, 430), (320, 680)]
-        right_lens = [(512, 530), (864, 430), (704, 680)]
+        left_lens = [(512, 545), (160, 455), (320, 735)]
+        right_lens = [(512, 545), (864, 455), (704, 735)]
 
         shades_shadow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         d_sh = ImageDraw.Draw(shades_shadow)
@@ -145,7 +145,7 @@ def render_lacraia(with_kamina=False) -> Image.Image:
         d_sl.polygon(left_lens, fill=(245, 15, 38, 255))
         d_sl.polygon(right_lens, fill=(245, 15, 38, 255))
 
-        draw_anime_star_gleam(d_sl, cx=740, cy=475, radius=110)
+        draw_anime_star_gleam(d_sl, cx=740, cy=500, radius=110)
 
         im = Image.alpha_composite(im, shades_layer)
 
