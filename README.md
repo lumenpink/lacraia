@@ -87,6 +87,12 @@ cargo clippy --workspace
 
 # Run exhaustive Playwright E2E suite (18 comprehensive UI, audio, lookahead, and non-stop scenarios)
 node tests/e2e/run_tests.js
+
+# Build de release com LTO fat, strip e otimização de tamanho
+cargo build --release --workspace
+
+# Compilação estática universal (static-pie) contra musl libc
+cargo build --release --workspace --target x86_64-unknown-linux-musl
 ```
 
 ### Running Services
