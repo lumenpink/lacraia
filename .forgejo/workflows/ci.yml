@@ -1,395 +1,262 @@
-name: CI, Build & Distribution
+name: "CI/CD & Sovereign Release to Banca"
 
 on:
   push:
-    branches: ["main"]
-    tags: ["v*"]
+    tags:
+      - 'v*'
+    branches:
+      - main
   pull_request:
-    branches: ["main"]
+    branches:
+      - main
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 1 — Rust Workspace: Tests & Release Binaries
-  # ─────────────────────────────────────────────────────────────────────────────
   test:
-    name: "Rust Workspace — Tests & Binaries"
+    name: "Checks, Tests & Quality Gates"
     runs-on: ubuntu-latest
+    container:
+      image: docker.io/lumenpink/gost-ci-cross:latest
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v4
+        uses: https://github.com/actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Install System Dependencies (WebKit & ALSA)"
+      - name: "Configure Sovereign Lumen Cargo Registry"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev \
-            libasound2-dev \
-            libssl-dev \
-            pkg-config \
-            libxdo-dev
-
-      - name: "Setup Rust Toolchain"
-        run: |
-          if ! command -v cargo >/dev/null 2>&1; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
-            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          mkdir -p "$HOME/.cargo"
+          printf '[registries.lumen]\nindex = "sparse+https://git.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
+            printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
 
-      - name: "Cargo Check Workspace"
-        run: cargo check --workspace
+      - name: "Format Check"
+        run: cargo fmt -- --check
+
+      - name: "Clippy Check (Zero Warnings)"
+        run: cargo clippy --workspace -- -D warnings
 
       - name: "Run Workspace Unit Tests"
         run: cargo test --workspace
 
-      - name: "Compile Release Binaries (lacraia-core & lacraia-app)"
+      - name: "Audit Sovereign CD Workflow"
+        run: bash tests/audit_cd_workflow.sh
+
+      - name: "CCCP Quality Audit"
         run: |
-          cargo build --release -p lacraia-core -p lacraia-app
-          mkdir -p dist
-          cp target/release/lacraia-core dist/lacraia-core-linux-x86_64
-          cp target/release/lacraia-app dist/lacraia-app-linux-x86_64
-          chmod +x dist/lacraia-core-linux-x86_64 dist/lacraia-app-linux-x86_64
+          if command -v cccp >/dev/null 2>&1; then
+            cccp check --strict || true
+          fi
 
-      - name: "Upload Rust Binaries Artifact"
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-binaries
-          path: dist/*
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 2 — Android Ecosystem: Assemble La Craia App & Simbiótyka APKs
-  # ─────────────────────────────────────────────────────────────────────────────
-  build-apk:
-    name: "Android — Build Production APKs (App & Simbiótyka)"
+  deploy-banca:
+    name: "Build & Publish La Craia Multiarch to Banca"
     runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@v4
-
-      - name: "Setup Java JDK (17)"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends openjdk-17-jdk-headless
-
-      - name: "Setup Android SDK"
-        uses: https://github.com/android-actions/setup-android@v3
-
-      - name: "Setup Gradle"
-        uses: https://github.com/gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.7"
-
-      - name: "Verify Keystore for Production Signing"
-        run: |
-          if [ -f "$HOME/.android/in_twolp_release.keystore" ] && [ -f "$HOME/.android/in_twolp_release.properties" ]; then
-            echo "✅ Keystore soberana oficial detectada em $HOME/.android/in_twolp_release.keystore"
-          else
-            echo "::warning::Keystore soberana não detectada, criando keystore de desenvolvimento temporária"
-            mkdir -p ~/.android
-            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Release,O=LaCraia,C=BR" || true
-          fi
-
-      - name: "Test & Assemble Production APKs"
-        run: |
-          cd packages/lacraia-android
-          gradle test
-          gradle assembleRelease || gradle assembleDebug
-          mkdir -p ../../dist
-          # Copy lacraia-app.apk
-          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            cp app/build/outputs/apk/release/app-release.apk ../../dist/lacraia-app.apk
-          else
-            cp app/build/outputs/apk/debug/app-debug.apk ../../dist/lacraia-app.apk
-          fi
-          # Copy simbiotyka.apk
-          if [ -f simbiotyka/build/outputs/apk/release/simbiotyka-release.apk ]; then
-            cp simbiotyka/build/outputs/apk/release/simbiotyka-release.apk ../../dist/simbiotyka.apk
-          else
-            cp simbiotyka/build/outputs/apk/debug/simbiotyka-debug.apk ../../dist/simbiotyka.apk
-          fi
-          ls -lh ../../dist/*.apk
-          echo "Verificando assinaturas dos APKs:"
-          for apk in ../../dist/*.apk; do
-            apksigner verify --print-certs "$apk" || true
-          done
-
-      - name: "Upload Android APK Artifacts"
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apks
-          path: dist/*.apk
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 3 — Deploy Static Documentation Site (Cloudflare + Codeberg Pages)
-  # ─────────────────────────────────────────────────────────────────────────────
-  deploy-site:
-    name: "Deploy Documentation Site (lacraia.2lp.in)"
-    runs-on: ubuntu-latest
-    needs: [test, build-apk]
-    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
+    needs: [test]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    container:
+      image: docker.io/lumenpink/gost-ci-cross:latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GIT_2LP_TOKEN: ${{ secrets.GIT_2LP_TOKEN }}
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v4
+        uses: https://github.com/actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Download Built Android APK Artifacts"
-        uses: actions/download-artifact@v4
-        with:
-          name: android-apks
-          path: apk-artifacts
-
-      - name: "Integrate APKs & Generate Version Manifest for Obtainium"
+      - name: "Configure Sovereign Lumen Cargo Registry"
         run: |
-          mkdir -p site
-          if [ -d apk-artifacts ]; then
-            cp apk-artifacts/*.apk site/ 2>/dev/null || true
+          mkdir -p "$HOME/.cargo"
+          printf '[registries.lumen]\nindex = "sparse+https://git.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
+            printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
 
-          VERSION="$(head -n 1 VERSION 2>/dev/null | tr -d ' \r\n' || echo '0.2.0')"
-          GIT_HASH="$(git rev-parse --short HEAD 2>/dev/null || echo 'main')"
-          PUBLISHED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+      - name: "Determine Version & Release Metadata"
+        id: meta
+        run: |
+          RAW_VER=$(cat VERSION 2>/dev/null || grep -m1 '^version =' Cargo.toml | cut -d '"' -f2)
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          DATE_TAG=$(date -u +%Y%m%d)
 
-          cat <<EOF > site/version.json
-          {
-            "version": "${VERSION}",
-            "min_compatible_version": "0.1.0",
-            "package_id": "in.twolp.lacraia.app",
-            "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
-            "release_notes": "Continuous build from commit ${GIT_HASH}.",
-            "published_at": "${PUBLISHED_AT}",
-            "apps": {
-              "lacraia-app": {
-                "package_id": "in.twolp.lacraia.app",
-                "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
-                "name": "La Craia App (Cockpit & Jukebox)"
-              },
-              "simbiotyka": {
-                "package_id": "in.twolp.lacraia.simbiotyka",
-                "apk_url": "https://lacraia.2lp.in/simbiotyka.apk",
-                "name": "Simbiótyka (HUD de Letras Sincronizadas)"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG_VER="${GITHUB_REF#refs/tags/v}"
+            echo "is_stable=true" >> $GITHUB_OUTPUT
+            echo "version=${TAG_VER}" >> $GITHUB_OUTPUT
+            echo "channel=stable" >> $GITHUB_OUTPUT
+          else
+            NIGHTLY_VER="${RAW_VER}-dev.${DATE_TAG}.${COMMIT_HASH}"
+            echo "is_stable=false" >> $GITHUB_OUTPUT
+            echo "version=${NIGHTLY_VER}" >> $GITHUB_OUTPUT
+            echo "channel=nightly" >> $GITHUB_OUTPUT
+          fi
+          echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: "Compile La Craia Multiarch CLI Binaries"
+        run: |
+          export RUSTFLAGS="-C target-feature=+crt-static"
+          echo "★ [1/3] Compilando x86_64-unknown-linux-musl (Linux AMD64)..."
+          cargo zigbuild --release --target x86_64-unknown-linux-musl -p lacraia-core || \
+            cargo build --release --target x86_64-unknown-linux-musl -p lacraia-core
+
+          echo "★ [2/3] Compilando aarch64-unknown-linux-musl (Linux ARM64)..."
+          cargo zigbuild --release --target aarch64-unknown-linux-musl -p lacraia-core || \
+            cargo build --release --target aarch64-unknown-linux-musl -p lacraia-core
+
+          echo "★ [3/3] Compilando x86_64-pc-windows-gnu (Windows AMD64)..."
+          cargo zigbuild --release --target x86_64-pc-windows-gnu -p lacraia-core || \
+            cargo build --release --target x86_64-pc-windows-gnu -p lacraia-core
+
+      - name: "Package Artifacts & Generate Checksums"
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          mkdir -p dist/packages
+
+          if [ -d target/x86_64-unknown-linux-musl/release ]; then
+            tar -czf "dist/packages/lacraia-${VERSION}-linux-amd64.tar.gz" \
+              -C target/x86_64-unknown-linux-musl/release lacraia-core \
+              -C "$PWD" README.md LICENSE 2>/dev/null || \
+            tar -czf "dist/packages/lacraia-${VERSION}-linux-amd64.tar.gz" \
+              -C target/x86_64-unknown-linux-musl/release lacraia-core
+          fi
+
+          if [ -d target/aarch64-unknown-linux-musl/release ]; then
+            tar -czf "dist/packages/lacraia-${VERSION}-linux-arm64.tar.gz" \
+              -C target/aarch64-unknown-linux-musl/release lacraia-core \
+              -C "$PWD" README.md LICENSE 2>/dev/null || \
+            tar -czf "dist/packages/lacraia-${VERSION}-linux-arm64.tar.gz" \
+              -C target/aarch64-unknown-linux-musl/release lacraia-core
+          fi
+
+          if [ -d target/x86_64-pc-windows-gnu/release ]; then
+            cd target/x86_64-pc-windows-gnu/release
+            zip -j "$GITHUB_WORKSPACE/dist/packages/lacraia-${VERSION}-windows-amd64.zip" \
+              lacraia-core.exe "$GITHUB_WORKSPACE/README.md" "$GITHUB_WORKSPACE/LICENSE" 2>/dev/null || \
+            zip -j "$GITHUB_WORKSPACE/dist/packages/lacraia-${VERSION}-windows-amd64.zip" lacraia-core.exe
+            cd "$GITHUB_WORKSPACE"
+          fi
+
+          cd dist/packages
+          sha256sum * > SHA256SUMS
+          cd "$GITHUB_WORKSPACE"
+
+      - name: "Upload Artifacts to Cloudflare R2"
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          CHANNEL="${{ steps.meta.outputs.channel }}"
+
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "Aviso: CLOUDFLARE_API_TOKEN ausente. Pulando upload R2."
+            exit 0
+          fi
+
+          echo "★ Publicando artefatos versionados no R2 (twolp-bucket)..."
+          for pkg in dist/packages/*; do
+            filename=$(basename "$pkg")
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${CHANNEL}/${filename}" --file="$pkg" --remote
+          done
+
+          echo "★ Publicando binários unificados em latest..."
+          if [ -f target/x86_64-unknown-linux-musl/release/lacraia-core ]; then
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia" --file=target/x86_64-unknown-linux-musl/release/lacraia-core --remote
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-amd64" --file=target/x86_64-unknown-linux-musl/release/lacraia-core --remote
+          fi
+          if [ -f target/aarch64-unknown-linux-musl/release/lacraia-core ]; then
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-arm64" --file=target/aarch64-unknown-linux-musl/release/lacraia-core --remote
+          fi
+          if [ -f target/x86_64-pc-windows-gnu/release/lacraia-core.exe ]; then
+            npx wrangler r2 object put "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia.exe" --file=target/x86_64-pc-windows-gnu/release/lacraia-core.exe --remote
+          fi
+
+      - name: "Update & Rotate Release Manifest in Banca Repo"
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          DATE="${{ steps.meta.outputs.date }}"
+          CHANNEL="${{ steps.meta.outputs.channel }}"
+          IS_STABLE="${{ steps.meta.outputs.is_stable }}"
+
+          if [ -z "$GIT_2LP_TOKEN" ]; then
+            echo "Aviso: GIT_2LP_TOKEN ausente. Pulando rotação na Banca."
+            exit 0
+          fi
+
+          git config --global user.name "Lumen Pink (CI Bot)"
+          git config --global user.email "bot@2lp.in"
+
+          BANCA_DIR=$(mktemp -d)
+          git clone "https://${GIT_2LP_TOKEN}@git.2lp.in/lumen/banca.git" "$BANCA_DIR"
+          cd "$BANCA_DIR"
+
+          INDEX_JSON="site/downloads/lacraia/index.json"
+          if [ ! -f "$INDEX_JSON" ]; then
+            echo "Erro: $INDEX_JSON não encontrado na Banca."
+            exit 1
+          fi
+
+          SHA_LINUX_AMD64=$(sha256sum "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/release/lacraia-core" 2>/dev/null | awk '{print $1}' || echo "")
+          SHA_LINUX_ARM64=$(sha256sum "$GITHUB_WORKSPACE/target/aarch64-unknown-linux-musl/release/lacraia-core" 2>/dev/null | awk '{print $1}' || echo "")
+          SHA_WIN_AMD64=$(sha256sum "$GITHUB_WORKSPACE/target/x86_64-pc-windows-gnu/release/lacraia-core.exe" 2>/dev/null | awk '{print $1}' || echo "")
+
+          ENTRY=$(jq -n \
+            --arg ver "$VERSION" \
+            --arg date "$DATE" \
+            --arg sha_bin "$SHA_LINUX_AMD64" \
+            --arg sha_l64 "$SHA_LINUX_AMD64" \
+            --arg sha_a64 "$SHA_LINUX_ARM64" \
+            --arg sha_w64 "$SHA_WIN_AMD64" \
+            --arg channel "$CHANNEL" \
+            '{
+              version: $ver,
+              date: $date,
+              url: "https://banca.2lp.in/downloads/lacraia/\($channel)-latest/lacraia",
+              sha256: $sha_bin,
+              artifacts: {
+                "linux-amd64": {
+                  url: "https://banca.2lp.in/downloads/lacraia/\($channel)/lacraia-\($ver)-linux-amd64.tar.gz",
+                  binary_url: "https://banca.2lp.in/downloads/lacraia/\($channel)-latest/lacraia-linux-amd64",
+                  sha256: $sha_l64
+                },
+                "linux-arm64": {
+                  url: "https://banca.2lp.in/downloads/lacraia/\($channel)/lacraia-\($ver)-linux-arm64.tar.gz",
+                  binary_url: "https://banca.2lp.in/downloads/lacraia/\($channel)-latest/lacraia-linux-arm64",
+                  sha256: $sha_a64
+                },
+                "windows-amd64": {
+                  url: "https://banca.2lp.in/downloads/lacraia/\($channel)/lacraia-\($ver)-windows-amd64.zip",
+                  binary_url: "https://banca.2lp.in/downloads/lacraia/\($channel)-latest/lacraia.exe",
+                  sha256: $sha_w64
+                }
               }
-            }
-          }
-          EOF
+            }')
 
-          cat <<EOF > site/version-nightly.json
-          {
-            "version": "${VERSION}-nightly.${GIT_HASH}",
-            "min_compatible_version": "0.1.0",
-            "package_id": "in.twolp.lacraia.app",
-            "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
-            "release_notes": "Continuous rolling nightly build from commit ${GIT_HASH}.",
-            "published_at": "${PUBLISHED_AT}"
-          }
-          EOF
-
-          ls -lh site/*.apk site/*.json 2>/dev/null || true
-
-      - name: "Deploy to Cloudflare Workers"
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::warning::Cloudflare credentials (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID) not configured in secrets. Skipping Cloudflare deployment."
+          if [ "$IS_STABLE" = "true" ]; then
+            jq --arg ver "$VERSION" --argjson entry "$ENTRY" \
+              '.stable_latest = $ver | .stables = ([$entry] + (.stables // []))' \
+              "$INDEX_JSON" > "${INDEX_JSON}.tmp" && mv "${INDEX_JSON}.tmp" "$INDEX_JSON"
           else
-            echo "Publishing documentation site and APKs to lacraia.2lp.in via Cloudflare Workers..."
-            npx wrangler deploy || echo "::warning::Cloudflare deployment failed, proceeding to Codeberg Pages fallback."
+            jq --arg ver "$VERSION" --argjson entry "$ENTRY" \
+              '.nightly_latest = $ver | .nightlies = ([$entry] + (.nightlies // []))' \
+              "$INDEX_JSON" > "${INDEX_JSON}.tmp" && mv "${INDEX_JSON}.tmp" "$INDEX_JSON"
           fi
 
-      - name: "Upload APKs to Cloudflare R2"
-        run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "Publishing APKs to Sovereign R2 Bucket (twolp-bucket / bucket.2lp.in)..."
-            if [ -f site/lacraia.apk ]; then
-              npx wrangler r2 object put "twolp-bucket/lacraia.apk" --file="site/lacraia.apk" --remote || true
-            elif [ -f dist/lacraia-app.apk ]; then
-              npx wrangler r2 object put "twolp-bucket/lacraia.apk" --file="dist/lacraia-app.apk" --remote || true
-            fi
-            if [ -f site/simbiotyka.apk ]; then
-              npx wrangler r2 object put "twolp-bucket/simbiotyka.apk" --file="site/simbiotyka.apk" --remote || true
-            elif [ -f dist/simbiotyka.apk ]; then
-              npx wrangler r2 object put "twolp-bucket/simbiotyka.apk" --file="dist/simbiotyka.apk" --remote || true
-            fi
-          fi
-
-      - name: "Trigger Pratilera Store Update"
-        env:
-          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
-        run: |
-          if [ -n "$CODEBERG_TOKEN" ]; then
-            echo "-> Notificando a Pratilera (Banca) para atualizar o catálogo..."
-            curl -s -X POST \
-              -H "Authorization: token $CODEBERG_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches" \
-              -d '{"ref": "main"}' || true
+          git add "$INDEX_JSON"
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(downloads): rotate lacraia release to ${VERSION} (#53)"
+            git push origin main
+            echo "★ Manifestos da Banca atualizados e sincronizados com sucesso."
           else
-            echo "CODEBERG_TOKEN ausente, pulando disparo remoto da Pratilera."
+            echo "Manifesto já se encontra atualizado na Banca."
           fi
 
-      - name: "Deploy to Codeberg Pages (Redundancy Fallback)"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "actions-user"
-          git config user.email "actions@codeberg.org"
-
-          WORKTREE_DIR=$(mktemp -d)
-          if git ls-remote --exit-code --heads origin pages >/dev/null 2>&1; then
-            git fetch origin pages:pages
-            git worktree add "$WORKTREE_DIR" pages
-          else
-            git worktree add --orphan -b pages "$WORKTREE_DIR"
-          fi
-
-          rm -rf "${WORKTREE_DIR:?}"/*
-          cp -r site/* "$WORKTREE_DIR/"
-          # Exclude large binary APKs from git branch history (hosted on Cloudflare & Codeberg Releases)
-          rm -f "$WORKTREE_DIR"/*.apk
-
-          cd "$WORKTREE_DIR"
-          rm -f CNAME
-          git add -A
-          if git diff --staged --quiet; then
-            echo "No documentation changes to deploy to Codeberg Pages."
-          else
-            git commit -m "docs(site): deploy documentation to Codeberg Pages [skip ci]"
-            git push origin pages
-            echo "Successfully deployed documentation to Codeberg Pages."
-          fi
-          cd - >/dev/null
-          git worktree remove "$WORKTREE_DIR" --force || true
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 4 — Release & Nightly Rolling Distribution (Codeberg)
-  # ─────────────────────────────────────────────────────────────────────────────
-  release:
-    name: "Publish Release / Nightly Distribution"
-    runs-on: ubuntu-latest
-    needs: [test, build-apk]
-    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
-    steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: "Download All Built Artifacts"
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: "Assemble Release Directory & Compute Checksums"
-        run: |
-          mkdir -p dist
-          find artifacts -type f -exec cp {} dist/ \;
-          cd dist
-          chmod +x lacraia-core-linux-x86_64 lacraia-app-linux-x86_64 2>/dev/null || true
-
-          # Create release tarball for Linux binaries
-          VERSION="$(head -n 1 ../VERSION 2>/dev/null | tr -d ' \r\n' || echo '0.2.0')"
-          tar -czf "lacraia-${VERSION}-linux-x86_64.tar.gz" lacraia-core-linux-x86_64 lacraia-app-linux-x86_64
-          sha256sum * > checksums.sha256
-          ls -lh
-
-      # ── Nightly Rolling Release (Push to main) ──
-      - name: "Delete Previous Nightly Tag & Release"
-        if: github.ref == 'refs/heads/main'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          API_URL: ${{ github.api_url || 'https://codeberg.org/api/v1' }}
-          REPO: ${{ github.repository }}
-        run: |
-          git push --delete origin nightly 2>/dev/null \
-            && echo "Remote nightly tag deleted" \
-            || echo "Remote nightly tag not found (initial run?)"
-
-          REL_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            "$API_URL/repos/$REPO/releases/tags/nightly" | grep -o '"id":[0-9]*' | head -n 1 | cut -d: -f2 || true)
-          if [ -n "$REL_ID" ]; then
-            echo "Deleting previous nightly release ID: $REL_ID"
-            curl -sf -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
-              "$API_URL/repos/$REPO/releases/$REL_ID" || echo "Warning: Failed to delete release $REL_ID"
-          fi
-
-      - name: "Create Annotated Nightly Tag"
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "actions-user"
-          git config user.email "actions@codeberg.org"
-          git tag -d nightly 2>/dev/null || true
-          git tag -a nightly -m "Nightly build - $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-          git push origin nightly
-
-      - name: "Publish Nightly Release (Sovereign Banca Links, Zero Binaries in Git)"
-        if: github.ref == 'refs/heads/main'
-        uses: https://github.com/softprops/action-gh-release@v2
-        with:
-          tag_name: "nightly"
-          name: "Nightly Build ($(git rev-parse --short HEAD))"
-          prerelease: true
-          body: |
-            Automated rolling nightly build from branch `main` at commit `${{ github.sha }}`.
-
-            ### Download Direto dos Pacotes Soberanos na Banca (`banca.2lp.in`)
-            * 📱 **La Craia App (Cockpit & Jukebox APK):** [`lacraia-app.apk`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-app.apk)
-            * 👁️ **Simbiótyka (HUD de Letras Sincronizadas APK):** [`simbiotyka.apk`](https://banca.2lp.in/downloads/lacraia/nightly-latest/simbiotyka.apk)
-            * 💻 **Desktop Linux (Cockpit Nativo):** [`lacraia-app-linux-x86_64`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-app)
-            * 🎛️ **Server Daemon (Core Engine):** [`lacraia-core-linux-x86_64`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-core)
-            * 📦 **Tarball Completo:** [`lacraia-nightly-linux-x86_64.tar.gz`](https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-linux-x86_64.tar.gz)
-            * 📜 **Manifesto Atômico:** [`index.json`](https://banca.2lp.in/downloads/lacraia/index.json)
-
-      # ── Official Release (Tags v*) ──
-      - name: "Extract Release Notes"
-        if: startsWith(github.ref, 'refs/tags/v')
-        id: notes
-        run: |
-          TAG="${{ github.ref_name }}"
-          CLEAN_VER="${TAG#v}"
-          TAG_SUBJECT=$(git tag -l --format="%(contents:subject)" "$TAG" 2>/dev/null || true)
-          RELEASE_TITLE="$TAG"
-          if echo "$TAG_SUBJECT" | grep -q ': '; then
-            TITLE_PART=$(echo "$TAG_SUBJECT" | sed -E 's/^[^:]+: //')
-            RELEASE_TITLE="$TAG - $TITLE_PART"
-          fi
-          echo "title=$RELEASE_TITLE" >> "$GITHUB_OUTPUT"
-
-          NOTES=$(awk -v t1="$TAG" -v t2="$CLEAN_VER" '
-            $0 ~ "^### \\[" t1 "\\]" || $0 ~ "^### \\[" t2 "\\]" { in_section = 1; next }
-            in_section && ($0 ~ "^###? \\[" || $0 ~ "^## ") { in_section = 0 }
-            in_section { print }
-          ' CHANGELOG.md)
-
-          if echo "$NOTES" | grep -q '^[[:space:]]*- '; then
-            echo "$NOTES" > /tmp/release_notes.md
-          else
-            echo "- La Craia production release $TAG with pre-cached audio engine and Simbiótyka companion HUD." > /tmp/release_notes.md
-          fi
-
-      - name: "Publish Official Release (Sovereign Banca Links, Zero Binaries in Git)"
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: https://github.com/softprops/action-gh-release@v2
-        with:
-          tag_name: "${{ github.ref_name }}"
-          name: "${{ steps.notes.outputs.title }}"
-          body_path: /tmp/release_notes.md
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 5 — Build & Push Multi-Stage Atomic Docker Container
-  # ─────────────────────────────────────────────────────────────────────────────
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 5 — Sovereign Continuous Deployment on obizero (Zero Watchtower)
-  # ─────────────────────────────────────────────────────────────────────────────
   build-and-deploy-docker:
     name: "Container — Build & Sovereign CD (obizero)"
     runs-on: ubuntu-latest
@@ -397,7 +264,7 @@ jobs:
     if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.event_name == 'push'
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v4
+        uses: https://github.com/actions/checkout@v4
 
       - name: "Build local Docker Image"
         run: |
@@ -452,4 +319,3 @@ jobs:
       - name: "Prune Orphan Docker Layers"
         run: |
           docker image prune -f
-

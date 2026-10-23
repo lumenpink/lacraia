@@ -11,7 +11,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Lumen Pink <hi@lumen.pink>"]
 license = "GPL-3.0-or-later"
-repository = "https://codeberg.org/lumenpink/lacraia"
+repository = "https://git.2lp.in/lumen/lacraia"
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
