@@ -30,6 +30,7 @@
   - (server) auto‑increment port if occupied (#12)
 
 ### Bug Fixes
+  - (build) configurar profile.release com LTO e strip, e crt-static musl (closes #54)
   - (site) sanitize open graph and twitter card metadata and headers (fixes #6)
 
 ## Previous Releases
