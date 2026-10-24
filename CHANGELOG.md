@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+  - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
+
 ### Features
   - (ci) continuous deployment soberano no obizero sem watchtower (closes #53)
   - (updater) integrar publicacao na banca e auto-atualizacao opendesktop xdg (closes #52)
