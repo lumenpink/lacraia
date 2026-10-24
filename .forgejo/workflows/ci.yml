@@ -112,6 +112,7 @@ jobs:
             RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target aarch64-unknown-linux-musl -p lacraia-core
 
           echo "★ [3/3] Compilando x86_64-pc-windows-gnu (Windows AMD64)..."
+          ar cr /usr/x86_64-w64-mingw32/lib/libc.a 2>/dev/null || true
           cargo zigbuild --release --target x86_64-pc-windows-gnu -p lacraia-core || \
             cargo build --release --target x86_64-pc-windows-gnu -p lacraia-core
 
