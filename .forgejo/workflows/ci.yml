@@ -203,6 +203,28 @@ jobs:
 
       - name: "Publish Android APKs & Version Manifest (android-apks)"
         run: |
+          upload_r2_with_retry() {
+            local target="$1"
+            local file="$2"
+            local max_attempts=4
+            local attempt=1
+            local delay=5
+            while [ "$attempt" -le "$max_attempts" ]; do
+              echo "  -> Enviando $file para $target (tentativa $attempt/$max_attempts)..."
+              if npx wrangler r2 object put "$target" --file="$file" --remote; then
+                echo "  ✓ Upload concluído com sucesso: $target"
+                return 0
+              fi
+              echo "  ⚠️ Falha transitória ao enviar para o R2 (tentativa $attempt/$max_attempts). Aguardando ${delay}s..."
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+
+            echo "❌ ERRO CRÍTICO: Falha permanente após $max_attempts tentativas ao publicar no Cloudflare R2: $target"
+            exit 1
+          }
+
           mkdir -p dist site
           # Gerenciamento de android-apks (lacraia-app.apk e simbiotyka.apk)
           if [ -f packages/lacraia-android/app/build/outputs/apk/release/app-release.apk ]; then
@@ -275,8 +297,20 @@ jobs:
             git config user.email "bot@2lp.in"
             git add site/downloads/lacraia/index.json
             if ! git diff --staged --quiet; then
-              git commit -m "chore(downloads): rotate lacraia release to ${VERSION} (#53)"
-              git push origin main || echo "Aviso: Push do manifesto na Banca falhou."
+              git commit -m "chore(downloads): rotate lacraia release to ${VERSION} (#55)"
+              for attempt in 1 2 3 4 5; do
+                if git push origin main; then
+                  echo "✓ Manifesto da Banca atualizado com sucesso."
+                  break
+                fi
+                echo "⚠️ Falha ao empurrar manifesto para Banca (tentativa $attempt/5). Reexecutando pull --rebase..."
+                git pull --rebase origin main || true
+                sleep 3
+                if [ "$attempt" -eq 5 ]; then
+                  echo "❌ ERRO CRÍTICO: Não foi possível empurrar manifesto para Banca após 5 tentativas."
+                  exit 1
+                fi
+              done
             else
               echo "Manifesto já se encontra atualizado na Banca."
             fi
