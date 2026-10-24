@@ -194,6 +194,7 @@ async fn test_end_to_end_api_resolve_and_cache_serving() {
 }
 
 #[tokio::test]
+#[ignore = "requer conectividade de rede externa para o YouTube Music"]
 async fn test_real_resolver_download_with_android_client() {
     let db = Database::open_in_memory().unwrap();
     let cache_dir = std::env::temp_dir().join(format!("lacraia_test_{}", uuid::Uuid::new_v4()));

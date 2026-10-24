@@ -533,12 +533,22 @@ impl MediaResolver {
             });
         }
 
-        // Tier 1: Try native Rust crate (RustyPipe)
+        // Tier 1: Try native Rust crate (RustyPipe) - isolated in task to catch third-party unwrap panics
         let mut attempt_num = 1;
         let t0 = std::time::Instant::now();
-        let rp_res = self
-            .resolve_via_rustypipe(artist, title, expected_duration_sec, &target_path)
-            .await;
+        let self_clone = self.clone();
+        let artist_s = artist.to_string();
+        let title_s = title.to_string();
+        let target_path_buf = target_path.to_path_buf();
+        let rp_handle = tokio::spawn(async move {
+            self_clone
+                .resolve_via_rustypipe(&artist_s, &title_s, expected_duration_sec, &target_path_buf)
+                .await
+        });
+        let rp_res = match rp_handle.await {
+            Ok(res) => res,
+            Err(join_err) => Err(format!("RustyPipe task panicked or failed: {}", join_err)),
+        };
         let rp_duration_ms = t0.elapsed().as_millis() as u64;
 
         let resolved_duration = match rp_res {
