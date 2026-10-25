@@ -6,7 +6,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Estágio de Compilação (Hermético via gost-ci-rust)
 # ─────────────────────────────────────────────────────────────────────────────
-FROM codeberg.org/lumenpink/gost-ci-rust:latest AS builder
+FROM gambi.2lp.in/lumen/gost-ci-rust:latest AS builder
 
 WORKDIR /build
 

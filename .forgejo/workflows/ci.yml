@@ -27,12 +27,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "Configure Sovereign Lumen Cargo Registry"
+      - name: "Configure Sovereign Gambi Cargo Registry"
         run: |
           mkdir -p "$HOME/.cargo"
-          printf '[registries.lumen]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          printf '[registries.gambi]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
           if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
-            printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
+            printf '[registries.gambi]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
 
       - name: "Format Check"
@@ -70,12 +70,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "Configure Sovereign Lumen Cargo Registry"
+      - name: "Configure Sovereign Gambi Cargo Registry"
         run: |
           mkdir -p "$HOME/.cargo"
-          printf '[registries.lumen]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          printf '[registries.gambi]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
           if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
-            printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
+            printf '[registries.gambi]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
 
       - name: "Determine Version & Release Metadata"
@@ -325,24 +325,17 @@ jobs:
 
       - name: "Build local Docker Image"
         run: |
-          OLD_IMAGE_ID=$(docker inspect --format='{{.Id}}' lumenpink/lacraia:latest 2>/dev/null || true)
+          OLD_IMAGE_ID=$(docker inspect --format='{{.Id}}' gambi.2lp.in/lumen/lacraia:latest 2>/dev/null || true)
           echo "OLD_IMAGE_ID=$OLD_IMAGE_ID" >> $GITHUB_ENV
-          docker build -t lumenpink/lacraia:latest -f ./Dockerfile .
+          docker build -t gambi.2lp.in/lumen/lacraia:latest -t lumenpink/lacraia:latest -f ./Dockerfile .
 
-      - name: "Login to Docker Hub (Registry Backup)"
-        if: env.DOCKER_PASSWORD != ''
+      - name: "Push Image to Sovereign Gambi Registry"
+        if: env.GAMBI_TOKEN != ''
         env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          GAMBI_TOKEN: ${{ secrets.GAMBI_2LP_IN_TOKEN }}
         run: |
-          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-      - name: "Push Image to Docker Hub (Registry Backup)"
-        if: env.DOCKER_PASSWORD != ''
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          docker push lumenpink/lacraia:latest
+          echo "$GAMBI_TOKEN" | docker login -u lumen --password-stdin gambi.2lp.in
+          docker push gambi.2lp.in/lumen/lacraia:latest
 
       - name: "Deploy Locally on obizero (Direct Socket)"
         run: |
