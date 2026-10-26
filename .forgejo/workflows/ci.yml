@@ -337,35 +337,60 @@ jobs:
           echo "$GAMBI_TOKEN" | docker login -u lumen --password-stdin gambi.2lp.in
           docker push gambi.2lp.in/lumen/lacraia:latest
 
-      - name: "Deploy Locally on obizero (Direct Socket)"
+      - name: "Sovereign CD on obizero via SSH"
+        env:
+          OBIZERO_SSH_HOST: ${{ secrets.OBIZERO_SSH_HOST }}
+          OBIZERO_SSH_USER: ${{ secrets.OBIZERO_SSH_USER }}
+          OBIZERO_SSH_KEY: ${{ secrets.OBIZERO_SSH_KEY }}
         run: |
-          echo "-> Aplicando atualização local no runtime Docker do obizero..."
-          docker compose -f /home/lumen/stacks/lacraia/compose.yaml up -d --no-build lacraia
+          SSH_HOST="${OBIZERO_SSH_HOST:-172.17.0.1}"
+          SSH_USER="${OBIZERO_SSH_USER:-lumen}"
+          echo "-> Iniciando deploy soberano no nó obizero ($SSH_HOST)..."
 
-      - name: "Active Healthcheck & Rollback Protocol"
-        run: |
-          echo "-> Sondando estabilidade do container lacraia (polling 15s)..."
-          SUCCESS=0
-          for i in $(seq 1 15); do
-            STATUS=$(docker inspect --format='{{.State.Status}}' lacraia 2>/dev/null || echo "unknown")
-            if [ "$STATUS" = "running" ]; then
-              echo "  [PASS] Container lacraia saudável e ativo (tentativa $i/15)."
-              SUCCESS=1
-              break
-            fi
-            sleep 1
-          done
-
-          if [ $SUCCESS -ne 1 ]; then
-            echo "✘ [FALHA] Container não estabilizou no prazo limite! Acionando Rollback..."
-            if [ -n "$OLD_IMAGE_ID" ]; then
-              docker tag "$OLD_IMAGE_ID" lumenpink/lacraia:latest
-              docker compose -f /home/lumen/stacks/lacraia/compose.yaml up -d --no-build lacraia
-              echo "✔ Rollback concluído para imagem anterior $OLD_IMAGE_ID."
-            fi
-            exit 1
+          if [ -f ~/.ssh/id_obitwo ]; then
+            SSH_OPTS="-i ~/.ssh/id_obitwo -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          elif [ -f ~/.ssh/id_ed25519 ]; then
+            SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          elif [ -n "$OBIZERO_SSH_KEY" ]; then
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            echo "$OBIZERO_SSH_KEY" > /tmp/id_ci_obizero
+            chmod 600 /tmp/id_ci_obizero
+            SSH_OPTS="-i /tmp/id_ci_obizero -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          else
+            SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
           fi
 
-      - name: "Prune Orphan Docker Layers"
-        run: |
-          docker image prune -f
+          ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "
+            set -eo pipefail
+            cd ~/stacks/lacraia
+            OLD_IMAGE_ID=\$(docker inspect --format='{{.Id}}' gambi.2lp.in/lumen/lacraia:latest 2>/dev/null || true)
+            echo \"OLD_IMAGE_ID=\$OLD_IMAGE_ID\"
+
+            echo '-> Aplicando atualizacao no container lacraia...'
+            docker compose -f compose.yaml up -d --no-build lacraia
+
+            echo '-> Sondando estabilidade do container lacraia (polling 15s)...'
+            SUCCESS=0
+            for i in \$(seq 1 15); do
+              STATUS=\$(docker inspect --format='{{.State.Status}}' lacraia 2>/dev/null || echo 'unknown')
+              if [ \"\$STATUS\" = 'running' ]; then
+                echo \"  [PASS] Container lacraia saudavel e ativo (tentativa \$i/15).\"
+                SUCCESS=1
+                break
+              fi
+              sleep 1
+            done
+
+            if [ \$SUCCESS -ne 1 ]; then
+              echo '✘ [FALHA] Container nao estabilizou no prazo limite! Acionando Rollback...'
+              if [ -n \"\$OLD_IMAGE_ID\" ]; then
+                docker tag \"\$OLD_IMAGE_ID\" gambi.2lp.in/lumen/lacraia:latest
+                docker compose -f compose.yaml up -d --no-build lacraia
+                echo \"✔ Rollback concluido para imagem anterior \$OLD_IMAGE_ID.\"
+              fi
+              exit 1
+            fi
+
+            echo '-> Limpando camadas orfas...'
+            docker image prune -f
+          "

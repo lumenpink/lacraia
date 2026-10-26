@@ -34,8 +34,9 @@ FAILED=0
 check_not_present 'WATCHTOWER' "Ausência de variáveis e webhooks do Watchtower" || FAILED=1
 check_not_present 'watchtower' "Ausência de referências literais ao Watchtower" || FAILED=1
 
-# 2. Deploy local soberano no obizero
-check_present 'docker compose -f /home/lumen/stacks/lacraia/compose.yaml up -d --no-build lacraia' "Comando de deploy local sem download redundante" || FAILED=1
+# 2. Deploy soberano via SSH no obizero
+check_present 'ssh $SSH_OPTS "$SSH_USER@$SSH_HOST"' "Conexão SSH ao nó host" || FAILED=1
+check_present 'docker compose -f compose.yaml up -d --no-build lacraia' "Comando de deploy local sem download redundante" || FAILED=1
 
 # 3. Sondagem ativa de healthcheck
 check_present 'docker inspect --format=' "Sondagem ativa de healthcheck com docker inspect" || FAILED=1
