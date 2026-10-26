@@ -11,7 +11,7 @@ FROM gambi.2lp.in/lumen/gost-ci-rust:latest AS builder
 WORKDIR /build
 
 # Copiar arquivos de dependências e código do workspace
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock* ./
 COPY packages/lacraia-shared ./packages/lacraia-shared
 COPY packages/lacraia-core ./packages/lacraia-core
 COPY packages/lacraia-app ./packages/lacraia-app
