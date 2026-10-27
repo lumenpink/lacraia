@@ -93,7 +93,7 @@ The workspace is organized into modular Rust crates and an Android Kotlin multi-
 
 ### 3.4.1 Canonical Package Architecture & Build Pipeline
 - **Unified Identifier:** All Android components are canonically anchored under `in.twolp.*` (`in.twolp.lacraia.app` and `in.twolp.lacraia.simbiotyka`). Legacy references to `in._2lp.*` are formally deprecated and eliminated.
-- **Service Binding:** The companion HUD service is canonically declared and bound as `in.twolp.lacraia.simbiotyka.SimbiotykaService`.
+- **Service Binding & Lifecycle:** The companion HUD service is canonically declared and bound as `in.twolp.lacraia.simbiotyka.SimbiotykaService`. It supports deterministic dismissal via `ACTION_STOP_SERVICE` (`in.twolp.lacraia.simbiotyka.ACTION_STOP_SERVICE`), triggered by the foreground notification quick action and the `MainActivity` stop button, maintaining the floating pill overlay free of clutter while preserving vertical touch drag gestures.
 - **Packaging & Signing:** Automated via `./gradlew assembleRelease` signed with the sovereign keystore `~/.android/in_twolp_release.keystore` (alias `in_twolp`) via APK Signature Scheme v2.
 
 ---

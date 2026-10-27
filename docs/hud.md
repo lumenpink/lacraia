@@ -53,8 +53,11 @@ Simbiótyka does not need to know which media player is currently producing soun
    * Intercepts `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK` when GPS navigation apps emit turn-by-turn spoken guidance.
    * Scales active media stream volume down to **20%** (`LyricSyncCoordinator.DUCK_RATIO`).
    * Automatically restores full pre-ducking volume level on `AUDIOFOCUS_GAIN`.
-4. **Transport Controls Delegation:**
+4. **Transport Controls Delegation & Lifecycle Control:**
    * Receives `ACTION_TOGGLE_PLAYBACK` and `ACTION_NEXT_TRACK` broadcast from the floating pill touch targets and dispatches `transportControls.play()`, `pause()`, or `skipToNext()` directly to the active media session.
+   * Receives `ACTION_STOP_SERVICE` (`in.twolp.lacraia.simbiotyka.ACTION_STOP_SERVICE`) to terminate the companion foreground service, clean up receivers, and dismiss the overlay from `WindowManager`.
+   * Projects a quick-dismiss action `[ Encerrar ]` in the persistent foreground notification (`lacraia_hud_channel`), providing immediate closing from the system notification shade without cluttering the floating pill UI.
+   * Offers direct service start and stop triggers in `MainActivity`.
 
 > 📡 **[ TRANSMISSÃO DE CABINE ]**  
 > Simbiótyka opera como um parasita acústico simbiótico: intercepta o canal de áudio automotivo sem que o aplicativo reprodutor primário saiba da sua existência, extraindo letras e metadados ao vivo diretamente do fluxo do sistema.
