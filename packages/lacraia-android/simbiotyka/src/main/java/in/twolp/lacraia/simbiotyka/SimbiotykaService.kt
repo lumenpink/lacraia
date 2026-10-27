@@ -13,6 +13,10 @@ import androidx.core.app.NotificationCompat
 
 class SimbiotykaService : Service() {
 
+    companion object {
+        const val ACTION_STOP_SERVICE = "in.twolp.lacraia.simbiotyka.ACTION_STOP_SERVICE"
+    }
+
     private var windowManager: WindowManager? = null
     private var hudViewController: HudViewController? = null
 
@@ -22,6 +26,14 @@ class SimbiotykaService : Service() {
         super.onCreate()
         startForegroundService()
         initOverlay()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP_SERVICE) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        return START_STICKY
     }
 
     private fun startForegroundService() {
@@ -36,10 +48,21 @@ class SimbiotykaService : Service() {
             manager.createNotificationChannel(channel)
         }
 
+        val stopIntent = Intent(this, SimbiotykaService::class.java).apply {
+            action = ACTION_STOP_SERVICE
+        }
+        val stopPendingIntent = android.app.PendingIntent.getService(
+            this,
+            0,
+            stopIntent,
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("La Craia Simbiótyka HUD Active")
             .setContentText("Projecting synchronized lyrics over GPS navigation")
             .setSmallIcon(android.R.drawable.ic_media_play)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Encerrar", stopPendingIntent)
             .build()
 
         startForeground(101, notification)

@@ -62,6 +62,17 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(startBtn)
 
+        val stopBtn = Button(this).apply {
+            text = "4. Encerrar Simbiótyka"
+            setOnClickListener {
+                val serviceIntent = Intent(this@MainActivity, SimbiotykaService::class.java).apply {
+                    action = SimbiotykaService.ACTION_STOP_SERVICE
+                }
+                startService(serviceIntent)
+            }
+        }
+        layout.addView(stopBtn)
+
         setContentView(layout)
     }
 }
