@@ -34,9 +34,13 @@ fn test_distribution_manifest_version_json() {
         .as_str()
         .expect("apk_url deve ser string");
     assert!(
-        apk_url.ends_with("/lacraia-app.apk"),
-        "apk_url padrão deve apontar para lacraia-app.apk: {}",
+        apk_url.ends_with("/lacraia.apk"),
+        "apk_url padrão deve apontar para lacraia.apk: {}",
         apk_url
+    );
+    assert!(
+        !content.contains("lacraia-app.apk"),
+        "site/version.json não deve conter qualquer referência a lacraia-app.apk"
     );
 
     let package_id = manifest["package_id"]
@@ -71,8 +75,12 @@ fn test_obtainium_html_autodiscovery() {
 
     // Validação de links diretos servidos em lacraia.2lp.in
     assert!(
-        html.contains("https://lacraia.2lp.in/lacraia-app.apk"),
-        "site/index.html deve conter link direto para lacraia-app.apk no domínio oficial"
+        html.contains("https://lacraia.2lp.in/lacraia.apk"),
+        "site/index.html deve conter link direto para lacraia.apk no domínio oficial"
+    );
+    assert!(
+        !html.contains("lacraia-app.apk"),
+        "site/index.html não deve conter qualquer referência a lacraia-app.apk"
     );
     assert!(
         html.contains("https://lacraia.2lp.in/simbiotyka.apk"),
@@ -140,8 +148,12 @@ fn test_ci_workflow_apk_publishing_step() {
         "Workflow de CI deve gerenciar artefato android-apks"
     );
     assert!(
-        ci_yaml.contains("lacraia-app.apk"),
-        "Workflow de CI deve publicar lacraia-app.apk"
+        ci_yaml.contains("lacraia.apk"),
+        "Workflow de CI deve publicar lacraia.apk"
+    );
+    assert!(
+        !ci_yaml.contains("lacraia-app.apk"),
+        "Workflow de CI não deve conter qualquer referência a lacraia-app.apk"
     );
     assert!(
         ci_yaml.contains("simbiotyka.apk"),

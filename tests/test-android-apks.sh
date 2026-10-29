@@ -33,10 +33,10 @@ else
     FAILURES=$((FAILURES + 1))
 fi
 
-# 3. Verificar existência de dist/lacraia-app.apk e dist/simbiotyka.apk com tamanho > 1MB
+# 3. Verificar existência de dist/lacraia.apk e dist/simbiotyka.apk com tamanho > 1MB
 echo -n "-> 3. Verificando APKs em dist/ (> 1MB)... "
-if [ -f "$DIST_DIR/lacraia-app.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
-    SZ1=$(stat -c%s "$DIST_DIR/lacraia-app.apk")
+if [ -f "$DIST_DIR/lacraia.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
+    SZ1=$(stat -c%s "$DIST_DIR/lacraia.apk")
     SZ2=$(stat -c%s "$DIST_DIR/simbiotyka.apk")
     if [ "$SZ1" -gt 1048576 ] && [ "$SZ2" -gt 1048576 ]; then
         echo "✅ OK (APKs presentes e com tamanho real)"
@@ -51,8 +51,8 @@ fi
 
 # 4. Verificar assinatura criptográfica via apksigner
 echo -n "-> 4. Verificando assinatura oficial dos APKs... "
-if [ -f "$DIST_DIR/lacraia-app.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
-    if /usr/bin/apksigner verify "$DIST_DIR/lacraia-app.apk" >/dev/null 2>&1 && \
+if [ -f "$DIST_DIR/lacraia.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
+    if /usr/bin/apksigner verify "$DIST_DIR/lacraia.apk" >/dev/null 2>&1 && \
        /usr/bin/apksigner verify "$DIST_DIR/simbiotyka.apk" >/dev/null 2>&1; then
         echo "✅ OK (ambos os APKs verificados com sucesso)"
     else
@@ -117,15 +117,15 @@ if [ ! -x "$AAPT_BIN" ]; then
     AAPT_BIN=$(command -v aapt || true)
 fi
 
-if [ -f "$DIST_DIR/lacraia-app.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
+if [ -f "$DIST_DIR/lacraia.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
     if [ -n "$AAPT_BIN" ] && [ -x "$AAPT_BIN" ]; then
-        APP_ICONS=$("$AAPT_BIN" dump badging "$DIST_DIR/lacraia-app.apk" | grep -c "application-icon-" || true)
+        APP_ICONS=$("$AAPT_BIN" dump badging "$DIST_DIR/lacraia.apk" | grep -c "application-icon-" || true)
         SIM_ICONS=$("$AAPT_BIN" dump badging "$DIST_DIR/simbiotyka.apk" | grep -c "application-icon-" || true)
         if [ "$APP_ICONS" -eq 0 ] || [ "$SIM_ICONS" -eq 0 ]; then
             APK_ICONS_FAIL=1
         fi
     else
-        APP_PNGS=$(unzip -l "$DIST_DIR/lacraia-app.apk" | grep -cE "res/.*\.png" || true)
+        APP_PNGS=$(unzip -l "$DIST_DIR/lacraia.apk" | grep -cE "res/.*\.png" || true)
         SIM_PNGS=$(unzip -l "$DIST_DIR/simbiotyka.apk" | grep -cE "res/.*\.png" || true)
         if [ "$APP_PNGS" -eq 0 ] || [ "$SIM_PNGS" -eq 0 ]; then
             APK_ICONS_FAIL=1
