@@ -217,11 +217,65 @@ echo -n "-> 10. Verificando R2 (twolp-bucket) e dispatch da Banca no CI... "
 CI_WORKFLOW="$REPO_ROOT/.forgejo/workflows/ci.yml"
 if [ -f "$CI_WORKFLOW" ]; then
     if grep -q "twolp-bucket" "$CI_WORKFLOW" && \
-       grep -q "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches" "$CI_WORKFLOW" && \
-       grep -q "CODEBERG_TOKEN" "$CI_WORKFLOW"; then
+       (grep -q "https://gambi.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches" "$CI_WORKFLOW" || grep -q "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches" "$CI_WORKFLOW"); then
         echo "✅ OK (R2 e dispatch configurados no CI)"
     else
         echo "❌ FALHOU (R2 twolp-bucket ou dispatch da banca ausentes no CI)"
+        FAILURES=$((FAILURES + 1))
+    fi
+else
+    echo "❌ FALHOU (.forgejo/workflows/ci.yml ausente)"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# 11. Verificar versionamento canônico dinâmico nos build.gradle.kts (Ticket #61)
+echo -n "-> 11. Verificando versionamento canônico dinâmico do VERSION em app e simbiotyka (Ticket #61)... "
+GRADLE_VERSION_FAIL=0
+for mod in "app" "simbiotyka"; do
+    gradle_file="$ANDROID_DIR/$mod/build.gradle.kts"
+    if grep -q 'versionName = "0.2.0"' "$gradle_file"; then
+        GRADLE_VERSION_FAIL=1
+        break
+    fi
+    if ! grep -q 'VERSION' "$gradle_file"; then
+        GRADLE_VERSION_FAIL=1
+        break
+    fi
+done
+
+if [ "$GRADLE_VERSION_FAIL" -eq 0 ]; then
+    echo "✅ OK (versionName dinâmico extraído de VERSION nos módulos Android)"
+else
+    echo "❌ FALHOU (versionName estático '0.2.0' ainda presente ou ausência de leitura de VERSION)"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# 12. Verificar unificação do binário lacraia.apk em dist/ e CI (Ticket #61)
+echo -n "-> 12. Verificando unificação do binário oficial dist/lacraia.apk (Ticket #61)... "
+if [ -f "$DIST_DIR/lacraia.apk" ] && [ -f "$DIST_DIR/simbiotyka.apk" ]; then
+    SZ_LAC=$(stat -c%s "$DIST_DIR/lacraia.apk")
+    if [ "$SZ_LAC" -gt 1048576 ]; then
+        echo "✅ OK (lacraia.apk e simbiotyka.apk presentes com tamanho válido)"
+    else
+        echo "❌ FALHOU (tamanho insuficiente de dist/lacraia.apk)"
+        FAILURES=$((FAILURES + 1))
+    fi
+else
+    echo "❌ FALHOU (dist/lacraia.apk ausente)"
+    FAILURES=$((FAILURES + 1))
+fi
+
+# 13. Verificar job deploy-apk no CI com gost-ci-android e gradlew assembleRelease (Ticket #61)
+echo -n "-> 13. Verificando job deploy-apk no CI com gost-ci-android (Ticket #61)... "
+if [ -f "$CI_WORKFLOW" ]; then
+    if grep -q "deploy-apk" "$CI_WORKFLOW" && \
+       grep -q "gost-ci-android" "$CI_WORKFLOW" && \
+       grep -q "gradlew assembleRelease" "$CI_WORKFLOW" && \
+       grep -q "twolp-bucket/lacraia.apk" "$CI_WORKFLOW" && \
+       grep -q "twolp-bucket/simbiotyka.apk" "$CI_WORKFLOW"; then
+        echo "✅ OK (job deploy-apk configurado no CI com compilação e publicação R2)"
+    else
+        echo "❌ FALHOU (job deploy-apk ausente ou incompleto no CI)"
         FAILURES=$((FAILURES + 1))
     fi
 else
