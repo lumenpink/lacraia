@@ -88,7 +88,7 @@ The workspace is organized into modular Rust crates and an Android Kotlin multi-
 ### 3.4 `packages/lacraia-android` (Kotlin Android Multi-Module)
 - **Role:** Native Android applications derived from the `lacraia.2lp.in` domain.
 - **Modules:**
-  - `:app` (`in.twolp.lacraia.app`): Full-screen tactile console and crew jukebox (`lacraia-app.apk`).
+  - `:app` (`in.twolp.lacraia.app`): Full-screen tactile console and crew jukebox (`lacraia.apk`).
   - `:simbiotyka` (`in.twolp.lacraia.simbiotyka`): Floating lyric HUD overlay companion running as a Foreground Service (`simbiotyka.apk`).
 
 ### 3.4.1 Canonical Package Architecture & Build Pipeline
@@ -284,7 +284,7 @@ To prevent mobile chat truncation and aggressive 1:1 cropping across WhatsApp, T
 
 To ensure autonomous, self-updating delivery across smartphones and vehicular soundwalls without gatekeeping by Google Play Store:
 1. **Canonical Package Identifiers:**
-   - Console & Jukebox: `in.twolp.lacraia.app` (`lacraia-app.apk`)
+   - Console & Jukebox: `in.twolp.lacraia.app` (`lacraia.apk`)
    - Symbiotic Lyric HUD: `in.twolp.lacraia.simbiotyka` (`simbiotyka.apk`)
 2. **Sovereign Signing:**
    - Production and continuous APKs are signed using the official key (`in_twolp`) backed by `~/.android/in_twolp_release.keystore` and verified via `apksigner`.
@@ -294,7 +294,7 @@ To ensure autonomous, self-updating delivery across smartphones and vehicular so
    - One-touch clipboard copy button provided in web interface for instant addition.
    - Friendly aliases with automatic 301 redirect: `/patilera`, `/prateleira`, `/repo`.
 4. **Autonomous Distribution Endpoint & Headers (`https://lacraia.2lp.in`):**
-   - Direct APK downloads remain hosted as fallback targets: `https://lacraia.2lp.in/lacraia-app.apk` and `https://lacraia.2lp.in/simbiotyka.apk`.
+   - Direct APK downloads remain hosted as fallback targets: `https://lacraia.2lp.in/lacraia.apk` and `https://lacraia.2lp.in/simbiotyka.apk`.
    - MIME type headers configured via `site/_headers` (`application/vnd.android.package-archive` and `Access-Control-Allow-Origin: *`).
    - Version manifests (`site/version.json` and `site/version-nightly.json`) preserve compatibility with Obtainium and standalone JSON updaters.
 
