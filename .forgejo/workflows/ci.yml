@@ -283,7 +283,7 @@ jobs:
             echo "channel=nightly" >> $GITHUB_OUTPUT
           fi
 
-      - name: "Build Android APKs (Release)"
+      - name: "Build Android APKs (Release) (android-apks)"
         run: |
           cd packages/lacraia-android
           chmod +x gradlew
@@ -292,6 +292,7 @@ jobs:
       - name: "Collect & Sign APKs"
         run: |
           mkdir -p dist site
+          # Gerenciamento de android-apks (lacraia.apk e simbiotyka.apk)
           cp packages/lacraia-android/app/build/outputs/apk/release/app-release.apk dist/lacraia.apk
           cp packages/lacraia-android/simbiotyka/build/outputs/apk/release/simbiotyka-release.apk dist/simbiotyka.apk
 
@@ -300,10 +301,7 @@ jobs:
             bash scripts/sign-release.sh dist/simbiotyka.apk || true
           fi
 
-          # Espelho para compatibilidade
-          cp dist/lacraia.apk dist/lacraia-app.apk
           cp dist/lacraia.apk site/lacraia.apk
-          cp dist/lacraia.apk site/lacraia-app.apk
           cp dist/simbiotyka.apk site/simbiotyka.apk
 
           cat <<EOF > site/version.json
@@ -348,7 +346,6 @@ jobs:
           if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
             echo "★ Publicando APKs canônicos na raiz do bucket para A Pratilera..."
             upload_r2_with_retry "twolp-bucket/lacraia.apk" dist/lacraia.apk
-            upload_r2_with_retry "twolp-bucket/lacraia-app.apk" dist/lacraia.apk
             upload_r2_with_retry "twolp-bucket/simbiotyka.apk" dist/simbiotyka.apk
 
             echo "★ Publicando APKs versionados por canal..."

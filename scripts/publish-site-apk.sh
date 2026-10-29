@@ -38,10 +38,8 @@ mkdir -p "$REPO_ROOT/dist"
 # Copiar lacraia.apk
 if [ -f "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/release/app-release.apk" ]; then
     cp "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/release/app-release.apk" "$REPO_ROOT/dist/lacraia.apk"
-    cp "$REPO_ROOT/dist/lacraia.apk" "$REPO_ROOT/dist/lacraia-app.apk"
 elif [ -f "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/debug/app-debug.apk" ]; then
     cp "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/debug/app-debug.apk" "$REPO_ROOT/dist/lacraia.apk"
-    cp "$REPO_ROOT/dist/lacraia.apk" "$REPO_ROOT/dist/lacraia-app.apk"
 fi
 
 # Copiar simbiotyka.apk
@@ -56,7 +54,6 @@ if [ -x "$REPO_ROOT/scripts/sign-release.sh" ] && [ -f "$HOME/.android/in_twolp_
     echo "-> Assinando APKs com a chave in_twolp..."
     if [ -f "$REPO_ROOT/dist/lacraia.apk" ]; then
         bash "$REPO_ROOT/scripts/sign-release.sh" "$REPO_ROOT/dist/lacraia.apk" || true
-        cp "$REPO_ROOT/dist/lacraia.apk" "$REPO_ROOT/dist/lacraia-app.apk"
     fi
     if [ -f "$REPO_ROOT/dist/simbiotyka.apk" ]; then
         bash "$REPO_ROOT/scripts/sign-release.sh" "$REPO_ROOT/dist/simbiotyka.apk" || true
@@ -66,7 +63,6 @@ fi
 # 3. Integrar APKs ao site/
 if [ -f "$REPO_ROOT/dist/lacraia.apk" ]; then
     cp "$REPO_ROOT/dist/lacraia.apk" "$SITE_DIR/lacraia.apk"
-    cp "$REPO_ROOT/dist/lacraia.apk" "$SITE_DIR/lacraia-app.apk"
     echo "✅ lacraia.apk copiado para site/"
 fi
 if [ -f "$REPO_ROOT/dist/simbiotyka.apk" ]; then
