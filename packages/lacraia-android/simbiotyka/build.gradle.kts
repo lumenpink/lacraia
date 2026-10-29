@@ -4,6 +4,34 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val canonicalVersion: String = run {
+    val versionFile = rootProject.file("../../VERSION")
+    if (versionFile.exists()) {
+        val line = versionFile.readText().lines().firstOrNull { it.isNotBlank() }?.trim()
+        if (!line.isNullOrEmpty()) {
+            return@run line
+        }
+    }
+    (project.findProperty("versionName") as? String) ?: System.getenv("VERSION_NAME") ?: "0.2.0"
+}
+
+val canonicalVersionCode: Int = run {
+    val prop = project.findProperty("versionCode")?.toString()?.toIntOrNull()
+    if (prop != null) return@run prop
+    val env = System.getenv("VERSION_CODE")?.toIntOrNull()
+    if (env != null) return@run env
+    val devMatch = Regex("""-dev\.(\d+)""").find(canonicalVersion)
+    if (devMatch != null) {
+        return@run devMatch.groupValues[1].toInt()
+    }
+    val semverMatch = Regex("""^(\d+)\.(\d+)\.(\d+)""").find(canonicalVersion)
+    if (semverMatch != null) {
+        val (major, minor, patch) = semverMatch.destructured
+        return@run major.toInt() * 10000 + minor.toInt() * 100 + patch.toInt()
+    }
+    1
+}
+
 android {
     namespace = "in.twolp.lacraia.simbiotyka"
     compileSdk = 34
@@ -12,8 +40,8 @@ android {
         applicationId = "in.twolp.lacraia.simbiotyka"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.2.0"
+        versionCode = canonicalVersionCode
+        versionName = canonicalVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

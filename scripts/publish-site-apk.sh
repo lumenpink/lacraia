@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# La Craia — Script de Publicação Soberana de APKs no Site (lacraia.2lp.in)
+# La Craia — Script de Publicação de APKs no Site (lacraia.2lp.in)
 # ==============================================================================
 set -euo pipefail
 
@@ -9,7 +9,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SITE_DIR="$REPO_ROOT/site"
 
 echo "================================================================="
-echo "La Craia — Publicação Soberana de APKs & Manifesto Obtainium"
+echo "La Craia — Publicação Oficial de APKs & Manifesto Obtainium"
 echo "================================================================="
 
 cd "$REPO_ROOT"
@@ -35,11 +35,13 @@ fi
 
 mkdir -p "$REPO_ROOT/dist"
 
-# Copiar lacraia-app.apk
+# Copiar lacraia.apk
 if [ -f "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/release/app-release.apk" ]; then
-    cp "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/release/app-release.apk" "$REPO_ROOT/dist/lacraia-app.apk"
+    cp "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/release/app-release.apk" "$REPO_ROOT/dist/lacraia.apk"
+    cp "$REPO_ROOT/dist/lacraia.apk" "$REPO_ROOT/dist/lacraia-app.apk"
 elif [ -f "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-    cp "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/debug/app-debug.apk" "$REPO_ROOT/dist/lacraia-app.apk"
+    cp "$REPO_ROOT/packages/lacraia-android/app/build/outputs/apk/debug/app-debug.apk" "$REPO_ROOT/dist/lacraia.apk"
+    cp "$REPO_ROOT/dist/lacraia.apk" "$REPO_ROOT/dist/lacraia-app.apk"
 fi
 
 # Copiar simbiotyka.apk
@@ -49,11 +51,12 @@ elif [ -f "$REPO_ROOT/packages/lacraia-android/simbiotyka/build/outputs/apk/debu
     cp "$REPO_ROOT/packages/lacraia-android/simbiotyka/build/outputs/apk/debug/simbiotyka-debug.apk" "$REPO_ROOT/dist/simbiotyka.apk"
 fi
 
-# 2. Assinar soberanamente se apksigner e chave in_twolp estiverem disponíveis
+# 2. Assinar com chave oficial se apksigner e chave in_twolp estiverem disponíveis
 if [ -x "$REPO_ROOT/scripts/sign-release.sh" ] && [ -f "$HOME/.android/in_twolp_release.keystore" ]; then
     echo "-> Assinando APKs com a chave in_twolp..."
-    if [ -f "$REPO_ROOT/dist/lacraia-app.apk" ]; then
-        bash "$REPO_ROOT/scripts/sign-release.sh" "$REPO_ROOT/dist/lacraia-app.apk" || true
+    if [ -f "$REPO_ROOT/dist/lacraia.apk" ]; then
+        bash "$REPO_ROOT/scripts/sign-release.sh" "$REPO_ROOT/dist/lacraia.apk" || true
+        cp "$REPO_ROOT/dist/lacraia.apk" "$REPO_ROOT/dist/lacraia-app.apk"
     fi
     if [ -f "$REPO_ROOT/dist/simbiotyka.apk" ]; then
         bash "$REPO_ROOT/scripts/sign-release.sh" "$REPO_ROOT/dist/simbiotyka.apk" || true
@@ -61,9 +64,10 @@ if [ -x "$REPO_ROOT/scripts/sign-release.sh" ] && [ -f "$HOME/.android/in_twolp_
 fi
 
 # 3. Integrar APKs ao site/
-if [ -f "$REPO_ROOT/dist/lacraia-app.apk" ]; then
-    cp "$REPO_ROOT/dist/lacraia-app.apk" "$SITE_DIR/lacraia-app.apk"
-    echo "✅ lacraia-app.apk copiado para site/"
+if [ -f "$REPO_ROOT/dist/lacraia.apk" ]; then
+    cp "$REPO_ROOT/dist/lacraia.apk" "$SITE_DIR/lacraia.apk"
+    cp "$REPO_ROOT/dist/lacraia.apk" "$SITE_DIR/lacraia-app.apk"
+    echo "✅ lacraia.apk copiado para site/"
 fi
 if [ -f "$REPO_ROOT/dist/simbiotyka.apk" ]; then
     cp "$REPO_ROOT/dist/simbiotyka.apk" "$SITE_DIR/simbiotyka.apk"
@@ -76,13 +80,13 @@ cat <<EOF > "$SITE_DIR/version.json"
   "version": "${VERSION}",
   "min_compatible_version": "0.1.0",
   "package_id": "in.twolp.lacraia.app",
-  "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
-  "release_notes": "Compilação soberana e contínua do ecossistema La Craia para Android.",
+  "apk_url": "https://lacraia.2lp.in/lacraia.apk",
+  "release_notes": "Compilação automatizada e contínua do ecossistema La Craia para Android.",
   "published_at": "${PUBLISHED_AT}",
   "apps": {
     "lacraia-app": {
       "package_id": "in.twolp.lacraia.app",
-      "apk_url": "https://lacraia.2lp.in/lacraia-app.apk",
+      "apk_url": "https://lacraia.2lp.in/lacraia.apk",
       "name": "La Craia App (Cockpit & Jukebox)"
     },
     "simbiotyka": {
@@ -98,8 +102,8 @@ EOF
 BANCA_DIR="$(cd "$REPO_ROOT/../banca" 2>/dev/null && pwd || true)"
 if [ -n "$BANCA_DIR" ] && [ -d "$BANCA_DIR/site/pratilera" ]; then
     echo "-> Sincronizando APKs com A Pratilera na Banca ($BANCA_DIR)..."
-    [ -f "$REPO_ROOT/dist/lacraia-app.apk" ] && cp "$REPO_ROOT/dist/lacraia-app.apk" "$BANCA_DIR/site/pratilera/"
-    [ -f "$REPO_ROOT/dist/simbiotyka.apk" ] && cp "$REPO_ROOT/dist/simbiotyka.apk" "$BANCA_DIR/site/pratilera/"
+    [ -f "$REPO_ROOT/dist/lacraia.apk" ] && cp "$REPO_ROOT/dist/lacraia.apk" "$BANCA_DIR/site/pratilera/lacraia.apk"
+    [ -f "$REPO_ROOT/dist/simbiotyka.apk" ] && cp "$REPO_ROOT/dist/simbiotyka.apk" "$BANCA_DIR/site/pratilera/simbiotyka.apk"
     if [ -f "$BANCA_DIR/scripts/gerar-pratilera.py" ]; then
         python3 "$BANCA_DIR/scripts/gerar-pratilera.py" || true
     fi
