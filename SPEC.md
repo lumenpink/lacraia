@@ -365,10 +365,29 @@ To prevent horizontal drift, layout distortion, and unwanted lateral scrolling a
 
 ## 17. Distribuição Automática no Cloudflare R2 e Notificação à Pratilera (Ticket #45)
 
-Para garantir que os binários da Lacraia e Simbiótyka sejam entregues soberanamente pelo bucket R2 e que a loja oficial Pratilera (`banca`) seja atualizada automaticamente a cada push na branch `main`:
+Para garantir que os binários da Lacraia e Simbiótyka sejam entregues de forma automatizada pelo bucket R2 e que a loja oficial Pratilera (`banca`) seja atualizada automaticamente a cada push na branch `main`:
 1. **Publicação no Bucket R2 (`twolp-bucket`)**:
    - `dist/lacraia.apk` é publicado em `twolp-bucket/lacraia.apk`.
    - `dist/simbiotyka.apk` é publicado em `twolp-bucket/simbiotyka.apk`.
 2. **Gatilho de Atualização da Pratilera**:
-   - O pipeline aciona a API de workflow dispatch da Banca via `POST https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches` com `CODEBERG_TOKEN`.
+   - O pipeline aciona a API de workflow dispatch da Banca via `POST https://gambi.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches` com `GAMBI_2LP_IN_TOKEN`.
+
+---
+
+## 18. Versionamento Canônico Android e Esteira Contínua para A Pratilera (Ticket #61)
+
+1. **Versionamento Canônico Dinâmico no Gradle:**
+   - Ambos os aplicativos Android (`lacraia` app e `simbiotyka` HUD) extraem dinamicamente seu `versionName` do arquivo `VERSION` na raiz do repositório.
+   - Em builds de desenvolvimento, o `versionName` reflete a versão completa do CCCP (ex.: `0.2.0-dev.242+20261027.1fba108`).
+   - O `versionCode` é calculado de forma estritamente monotônica crescente a partir do contador incremental `dev.XXX` do SemVer 2.0.0, permitindo atualizações contínuas no Android e no Droid-ify / Neo Store / F-Droid.
+2. **Unificação do Binário Móvel:**
+   - O artefato oficial do app principal é unificado estritamente como `lacraia.apk`.
+   - O artefato oficial do HUD de letras é unificado como `simbiotyka.apk`.
+   - O script de empacotamento local e a esteira de CI publicam diretamente sob essas nomenclaturas canônicas.
+3. **Esteira de CI Dedicada para Android:**
+   - O workflow CI executa o job `deploy-apk` no container `gambi.2lp.in/lumen/gost-ci-android:latest`.
+   - Executa `./gradlew assembleRelease` para compilar ambos os APKs.
+   - Assina os artefatos com a keystore oficial `in_twolp`.
+   - Publica os APKs na raiz do bucket R2 (`twolp-bucket/lacraia.apk` e `twolp-bucket/simbiotyka.apk`) e notifica a esteira da Banca via `workflow_dispatch`.
+
 
