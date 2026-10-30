@@ -199,20 +199,34 @@ async fn test_hermetic_offline_resolver_omits_network_and_player_client() {
     let _ = std::fs::create_dir_all(&cache_dir);
 
     // Verify search and download arguments never enforce SABR-vulnerable player_client=android
-    let search_args = MediaResolver::build_ytdlp_search_args("ytsearch5:chico buarque construcao audio");
-    assert!(!search_args.iter().any(|a| a.contains("player_client=android")));
+    let search_args =
+        MediaResolver::build_ytdlp_search_args("ytsearch5:chico buarque construcao audio");
+    assert!(!search_args
+        .iter()
+        .any(|a| a.contains("player_client=android")));
 
-    let dl_args = MediaResolver::build_ytdlp_download_args("/tmp/out.opus", "https://youtube.com/watch?v=xyz");
+    let dl_args = MediaResolver::build_ytdlp_download_args(
+        "/tmp/out.opus",
+        "https://youtube.com/watch?v=xyz",
+    );
     assert!(!dl_args.iter().any(|a| a.contains("player_client=android")));
 
     // Offline resolver must immediately return error on uncached tracks without touching network
     let resolver = MediaResolver::new_offline(cache_dir.clone(), db.clone());
     let start = std::time::Instant::now();
-    let res = resolver.resolve_and_cache("Chico Buarque", "Construcao", 258).await;
+    let res = resolver
+        .resolve_and_cache("Chico Buarque", "Construcao", 258)
+        .await;
     let elapsed = start.elapsed();
 
-    assert!(res.is_err(), "Uncached track in offline mode must return error");
-    assert!(elapsed.as_millis() < 50, "Offline resolution check must be instantaneous (<50ms)");
+    assert!(
+        res.is_err(),
+        "Uncached track in offline mode must return error"
+    );
+    assert!(
+        elapsed.as_millis() < 50,
+        "Offline resolution check must be instantaneous (<50ms)"
+    );
 
     let _ = std::fs::remove_dir_all(&cache_dir);
 }

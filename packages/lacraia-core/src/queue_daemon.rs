@@ -1050,7 +1050,8 @@ mod tests {
             last_played_at: None,
         };
         db.upsert_track(&trk_a_playing).unwrap();
-        db.enqueue_track_with_meta("trk:a_playing", Some("PILOTO"), "cabin_a").unwrap();
+        db.enqueue_track_with_meta("trk:a_playing", Some("PILOTO"), "cabin_a")
+            .unwrap();
         db.advance_queue_for_cabin("cabin_a").unwrap();
 
         for i in 1..=20 {
@@ -1064,8 +1065,10 @@ mod tests {
                 last_played_at: None,
             };
             db.upsert_track(&trk).unwrap();
-            db.enqueue_track_with_meta(&trk.id, Some("AUTOPILOT"), "cabin_a").unwrap();
-            db.mark_cached(&trk.id, fake_file.to_str().unwrap()).unwrap();
+            db.enqueue_track_with_meta(&trk.id, Some("AUTOPILOT"), "cabin_a")
+                .unwrap();
+            db.mark_cached(&trk.id, fake_file.to_str().unwrap())
+                .unwrap();
         }
 
         // Cabin B: 1 track playing, and pending tracks with 0s cached
@@ -1079,7 +1082,8 @@ mod tests {
             last_played_at: None,
         };
         db.upsert_track(&trk_b_playing).unwrap();
-        db.enqueue_track_with_meta("trk:b_playing", Some("PILOTO"), "cabin_b").unwrap();
+        db.enqueue_track_with_meta("trk:b_playing", Some("PILOTO"), "cabin_b")
+            .unwrap();
         db.advance_queue_for_cabin("cabin_b").unwrap();
 
         for i in 1..=3 {
@@ -1093,7 +1097,8 @@ mod tests {
                 last_played_at: None,
             };
             db.upsert_track(&trk).unwrap();
-            db.enqueue_track_with_meta(&trk.id, Some("AUTOPILOT"), "cabin_b").unwrap();
+            db.enqueue_track_with_meta(&trk.id, Some("AUTOPILOT"), "cabin_b")
+                .unwrap();
         }
 
         // Run step(). Because resolver is in offline mode, it will attempt Cabin B's pending tracks
