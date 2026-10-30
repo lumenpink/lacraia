@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+  - (daemon) isolar prefetch por cabine e hermetizar suite de testes (closes #62)
+
 ### Changed
   - (docker) tornar Cargo.lock opcional no Dockerfile multi-stage (closes #58)
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
