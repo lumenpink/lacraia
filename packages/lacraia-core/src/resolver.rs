@@ -702,6 +702,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_ytdlp_args_resilience_and_omits_android_client() {
+        let search_args = MediaResolver::build_ytdlp_search_args("ytsearch5:chico buarque construcao audio");
+        assert!(
+            !search_args.iter().any(|arg| arg.contains("player_client=android")),
+            "Search args must not contain player_client=android to prevent SABR extraction failure"
+        );
+
+        let dl_args = MediaResolver::build_ytdlp_download_args("/tmp/out.opus", "https://youtube.com/watch?v=123");
+        assert!(
+            !dl_args.iter().any(|arg| arg.contains("player_client=android")),
+            "Download args must not contain player_client=android to prevent SABR extraction failure"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_media_resolver_offline_mode_fails_fast_without_network() {
+        let tmp_dir = std::env::temp_dir().join(format!("lacraia_off_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&tmp_dir);
+        let db = Database::open_in_memory().unwrap();
+
+        let resolver = MediaResolver::new_offline(tmp_dir.clone(), db.clone());
+        let res = resolver.resolve_and_cache("Ghost Artist", "Ghost Title", 180).await;
+        assert!(res.is_err(), "Offline resolver must return error on uncached tracks");
+        match res.unwrap_err() {
+            ResolverError::ExtractionFailed(msg) => {
+                assert!(msg.contains("offline"), "Error must indicate offline mode");
+            }
+            other => panic!("Expected ResolverError::ExtractionFailed, got: {:?}", other),
+        }
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+    }
+
+    #[test]
     fn test_candidate_evaluation() {
         assert!(MediaResolver::evaluate_candidate(
             "David Bowie - Rebel Rebel (Official Audio)",

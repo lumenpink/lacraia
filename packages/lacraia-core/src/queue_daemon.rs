@@ -1018,4 +1018,102 @@ mod tests {
         assert_eq!(daemon.target_cache_duration_sec(), 1800);
         assert_eq!(daemon.target_queue_duration_sec(), 10800);
     }
+
+    #[tokio::test]
+    async fn test_queue_daemon_per_cabin_prefetch_isolation_in_step() {
+        let db = Database::open_in_memory().unwrap();
+        let (tx, _rx) = tokio::sync::broadcast::channel(100);
+        let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+        let tmp_cache = std::env::temp_dir().join(format!("lacraia_iso_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&tmp_cache).unwrap();
+
+        let fake_file = tmp_cache.join("cached_a.opus");
+        std::fs::write(&fake_file, b"FAKE_AUDIO_DATA").unwrap();
+
+        let resolver = Arc::new(crate::resolver::MediaResolver::new_offline(
+            tmp_cache.clone(),
+            db.clone(),
+        ));
+        let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+
+        let daemon = QueueDaemon::new_with_temporal_window(
+            db.clone(),
+            resolver,
+            similarity,
+            hub.clone(),
+            3600,
+            7200,
+            Duration::from_millis(50),
+        );
+
+        // Cabin A: 1 track playing, and 4000s of CACHED tracks (cache quota filled > 3600s)
+        let trk_a_playing = TrackRecord {
+            id: "trk:a_playing".into(),
+            artist: "Band A".into(),
+            title: "Playing A".into(),
+            duration_sec: 200,
+            cached_path: Some(fake_file.to_str().unwrap().into()),
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&trk_a_playing).unwrap();
+        db.enqueue_track_with_meta("trk:a_playing", Some("PILOTO"), "cabin_a").unwrap();
+        db.advance_queue_for_cabin("cabin_a").unwrap();
+
+        for i in 1..=20 {
+            let trk = TrackRecord {
+                id: format!("trk:a_{}", i),
+                artist: "Band A".into(),
+                title: format!("Cached A {}", i),
+                duration_sec: 200, // 20 * 200 = 4000s
+                cached_path: Some(fake_file.to_str().unwrap().into()),
+                genres: None,
+                last_played_at: None,
+            };
+            db.upsert_track(&trk).unwrap();
+            db.enqueue_track_with_meta(&trk.id, Some("AUTOPILOT"), "cabin_a").unwrap();
+            db.mark_cached(&trk.id, fake_file.to_str().unwrap()).unwrap();
+        }
+
+        // Cabin B: 1 track playing, and pending tracks with 0s cached
+        let trk_b_playing = TrackRecord {
+            id: "trk:b_playing".into(),
+            artist: "Band B".into(),
+            title: "Playing B".into(),
+            duration_sec: 200,
+            cached_path: Some(fake_file.to_str().unwrap().into()),
+            genres: None,
+            last_played_at: None,
+        };
+        db.upsert_track(&trk_b_playing).unwrap();
+        db.enqueue_track_with_meta("trk:b_playing", Some("PILOTO"), "cabin_b").unwrap();
+        db.advance_queue_for_cabin("cabin_b").unwrap();
+
+        for i in 1..=3 {
+            let trk = TrackRecord {
+                id: format!("trk:b_{}", i),
+                artist: "Band B".into(),
+                title: format!("Pending B {}", i),
+                duration_sec: 200,
+                cached_path: None,
+                genres: None,
+                last_played_at: None,
+            };
+            db.upsert_track(&trk).unwrap();
+            db.enqueue_track_with_meta(&trk.id, Some("AUTOPILOT"), "cabin_b").unwrap();
+        }
+
+        // Run step(). Because resolver is in offline mode, it will attempt Cabin B's pending tracks
+        // and transition them to Failed (since uncached). If cabin isolation was broken, it would process 0!
+        let _ = daemon.step().await;
+
+        let q_b = db.get_queue_for_cabin("cabin_b").unwrap();
+        let attempted_any = q_b.iter().any(|(e, _)| e.state == QueueState::Failed);
+        assert!(
+            attempted_any,
+            "Cabin B's pending tracks must be processed even when Cabin A has exceeded the cache horizon"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp_cache);
+    }
 }

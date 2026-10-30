@@ -88,7 +88,7 @@ async fn test_queue_daemon_failure_isolation() {
     db.upsert_track(&track).unwrap();
     let _qid = db.enqueue_track(track_id).unwrap();
 
-    let resolver = Arc::new(MediaResolver::new(cache_dir.clone(), db.clone()));
+    let resolver = Arc::new(MediaResolver::new_offline(cache_dir.clone(), db.clone()));
     let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
     let (tx, _rx) = broadcast::channel::<WsMessage>(50);
     let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
@@ -194,53 +194,28 @@ async fn test_end_to_end_api_resolve_and_cache_serving() {
 }
 
 #[tokio::test]
-#[ignore = "requer conectividade de rede externa para o YouTube Music"]
-async fn test_real_resolver_download_with_android_client() {
+async fn test_hermetic_offline_resolver_omits_network_and_player_client() {
     let db = Database::open_in_memory().unwrap();
     let cache_dir = std::env::temp_dir().join(format!("lacraia_test_{}", uuid::Uuid::new_v4()));
     let _ = std::fs::create_dir_all(&cache_dir);
 
-    let resolver = MediaResolver::new(cache_dir.clone(), db.clone());
+    // Verify search and download arguments never enforce SABR-vulnerable player_client=android
+    let search_args = MediaResolver::build_ytdlp_search_args("ytsearch5:chico buarque construcao audio");
+    assert!(!search_args.iter().any(|a| a.contains("player_client=android")));
 
-    // Resolve a real track known to exist: "Chico Buarque - Construcao" (or Legiao Urbana - Tempo Perdido)
-    let resolution = resolver
-        .resolve_and_cache("Chico Buarque", "Construcao", 258)
-        .await;
+    let dl_args = MediaResolver::build_ytdlp_download_args("/tmp/out.opus", "https://youtube.com/watch?v=xyz");
+    assert!(!dl_args.iter().any(|a| a.contains("player_client=android")));
 
-    match resolution {
-        Ok(track) => {
-            assert_eq!(track.artist, "Chico Buarque");
-            assert_eq!(track.title, "Construcao");
-            assert!(track.stream_url.starts_with("/cache/"));
+    // Offline resolver must immediately return error on uncached tracks without touching network
+    let resolver = MediaResolver::new_offline(cache_dir.clone(), db.clone());
+    let start = std::time::Instant::now();
+    let res = resolver.resolve_and_cache("Chico Buarque", "Construcao", 258).await;
+    let elapsed = start.elapsed();
 
-            let file_path = PathBuf::from(&track.cache_path);
-            assert!(file_path.exists(), "Cache file must exist on disk");
+    assert!(res.is_err(), "Uncached track in offline mode must return error");
+    assert!(elapsed.as_millis() < 50, "Offline resolution check must be instantaneous (<50ms)");
 
-            let metadata = std::fs::metadata(&file_path).unwrap();
-            assert!(
-                metadata.len() > 100_000,
-                "Downloaded Opus file must be substantial (>100KB)"
-            );
-
-            // Second resolution must be instantaneous Tier 1 hit
-            let start = std::time::Instant::now();
-            let cached_resolution = resolver
-                .resolve_and_cache("Chico Buarque", "Construcao", 258)
-                .await
-                .unwrap();
-            let elapsed = start.elapsed();
-
-            assert_eq!(cached_resolution.stream_url, track.stream_url);
-            assert!(
-                elapsed.as_millis() < 50,
-                "Tier 1 cache hit must take < 50ms"
-            );
-        }
-        Err(e) => {
-            // If offline or network restricted, verify error is clean and properly typed
-            eprintln!("Network resolution skipped/failed: {}", e);
-        }
-    }
+    let _ = std::fs::remove_dir_all(&cache_dir);
 }
 
 #[tokio::test]
