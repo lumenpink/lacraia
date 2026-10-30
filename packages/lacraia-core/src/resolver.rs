@@ -751,6 +751,31 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_mutation_resistance_resolver_offline_and_args() {
+        // Mutant A: Verify search args must include --no-playlist
+        let s_args = MediaResolver::build_ytdlp_search_args("sample query");
+        assert!(
+            s_args.contains(&"--no-playlist".to_string()),
+            "Mutant A caught: search args must include --no-playlist"
+        );
+
+        // Mutant B: Verify download args must specify opus audio format
+        let d_args = MediaResolver::build_ytdlp_download_args("/tmp/t.opus", "http://yt.com/1");
+        assert!(
+            d_args.contains(&"opus".to_string()),
+            "Mutant B caught: download args must specify opus format"
+        );
+
+        // Mutant C: Verify offline resolver has offline flag set
+        let db = Database::open_in_memory().unwrap();
+        let resolver = MediaResolver::new_offline(PathBuf::from("/tmp"), db);
+        assert!(
+            resolver.offline,
+            "Mutant C caught: offline resolver must be flagged offline"
+        );
+    }
+
     #[tokio::test]
     async fn test_media_resolver_offline_mode_fails_fast_without_network() {
         let tmp_dir = std::env::temp_dir().join(format!("lacraia_off_{}", uuid::Uuid::new_v4()));
