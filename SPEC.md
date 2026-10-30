@@ -143,11 +143,13 @@ Audio streaming employs a resilient, three-tier hybrid resolution architecture:
 
 1. **Tier 1 (Instant Local Cache):** If `<id>.opus` exists in `LACRAIA_CACHE_DIR`, audio is served immediately via RFC 7233 HTTP Range requests with zero network latency.
 2. **Tier 2 (In-Flight Mutex Deduplication):** Concurrent requests for the same track ID share an active Tokio `broadcast` channel, avoiding duplicate downloads.
-3. **Tier 3 (Sanitized Media Extraction):** Primary resolution queries native YouTube Music streams via RustyPipe with zero transcode overhead; fallback triggers yt-dlp with `--extractor-args "youtube:player_client=android"` and fast stream copy remuxing (`-c:a copy`), preserving battery and minimizing latency.
-4. **Autonomous Lookahead Daemon (`QueueDaemon`) & 3600s (1h) Temporal Horizon:**
-   - Evaluates active cabin queues against a cumulative temporal horizon: $\sum \text{duration\_sec(cache)} \ge 3600\text{ s}$ (1 hour) and $\sum \text{duration\_sec(queue)} \ge 3600\text{ s}$ (1 hour).
-   - Ingests candidates via multi-seed affinity graph traversal (`find_similar_multi`) whenever upcoming playtime falls below 3600s, guaranteeing uncompressed offline playback headroom covering severe highway coverage blackouts ($P_{99}$), consuming only ~57 MB of disk.
+3. **Tier 3 (Sanitized Resilient Media Extraction):** Primary resolution queries native YouTube Music streams via RustyPipe with zero transcode overhead; fallback triggers yt-dlp with sanitized query arguments, resilient multi-client format extraction (without restrictive single-client constraints subject to SABR stream suppression), and fast stream copy remuxing (`-c:a copy`), preserving battery and minimizing latency.
+4. **Autonomous Lookahead Daemon (`QueueDaemon`) & Strict Per-Cabin Isolation:**
+   - Evaluates each active cabin queue in strict per-cabin isolation: each cabin independently tracks its cumulative temporal horizon $\sum \text{duration\_sec(cache)} \ge 3600\text{ s}$ (1 hour) and $\sum \text{duration\_sec(queue)} \ge 7200\text{ s}$ (2 hours). Cached tracks in secondary or dormant cabins never interfere with or starve active cabin lookahead pre-caching.
+   - Ingests candidates via multi-seed affinity graph traversal (`find_similar_multi`) whenever upcoming playtime falls below the horizon, guaranteeing uncompressed offline playback headroom covering severe highway coverage blackouts ($P_{99}$), consuming only ~57 MB of disk per hour of audio.
    - Automatically skips and marks unresolvable items as `Failed`, preventing infinite download loops.
+5. **Hermetic & Offline Quality Gates:**
+   - The test pipeline is strictly offline and hermetic. Core components (`MediaResolver` and `CompositeSimilarityEngine`) support offline execution modes (`new_offline` / local graph and cache isolation) ensuring that test suites never execute live network requests, contact external APIs (YouTube, Last.fm, MusicBrainz), or suffer flakiness from remote services.
 
 ---
 
