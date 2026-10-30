@@ -400,6 +400,7 @@ pub struct CompositeSimilarityEngine {
     lastfm: Option<LastFmProvider>,
     metabrainz: MetaBrainzProvider,
     db: Database,
+    offline: bool,
 }
 
 impl CompositeSimilarityEngine {
@@ -408,10 +409,24 @@ impl CompositeSimilarityEngine {
             .filter(|k| !k.is_empty())
             .map(LastFmProvider::new);
         let metabrainz = MetaBrainzProvider::new();
+        let offline = std::env::var("LACRAIA_OFFLINE")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
         Self {
             lastfm,
             metabrainz,
             db,
+            offline,
+        }
+    }
+
+    pub fn new_offline(db: Database) -> Self {
+        let metabrainz = MetaBrainzProvider::new();
+        Self {
+            lastfm: None,
+            metabrainz,
+            db,
+            offline: true,
         }
     }
 
@@ -625,38 +640,40 @@ impl SimilarityEngine for CompositeSimilarityEngine {
         };
         let _ = self.db.upsert_track(&seed_record);
 
-        // 1. Try Last.fm if configured
-        if let Some(ref lfm) = self.lastfm {
-            match lfm.find_similar(artist, track, limit).await {
+        if !self.offline {
+            // 1. Try Last.fm if configured
+            if let Some(ref lfm) = self.lastfm {
+                match lfm.find_similar(artist, track, limit).await {
+                    Ok(results) if !results.is_empty() => {
+                        info!("Obtained {} similar tracks from Last.fm", results.len());
+                        self.persist_candidates(&seed_id, &results);
+                        return Ok(results);
+                    }
+                    Ok(_) => {
+                        warn!("Last.fm returned empty results, attempting fallback");
+                    }
+                    Err(e) => {
+                        warn!("Last.fm provider failed: {}, attempting fallback", e);
+                    }
+                }
+            }
+
+            // 2. Try MetaBrainz fallback
+            match self.metabrainz.find_similar(artist, track, limit).await {
                 Ok(results) if !results.is_empty() => {
-                    info!("Obtained {} similar tracks from Last.fm", results.len());
+                    info!("Obtained {} similar tracks from MetaBrainz", results.len());
                     self.persist_candidates(&seed_id, &results);
                     return Ok(results);
                 }
                 Ok(_) => {
-                    warn!("Last.fm returned empty results, attempting fallback");
+                    warn!("MetaBrainz returned empty results, falling back to local DB");
                 }
                 Err(e) => {
-                    warn!("Last.fm provider failed: {}, attempting fallback", e);
+                    warn!(
+                        "MetaBrainz provider failed: {}, falling back to local DB",
+                        e
+                    );
                 }
-            }
-        }
-
-        // 2. Try MetaBrainz fallback
-        match self.metabrainz.find_similar(artist, track, limit).await {
-            Ok(results) if !results.is_empty() => {
-                info!("Obtained {} similar tracks from MetaBrainz", results.len());
-                self.persist_candidates(&seed_id, &results);
-                return Ok(results);
-            }
-            Ok(_) => {
-                warn!("MetaBrainz returned empty results, falling back to local DB");
-            }
-            Err(e) => {
-                warn!(
-                    "MetaBrainz provider failed: {}, falling back to local DB",
-                    e
-                );
             }
         }
 

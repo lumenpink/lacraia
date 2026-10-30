@@ -50,10 +50,26 @@ pub struct MediaResolver {
     db: Database,
     ytdlp_bin: String,
     rp: RustyPipe,
+    offline: bool,
 }
 
 impl MediaResolver {
     pub fn new(cache_dir: PathBuf, db: Database) -> Self {
+        let ytdlp_bin = std::env::var("YTDLP_BIN").unwrap_or_else(|_| "yt-dlp".to_string());
+        let rp = RustyPipe::new();
+        let offline = std::env::var("LACRAIA_OFFLINE")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        Self {
+            cache_dir,
+            db,
+            ytdlp_bin,
+            rp,
+            offline,
+        }
+    }
+
+    pub fn new_offline(cache_dir: PathBuf, db: Database) -> Self {
         let ytdlp_bin = std::env::var("YTDLP_BIN").unwrap_or_else(|_| "yt-dlp".to_string());
         let rp = RustyPipe::new();
         Self {
@@ -61,7 +77,31 @@ impl MediaResolver {
             db,
             ytdlp_bin,
             rp,
+            offline: true,
         }
+    }
+
+    pub fn build_ytdlp_search_args(search_query: &str) -> Vec<String> {
+        vec![
+            search_query.to_string(),
+            "--dump-json".to_string(),
+            "--default-search".to_string(),
+            "ytsearch".to_string(),
+            "--no-playlist".to_string(),
+        ]
+    }
+
+    pub fn build_ytdlp_download_args(target_path_str: &str, video_url: &str) -> Vec<String> {
+        vec![
+            "-f".to_string(),
+            "ba[acodec=opus]/ba/bestaudio".to_string(),
+            "-x".to_string(),
+            "--audio-format".to_string(),
+            "opus".to_string(),
+            "-o".to_string(),
+            target_path_str.to_string(),
+            video_url.to_string(),
+        ]
     }
 
     /// Evaluates whether a search candidate satisfies duration delta (<=15s) and noise filter.
@@ -265,16 +305,9 @@ impl MediaResolver {
             clean_artist.trim(),
             clean_title.trim()
         );
+        let search_args = Self::build_ytdlp_search_args(&search_query);
         let output = TokioCommand::new(&self.ytdlp_bin)
-            .args([
-                &search_query,
-                "--dump-json",
-                "--default-search",
-                "ytsearch",
-                "--no-playlist",
-                "--extractor-args",
-                "youtube:player_client=android",
-            ])
+            .args(&search_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .output()
@@ -323,19 +356,9 @@ impl MediaResolver {
             video_url, target_path_str
         );
 
+        let dl_args = Self::build_ytdlp_download_args(target_path_str, &video_url);
         let dl_output = TokioCommand::new(&self.ytdlp_bin)
-            .args([
-                "-f",
-                "ba[acodec=opus]/ba/bestaudio",
-                "-x",
-                "--audio-format",
-                "opus",
-                "--extractor-args",
-                "youtube:player_client=android",
-                "-o",
-                target_path_str,
-                &video_url,
-            ])
+            .args(&dl_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
@@ -531,6 +554,12 @@ impl MediaResolver {
                 stream_url: format!("/cache/{}", hit_file),
                 cache_path: hit_path_str,
             });
+        }
+
+        if self.offline {
+            return Err(ResolverError::ExtractionFailed(
+                "offline mode: network resolution disabled".to_string(),
+            ));
         }
 
         // Tier 1: Try native Rust crate (RustyPipe) - isolated in task to catch third-party unwrap panics

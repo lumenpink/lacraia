@@ -131,44 +131,41 @@ impl QueueDaemon {
             None => 0,
         };
 
-        let mut cached_count = 0;
-        let mut cached_duration_sec: u64 = 0;
-        let mut uncached_candidates = Vec::new();
-
-        for (_, (entry, track)) in queue.iter().enumerate().skip(start_index) {
-            if entry.state == QueueState::Failed {
-                continue;
-            }
-            if track.cached_path.is_some() || entry.state == QueueState::Cached {
-                cached_count += 1;
-                cached_duration_sec += track.duration_sec;
-            } else if entry.state == QueueState::Pending {
-                uncached_candidates.push(track.clone());
-            }
-        }
-
         let target_cache_duration_sec = self.target_cache_duration_sec();
+        let mut targets = Vec::new();
+
         if target_cache_duration_sec > 0 {
-            if cached_duration_sec >= target_cache_duration_sec {
-                return vec![];
-            }
-            let mut targets = Vec::new();
-            let mut accumulated = cached_duration_sec;
-            for cand in uncached_candidates {
-                accumulated += cand.duration_sec;
-                targets.push(cand);
-                if accumulated >= target_cache_duration_sec {
+            let mut accumulated_sec = 0;
+            for (_, (entry, track)) in queue.iter().enumerate().skip(start_index) {
+                if entry.state == QueueState::Failed {
+                    continue;
+                }
+                accumulated_sec += track.duration_sec;
+                if entry.state == QueueState::Pending && track.cached_path.is_none() {
+                    targets.push(track.clone());
+                }
+                if accumulated_sec >= target_cache_duration_sec {
                     break;
                 }
             }
-            targets
         } else {
-            if cached_count >= self.local_window {
-                return vec![];
+            let mut cached_count = 0;
+            for (_, (entry, track)) in queue.iter().enumerate().skip(start_index) {
+                if entry.state == QueueState::Failed {
+                    continue;
+                }
+                if track.cached_path.is_some() || entry.state == QueueState::Cached {
+                    cached_count += 1;
+                } else if entry.state == QueueState::Pending {
+                    targets.push(track.clone());
+                }
+                if cached_count + targets.len() >= self.local_window {
+                    break;
+                }
             }
-            let needed = self.local_window - cached_count;
-            uncached_candidates.into_iter().take(needed).collect()
         }
+
+        targets
     }
 
     pub async fn maintain_autopilot_queue_sliding(
@@ -561,42 +558,38 @@ impl QueueDaemon {
             let _ = self.maintain_autopilot_queue_sliding(cid).await;
         }
 
-        let mut all_queues = Vec::new();
+        let mut processed = 0;
         for cid in &cabin_ids {
             if let Ok(q) = self.db.get_queue_for_cabin(cid) {
-                all_queues.extend(q);
-            }
-        }
-
-        let targets = self.find_prefetch_targets_for_window(&all_queues);
-
-        let mut processed = 0;
-        for track in targets {
-            info!(
-                "QueueDaemon: Pre-caching track '{} - {}' (expected {}s)",
-                track.artist, track.title, track.duration_sec
-            );
-
-            match self
-                .resolver
-                .resolve_and_cache(&track.artist, &track.title, track.duration_sec)
-                .await
-            {
-                Ok(res) => {
+                let targets = self.find_prefetch_targets_for_window(&q);
+                for track in targets {
                     info!(
-                        "QueueDaemon: Successfully cached '{}' at {}",
-                        res.title, res.cache_path
+                        "QueueDaemon (Cabin '{}'): Pre-caching track '{} - {}' (expected {}s)",
+                        cid, track.artist, track.title, track.duration_sec
                     );
-                    self.db.mark_cached(&track.id, &res.cache_path)?;
-                    processed += 1;
-                }
-                Err(e) => {
-                    warn!(
-                        "QueueDaemon: Pre-caching failed for '{}': {}",
-                        track.title, e
-                    );
-                    if let Err(db_err) = self.db.mark_failed(&track.id) {
-                        warn!("QueueDaemon: Failed to mark track as failed: {}", db_err);
+
+                    match self
+                        .resolver
+                        .resolve_and_cache(&track.artist, &track.title, track.duration_sec)
+                        .await
+                    {
+                        Ok(res) => {
+                            info!(
+                                "QueueDaemon (Cabin '{}'): Successfully cached '{}' at {}",
+                                cid, res.title, res.cache_path
+                            );
+                            self.db.mark_cached(&track.id, &res.cache_path)?;
+                            processed += 1;
+                        }
+                        Err(e) => {
+                            warn!(
+                                "QueueDaemon (Cabin '{}'): Pre-caching failed for '{}': {}",
+                                cid, track.title, e
+                            );
+                            if let Err(db_err) = self.db.mark_failed(&track.id) {
+                                warn!("QueueDaemon: Failed to mark track as failed: {}", db_err);
+                            }
+                        }
                     }
                 }
             }
@@ -1034,7 +1027,7 @@ mod tests {
             tmp_cache.clone(),
             db.clone(),
         ));
-        let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+        let similarity = Arc::new(CompositeSimilarityEngine::new_offline(db.clone()));
 
         let daemon = QueueDaemon::new_with_temporal_window(
             db.clone(),

@@ -7,7 +7,6 @@ use lacraia_core::{
     QueueDaemon, QueueState, TrackRecord,
 };
 use lacraia_shared::{is_title_matching, strip_accents, WsMessage};
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower::ServiceExt;
