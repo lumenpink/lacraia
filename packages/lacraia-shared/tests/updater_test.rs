@@ -44,15 +44,16 @@ fn test_config_defaults_and_serialization() {
     assert!(!update.auto_update);
 
     // Save and reload
-    let mut custom_cfg = LacraiaConfig::default();
-    custom_cfg.update = Some(UpdateConfig {
-        channel: "nightly".to_string(),
-        pinned: true,
-        pin: "0.2.0".to_string(),
-        auto_check: false,
-        check_interval_hours: 12,
-        auto_update: true,
-    });
+    let custom_cfg = LacraiaConfig {
+        update: Some(UpdateConfig {
+            channel: "nightly".to_string(),
+            pinned: true,
+            pin: "0.2.0".to_string(),
+            auto_check: false,
+            check_interval_hours: 12,
+            auto_update: true,
+        }),
+    };
 
     save_config(&custom_cfg, Some(&config_file)).unwrap();
     let reloaded = load_config(Some(&config_file));
@@ -98,11 +99,12 @@ fn test_channel_resolution_hierarchy() {
     let temp = tempdir().unwrap();
     let config_file = temp.path().join("config.toml");
 
-    let mut cfg = LacraiaConfig::default();
-    cfg.update = Some(UpdateConfig {
-        channel: "config_chan".to_string(),
-        ..Default::default()
-    });
+    let cfg = LacraiaConfig {
+        update: Some(UpdateConfig {
+            channel: "config_chan".to_string(),
+            ..Default::default()
+        }),
+    };
     save_config(&cfg, Some(&config_file)).unwrap();
 
     // 1. Fallback / config
