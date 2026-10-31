@@ -1,395 +1,234 @@
 # La Craia Technical Specification (SPEC-01)
-**Normative Standard:** GOST `1.0.0-draft` (General Open Source Standard)  
-**Implementation Profile:** `profiles/lumen.md` (Lumen Ecosystem)  
-**Specification Version:** `1.0.0`  
+**Normative Standard:** GOST `2.0.0` (General Open Source Standard)  
+**Implementation Profile:** `profiles/lilya.md` (Lilya Ecosystem)  
+**Specification Version:** `1.1.0`  
 **Status:** Official / Standard  
 **License:** GNU General Public License v3.0 (GPL-3.0) — Strategic Copyleft Safeguard  
 **Author:** Lumen Pink <hi@lumen.pink>  
-**Repository:** `ssh://git@codeberg.org/lumenpink/lacraia.git`  
+**Repository:** `https://gambi.2lp.in/lumen/lacraia`  
 **Documentation Portal:** `https://lacraia.2lp.in`
 
 ---
 
-## 1. Scope and Anti-Corporate Audio Philosophy
+## 1. Escopo e Filosofia de Áudio Anticorporativa
 
-This specification defines the system architecture, API contracts, data models, audio resolution pipelines, telemetry protocols, access control mechanisms, and quality standards of **La Craia**.
+Esta especificação define a arquitetura de sistema, contratos de API, modelos de dados, pipelines de resolução de áudio, topologia de operação híbrida (Standalone e Federada), protocolos de telemetria, mecanismos de controle de acesso e padrões de qualidade da **La Craia**.
 
-**La Craia** is an autonomous digital soundwall (*paredão digital*), continuous acoustic affinity radio, and symbiotic heads-up display (HUD) lyric companion engineered for high-power sound systems, street parties, domestic listening, Linux workstations, and mobile or vehicular environments.
+**A La Craia** é um paredão digital autônomo, rádio contínua por afinidade acústica e HUD simbiótico de letras sincronizadas projetada para sistemas de som de alta potência, festas de rua, escuta doméstica, estações de trabalho Linux e ambientes móveis ou veiculares.
 
-### Core Tenets
-1. **Acoustic Sovereignty:** Total rejection of ad-saturated commercial streaming platforms, closed algorithmic recommendation traps, and telemetry surveillance. The audio pipeline operates autonomously using local caches, peer stations, and sanitized public endpoints.
-2. **Continuous Flow (Zero Dead Air):** An automated lookahead queue daemon continuously resolves, pre-caches, and buffers forthcoming tracks in high-fidelity Opus format across a 3600-second (1-hour) cumulative temporal window, eliminating gap delays between songs and shielding playback across severe highway coverage blackouts ($P_{99}$).
-3. **Tactile & Brutalist Visibility:** High-contrast mechanical interfaces inspired by Latin American street sound systems (*paredões de som*), workshop machinery, and the subversive stage performances of funk icon Lacraia. Interfaces prioritize oversized controls, direct responsiveness, and zero corporate aesthetic blandness.
-4. **Symbiotic Multiplatform Integration:** Unified backend core serving native Linux desktops, mobile web PWAs, and an Android floating companion (*Simbiótyka*) that renders line-by-line synchronized lyrics and guitar chords over third-party applications without stealing window focus.
-
----
-
-## 2. Repository Anatomy and GOST Conformance
-
-The repository conforms strictly to Sections 2, 3, and 8 of the GOST standard:
-
-```
-.
-├── LICENSE                     # Strong Copyleft (GNU General Public License v3.0)
-├── VERSION                     # Semantic versioning flat string (e.g., 0.2.0-dev.63)
-├── CHANGELOG.md                # Human-readable change history (Keep a Changelog)
-├── README.md                   # Executive overview, installation, and biographical tribute
-├── SPEC.md                     # This normative technical specification (SPEC-01)
-├── .cccprc                     # CCCP governance, hooks, and commit compliance configuration
-├── Cargo.toml                  # Cargo root workspace manifest (Rust Edition 2021)
-├── packages/
-│   ├── lacraia-shared/         # Domain structs, LRC parser, fuzzy search & WebSocket protocol
-│   ├── lacraia-core/           # Tokio/Axum server, SQLite store, QueueDaemon & resolver
-│   ├── lacraia-app/            # Multiplatform console player (Dioxus Linux desktop & WASM/PWA)
-│   └── lacraia-android/        # Android Gradle workspace (:app & :simbiotyka modules)
-├── site/                       # Public documentation showcase and web console
-│   ├── index.html              # Main portal, manifesto, download hub & antennae kinematics
-│   ├── _headers                # Strict HTTP security headers (nosniff, DENY, strict-origin)
-│   ├── assets/                 # Favicon SVG, brand logos, and 1200x630 social preview card
-│   └── app/                    # Standalone PWA soundwall console (/app)
-├── tests/
-│   └── e2e/                    # Headless Playwright automated browser test suite
-├── docs/                       # Architectural diagrams, design system & release roadmaps
-└── scripts/                    # Helper scripts (dev.sh, start.sh, demo.sh, og_image generation)
-```
-
-### 2.1 Licensing Exception Justification
-In accordance with Section 2.2 of the GOST standard, La Craia exercises the strategic copyleft exception by adopting the **GNU General Public License v3.0 (GPL-3.0)** rather than GPL-3.0-or-later. This copyleft protection ensures that the software, custom audio playback algorithms, and hardware integration interfaces remain permanently open-source, preventing proprietary forks, paywalled repackaging, or enclosed commercialization by streaming cartels.
+### Princípios Fundamentais
+1. **Autonomia Acústica:** Rejeição total a plataformas comerciais de streaming saturadas de anúncios, armadilhas de recomendação algorítmica fechada e vigilância por telemetria. O pipeline de áudio opera de forma autônoma utilizando caches locais, servidores domésticos federados (*Paredão Matriz*) e endpoints públicos sanitizados.
+2. **Fluxo Contínuo (Store-and-Forward / Zero Dead Air):** Diferente de players baseados em streaming *just-in-time* que engasgam diante de oscilações de rede ou bloqueios de CDN, um daemon autônomo (`QueueDaemon`) resolve e pré-armazena faixas futuras em formato Opus/WebM ao longo de uma janela temporal cumulativa de **3.600 segundos (1 hora)** de cache local e **7.200 segundos (2 horas)** de fila remota, blindando a reprodução contra zonas de sombra rodoviárias severas (P99).
+3. **Operação Autônoma Zero-Fricção e Simbiose com Servidor:** A aplicação móvel e desktop opera em modo 100% standalone sem exigir infraestrutura prévia para pessoas leigas, mas permite acoplamento transparente via internet a um servidor doméstico (`lacraia-server`) para hidratação a partir de acervos pessoais massivos.
+4. **Visibilidade Tátil e Brutalista:** Interfaces mecânicas de alto contraste inspiradas nos paredões de som latino-americanos, maquinário de oficina e nas performances subversivas da ícone do funk Lacraia.
+5. **Integração Multiplataforma Simbiótica:** Motor unificado (`lacraia-core`) servindo binários nativos de desktop Linux, aplicativos Android autônomos, PWAs web e o companion flutuante Android (*Simbiótyka*) que projeta letras sincronizadas linha a linha sobre aplicações de terceiros sem roubar foco de janela.
 
 ---
 
-## 3. Workspace Architecture
+## 2. Anatomia do Repositório e Conformidade GOST
 
-The workspace is organized into modular Rust crates and an Android Kotlin multi-module hierarchy:
+O repositório segue estritamente as Seções 2, 3 e 8 do padrão GOST:
 
-### 3.1 `packages/lacraia-shared` (Rust Crate)
-- **Role:** Pure data contracts, protocol serialization, and shared domain algorithms.
-- **Components:**
-  - `protocol`: WebSocket message envelopes (`WsMessage`, `Command`, `StateUpdate`, `CrewUpdate`, `EjectedNotification`, `CacheAlertInfo`).
-  - `lrc`: Timestamped lyrics parser supporting synchronized line-by-line karaoke rendering.
-  - `fuzzy`: Diacritic stripping, fuzzy title matching, and duration delta tolerance filters.
-  - `models`: Shared entity definitions, playback state, cache inventory, and resolution attempt metrics.
+    .
+    ├── LICENSE                     # Copyleft Forte (GNU General Public License v3.0)
+    ├── VERSION                     # String plana de versionamento semântico
+    ├── CHANGELOG.md                # Histórico de alterações legível por humanos
+    ├── README.md                   # Visão executiva, instalação e tributo biográfico (GPL-3.0)
+    ├── SPEC.md                     # Esta especificação técnica normativa (SPEC-01)
+    ├── .cccprc                     # Governança CCCP, hooks e diretivas de gênero feminino ("a La Craia")
+    ├── Cargo.toml                  # Manifesto raiz do workspace Cargo (Rust Edition 2024)
+    ├── packages/
+    │   ├── lacraia-shared/         # Structs de domínio, parser LRC, busca fuzzy e protocolo WS (WASM-safe)
+    │   ├── lacraia-core/           # Motor compartilhado (rlib + cdylib): Axum, SQLite, QueueDaemon, Resolver e JNI
+    │   ├── lacraia-server/         # Binário CLI de servidor dedicado com feature `cli-fallback` (yt-dlp + ffmpeg)
+    │   ├── lacraia-app/            # Console player multiplataforma (Dioxus Linux desktop c/ core & WASM/PWA)
+    │   └── lacraia-android/        # Workspace Gradle Android (módulos :app c/ liblacraia_core.so & :simbiotyka)
+    ├── site/                       # Portal de documentação pública, manifesto dinâmico e console web
+    │   ├── index.html              # Portal principal, manifesto, hub de downloads e cinemática das antenas
+    │   ├── extractor-manifest.json # Configuração remota quente de perfis Innertube e instâncias de fallback
+    │   ├── _headers                # Cabeçalhos HTTP estritos (nosniff, DENY, strict-origin, CORS e MIME APK)
+    │   ├── assets/                 # Favicon SVG, logotipos, arte halftone e card de preview social 1200x630
+    │   └── app/                    # Console PWA standalone do paredão (/app)
+    ├── tests/
+    │   └── e2e/                    # Suíte automatizada Playwright (--smoke, regressão canônica e --exhaustive)
+    ├── docs/                       # Diagramas arquiteturais, design system e roadmaps
+    └── scripts/                    # Scripts auxiliares (dev.sh, start.sh, demo.sh, generate_og_image.py)
 
-### 3.2 `packages/lacraia-core` (Rust Crate)
-- **Role:** Central daemon and audio streaming engine running on Linux host machines.
-- **Components:**
-  - `db`: SQLite persistence (`lacraia.sqlite`) managing known tracks, adjacency similarity graphs, cabins, passengers, playback history, state persistence, cache inventory, and attempt telemetry.
-  - `resolver`: Multi-tier audio extraction engine pairing Last.fm metadata, LRCLIB lyrics, native RustyPipe streaming, and yt-dlp media extraction with Android client spoofing.
-  - `queue_daemon`: Autonomous background lookahead worker maintaining a continuous 3600-second (1-hour) cumulative cache and queue horizon.
-  - `ws`: Real-time WebSocket telemetry hub dispatching playback state, starvation alerts, and RBAC commands.
-  - `api`: Axum HTTP REST routing (`/api/radio`, `/api/resolve`, `/api/search`, `/api/history`, `/api/cabin/*`, `/cache/*`).
-
-### 3.3 `packages/lacraia-app` (Rust / Dioxus Crate)
-- **Role:** Soundwall console player supporting native Linux desktop binaries (via Wry/WebKitGTK) and progressive web app targets.
-- **Components:**
-  - `audio`: Audio engine abstraction managing local media element sources, volume normalization, and MediaSession metadata.
-  - `ui`: Tactile brutalist interface components, gain potentiometers (0 to 11), queue decks, and `VisualizerState`.
-
-### 3.4 `packages/lacraia-android` (Kotlin Android Multi-Module)
-- **Role:** Native Android applications derived from the `lacraia.2lp.in` domain.
-- **Modules:**
-  - `:app` (`in.twolp.lacraia.app`): Full-screen tactile console and crew jukebox (`lacraia.apk`).
-  - `:simbiotyka` (`in.twolp.lacraia.simbiotyka`): Floating lyric HUD overlay companion running as a Foreground Service (`simbiotyka.apk`).
-
-### 3.4.1 Canonical Package Architecture & Build Pipeline
-- **Unified Identifier:** All Android components are canonically anchored under `in.twolp.*` (`in.twolp.lacraia.app` and `in.twolp.lacraia.simbiotyka`). Legacy references to `in._2lp.*` are formally deprecated and eliminated.
-- **Service Binding & Lifecycle:** The companion HUD service is canonically declared and bound as `in.twolp.lacraia.simbiotyka.SimbiotykaService`. It supports deterministic dismissal via `ACTION_STOP_SERVICE` (`in.twolp.lacraia.simbiotyka.ACTION_STOP_SERVICE`), triggered by the foreground notification quick action and the `MainActivity` stop button, maintaining the floating pill overlay free of clutter while preserving vertical touch drag gestures.
-- **Packaging & Signing:** Automated via `./gradlew assembleRelease` signed with the sovereign keystore `~/.android/in_twolp_release.keystore` (alias `in_twolp`) via APK Signature Scheme v2.
+### 2.1 Justificativa de Exceção de Licenciamento e Paridade Documental
+Em conformidade com a Seção 2.2 do padrão GOST, a La Craia adota a **GNU General Public License v3.0 (GPL-3.0)** em todos os artefatos e documentações (incluindo o rodapé do `README.md`, eliminando menções residuais à licença MIT). Esta proteção garante que o software, os algoritmos de afinidade acústica e as interfaces permaneçam permanentemente livres, impedindo fechamento proprietário.
 
 ---
 
-## 4. SQLite Storage and Acoustic Similarity Graph
+## 3. Arquitetura do Workspace e Divisão de Crates
 
-`lacraia-core` maintains an internal SQLite database (`lacraia.sqlite`) governing offline resilience, catalog indexing, and track affinity traversal:
+O workspace desacopla a lógica do motor das cascas de execução para permitir que o mesmo código rode em servidores dedicados e embarcado dentro do aplicativo de usuárias finais:
 
-* **`tracks`:** Catalog metadata (`id`, `artist`, `title`, `duration_sec`, `cached_path`, `genres`, `last_played_at`).
-* **`similarity_edges`:** Directed weighted adjacency graph storing transition affinities (`source_track_id`, `target_track_id`, `weight`, `provider`).
-* **`stations`:** Seed definitions and acoustic profiles (e.g., MPB & Samba, Synthwave Drive, Rock Clássico, Lo-Fi Road Trip, Paredão Autônomo).
-* **`cabins`:** Multi-tenant cabin namespaces with security tokens (`id`, `name`, `master_key`, `pilot_token`, `passenger_key`, `is_locked`).
-* **`passengers`:** Connected passenger registry with session identifiers, nicknames, and device signatures.
-* **`queue`:** Active cabin queues storing track references, requester attribution (`requested_by`), cache state (`pending`, `cached`, `playing`, `played`, `failed`), and playback order.
-* **`cabin_playback_state`:** Persistent cabin playback coordinate (`cabin_id`, `track_id`, `position_ms`, `playback_state`, `updated_at`).
-* **`playback_history`:** Historical playback records with cabin and passenger attribution (`id`, `cabin_id`, `track_id`, `passenger_name`, `played_at`, `duration_sec`).
-* **`cache_entries`:** Physical cache artifact inventory (`track_id`, `file_path`, `file_size_bytes`, `duration_sec`, `audio_codec`, `hit_count`, `last_served_at`, `created_at`).
-* **`cache_resolution_attempts`:** Granular tier attempt and diagnostic logs (`track_id`, `attempt_number`, `tier`, `method`, `command_line`, `success`, `exit_code`, `error_code`, `error_output`, `duration_ms`, `bytes_received`, `validation_status`, `cabin_id`, `created_at`).
+### 3.1 `packages/lacraia-shared` (Rust Crate — `rlib`)
+- **Papel:** Contratos de dados puros, serialização de protocolo e algoritmos de domínio sem dependências de I/O de sistema operacional (100% compatível com `wasm32-unknown-unknown`).
+- **Componentes:**
+  - `protocol`: Envelopes WebSocket (`WsMessage`, `Command`, `StateUpdate`, `CrewUpdate`, `EjectedNotification`, `CacheAlertInfo`).
+  - `lrc`: Parser de letras sincronizadas com precisão de milissegundos.
+  - `fuzzy`: Remoção de diacríticos (`strip_accents`), correspondência léxica de títulos (`is_title_matching`) e filtros de tolerância de duração (delta máximo de 15s).
+  - `models`: Definições de entidades, estado de reprodução, inventário de cache e métricas de resolução.
 
----
+### 3.2 `packages/lacraia-core` (Rust Crate — `rlib` & `cdylib`)
+- **Papel:** Biblioteca central contendo todo o motor de streaming, persistência e sincronização. Compila como biblioteca Rust (`rlib`) para o servidor/desktop e como biblioteca dinâmica C-ABI (`liblacraia_core.so`) via `cargo-ndk` para embarque nativo no Android via JNI.
+- **Cargo Features:**
+  - `default = []`: Extração 100% nativa em Rust (zero dependência de Python ou binários externos).
+  - `cli-fallback`: Habilita a invocação de subprocessos `yt-dlp` e `ffmpeg` como último recurso de extração.
+- **Componentes:**
+  - `db`: Persistência SQLite (`lacraia.sqlite`), grafo de similaridade, cabines, histórico, inventário de cache e algoritmo de expurgo LRFU.
+  - `resolver`: Motor de resolução em cascata (Cache Local -> Paredão Matriz Remoto -> Rust Innertube/Piped -> CLI Fallback opcional).
+  - `queue_daemon`: Worker assíncrono de lookahead temporal e garbage collection de disco.
+  - `ws` & `api`: Hub de telemetria WebSocket e roteamento Axum REST/Range.
+  - `ffi`: Interface JNI (`Java_in_twolp_lacraia_app_CoreBridge_startDaemon`) para execução em `ForegroundService` no Android.
 
-## 5. Audio Pipeline, Hybrid Resolver & Autopilot Lookahead
+### 3.3 `packages/lacraia-server` (Rust Crate — `bin`)
+- **Papel:** Casca executável leve para servidores dedicados Linux/Debian, containers e mini-PCs veiculares.
+- **Comportamento:** Compila a `lacraia-core` com a feature `cli-fallback` ativa, lê variáveis de ambiente (`PORT`, `LACRAIA_CACHE_DIR`, `LACRAIA_DB_PATH`, `LACRAIA_MASTER_KEY`), configura cota de disco expandida (padrão 50 GB ou ilimitado) e faz o bind do servidor Axum em `0.0.0.0:8080`.
 
-Audio streaming employs a resilient, three-tier hybrid resolution architecture:
+### 3.4 `packages/lacraia-app` (Rust / Dioxus Crate — `bin` & `wasm`)
+- **Papel:** Console player do paredão para Linux Desktop (via Wry/WebKitGTK) e Web/PWA.
+- **Isolamento Condicional de Target:**
+  - **Alvo Nativo (`cfg(not(target_arch = "wasm32"))`):** Embute a `lacraia-core` diretamente no binário, iniciando o daemon em `127.0.0.1` automaticamente ao abrir a janela (detectando `yt-dlp` no `PATH` do sistema caso instalado).
+  - **Alvo Web/WASM (`cfg(target_arch = "wasm32")`):** Compila exclusivamente a UI e o cliente de áudio/WebSocket (dependendo apenas da `lacraia-shared`), conectando-se ao servidor que serviu a página (`/app`).
 
-```
-[ Incoming Track Request / Autopilot Seed ]
-                   │
-                   ▼
-       ┌───────────────────────┐
-       │ Tier 1: Local Cache   │ ──(HIT: file exists)──► Immediate HTTP 206 Serve
-       └───────────────────────┘
-                   │ (MISS)
-                   ▼
-       ┌───────────────────────┐
-       │ Tier 2: In-Flight Deduplication │ ──(In Progress)──► Await Broadcast Event
-       └───────────────────────┘
-                   │ (New Download)
-                   ▼
-       ┌───────────────────────┐
-       │ Tier 3: Remote Resolver│ ──► RustyPipe native / yt-dlp android + remux copy
-       └───────────────────────┘
-                   │
-                   ▼
-       Opus Audio Store (/cache/<id>.opus) + SQLite Track Indexing
-```
-
-1. **Tier 1 (Instant Local Cache):** If `<id>.opus` exists in `LACRAIA_CACHE_DIR`, audio is served immediately via RFC 7233 HTTP Range requests with zero network latency.
-2. **Tier 2 (In-Flight Mutex Deduplication):** Concurrent requests for the same track ID share an active Tokio `broadcast` channel, avoiding duplicate downloads.
-3. **Tier 3 (Sanitized Resilient Media Extraction):** Primary resolution queries native YouTube Music streams via RustyPipe with zero transcode overhead; fallback triggers yt-dlp with sanitized query arguments, resilient multi-client format extraction (without restrictive single-client constraints subject to SABR stream suppression), and fast stream copy remuxing (`-c:a copy`), preserving battery and minimizing latency.
-4. **Autonomous Lookahead Daemon (`QueueDaemon`) & Strict Per-Cabin Isolation:**
-   - Evaluates each active cabin queue in strict per-cabin isolation: each cabin independently tracks its cumulative temporal horizon $\sum \text{duration\_sec(cache)} \ge 3600\text{ s}$ (1 hour) and $\sum \text{duration\_sec(queue)} \ge 7200\text{ s}$ (2 hours). Cached tracks in secondary or dormant cabins never interfere with or starve active cabin lookahead pre-caching.
-   - Ingests candidates via multi-seed affinity graph traversal (`find_similar_multi`) whenever upcoming playtime falls below the horizon, guaranteeing uncompressed offline playback headroom covering severe highway coverage blackouts ($P_{99}$), consuming only ~57 MB of disk per hour of audio.
-   - Automatically skips and marks unresolvable items as `Failed`, preventing infinite download loops.
-5. **Hermetic & Offline Quality Gates:**
-   - The test pipeline is strictly offline and hermetic. Core components (`MediaResolver` and `CompositeSimilarityEngine`) support offline execution modes (`new_offline` / local graph and cache isolation) ensuring that test suites never execute live network requests, contact external APIs (YouTube, Last.fm, MusicBrainz), or suffer flakiness from remote services.
+### 3.5 `packages/lacraia-android` (Kotlin Android Multi-Module)
+- **Papel:** Aplicativos Android nativos sob o namespace canônico `in.twolp.*`.
+- **Módulos:**
+  - `:app` (`in.twolp.lacraia.app`): Carrega `liblacraia_core.so` em um `ForegroundService` local, oferecendo operação autônoma de bolso, console tátil e jukebox (`lacraia.apk` / `lacraia-app.apk`).
+  - `:simbiotyka` (`in.twolp.lacraia.simbiotyka`): Companion HUD flutuante de letras sincronizadas e *audio ducking* para navegação GPS (`simbiotyka.apk`).
 
 ---
 
-## 6. WebSocket Protocol and 3-Tier Access Hierarchy
+## 4. Topologia de Operação em 3 Modos
 
-Real-time telemetry and cabin synchronization operate over bidirectional WebSocket connections (`/ws`).
+Ao compartilhar a `lacraia-core` entre o servidor e o aplicativo, a La Craia opera em três topologias intercambiáveis em tempo de execução:
 
-### 6.1 Role-Based Access Control (RBAC)
-* **Master (`MASTER` / `LACRAIA_MASTER_KEY`):** Universal administrative authority across all cabins. Can provision cabins, rotate passenger keys, and command playback fleet-wide.
-* **Pilot (`PILOT` / `pilot_token`):** Exclusive captaincy over a specific cabin. Authorized to command `PLAY`, `PAUSE`, `NEXT`, `PREVIOUS`, `SEEK`, `LOCK_CABIN`, `ROTATE_KEY`, `EJECT_PASSENGER`, `EJECT_ALL`, and `QUEUE_REMOVE`.
-* **Passenger (`PASSENGER` / `passenger_key`):** Crew member with shared jukebox access. Permitted exclusively to enqueue songs via `QUEUE_APPEND`. Unauthorized command attempts are rejected with cryptographic error frames.
-
-### 6.2 Door Lock Mechanism and Immediate Ejection
-* **Door Rocker Switch (`is_locked`):** When locked, onboarding endpoints (`POST /api/cabin/join`) and WebSocket handshakes reject new connections even if the passenger key is known.
-* **Instant Key Rotation (`POST /api/cabin/rotate-key`):** The pilot can invalidate existing passenger invite links and QR codes instantaneously without interrupting playback.
-* **Crew Manifesto & Ejection Lever:** Real-time roster broadcasts (`CREW_UPDATE`) keep the console informed of all connected devices. The pilot can eject individual passengers (`EJECT_PASSENGER`) or clear the cabin (`EJECT_ALL`), immediately severing their session and displaying a brutalist lockout notification.
-
----
-
-## 7. Web Audio API and 32-Metameric Leg Spectrum Visualizer
-
-The soundwall web console (`site/app/index.html`) and desktop frontend integrate a real-time frequency visualizer:
-
-1. **AudioContext Analyser Graph:** Connects `createMediaElementSource(audioEngine)` to an `AnalyserNode` (`fftSize: 128`, 64 frequency bins, smoothing 0.8) and routes to `destination`.
-2. **Lazy Initialization:** `AudioContext` initializes or resumes on the user's first interactive gesture (click, tap, or playback command), complying with browser autoplay restrictions.
-3. **32 Metameric Legs Mapping:**
-   - *Legs 0..10 (Front Claws):* Sub-bass and low frequencies (spikes trigger white highlights and biomechanical claw pulses).
-   - *Legs 11..21 (Thorax):* Vocal and mid-range frequencies.
-   - *Legs 22..31 (Rear Forcípulae):* High frequencies and cymbals.
-4. **Inertia Falloff:** Amplitudes employ a smooth decay algorithm (`val = val * 0.88 + target * 0.12`), preventing jitter and simulating organic muscle movement.
-5. **Tactile Power Switch (`[ ⚡ PATAS: ON / OFF ]`):** Cancels the `requestAnimationFrame` render loop on demand to preserve CPU/GPU battery on mobile devices.
-6. **Accessibility:** Automatically disables continuous rendering when `prefers-reduced-motion: reduce` is detected.
+1. **Modo 1 — Autônomo Solo (Loopback `127.0.0.1`):**
+   - Padrão imediato após instalar o APK ou abrir o app Desktop.
+   - O daemon Rust roda localmente no aparelho em `127.0.0.1:8080`.
+   - Zero configuração de servidor necessária: o grafo SQLite e o cache de 1 hora (teto de 1 GB) são gerenciados no próprio dispositivo.
+2. **Modo 2 — Paredão de Bolso / Cabine Ad-Hoc (`0.0.0.0`):**
+   - Ao acionar `[ 📡 ABRIR CABINE LOCAL ]` no app móvel/desktop, o listener Axum reabre em `0.0.0.0:8080` na rede Wi-Fi ou Hotspot portátil do celular.
+   - O próprio celular serve a interface web `/app` e o QR Code de embarque para passageiros próximos enfileirarem cantigas sem precisarem instalar aplicativo nem possuir servidor dedicado.
+3. **Modo 3 — Federado com Servidor Doméstico (*Paredão Matriz* via Internet):**
+   - Usuárias que possuem um `lacraia-server` rodando em casa configuram a `upstream_server_url` e o token de acesso em `system_settings`.
+   - Na rua (4G/5G), o app continua operando localmente sem engasgos, mas utiliza o servidor doméstico pela internet como fonte primária de arquivos `.opus` já cacheados e como delegador de extração `yt-dlp`.
 
 ---
 
-## 8. Test Quality Strategy and Testing Pyramid
+## 5. Armazenamento SQLite, Grafo de Afinidade e Expurgo LRFU de 1 GB
 
-In accordance with Section 6 of the GOST standard, La Craia enforces a multi-tiered testing strategy:
+A `lacraia-core` mantém o banco relacional `lacraia.sqlite` com as seguintes estruturas normativas:
 
-```
-                  ┌────────────────────────┐
-                  │ E2E Playwright Tests   │  18 Scenarios (Headless Chrome)
-                  ├────────────────────────┤
-                  │ Integration Tests      │  5 Tests (Axum API + SQLite + yt-dlp)
-                  ├────────────────────────┤
-                  │ Unit Tests (Rust)      │  47 Tests (Shared, Core, App)
-                  └────────────────────────┘
-```
+* **`tracks`:** Metadados do catálogo (`id`, `artist`, `title`, `duration_sec`, `cached_path`, `genres`, `last_played_at`).
+* **`similarity_edges`:** Grafo direcionado ponderado (`source_track_id`, `target_track_id`, `weight`, `provider`) alimentado por Last.fm e MetaBrainz/ListenBrainz.
+* **`cabins`, `passengers`, `queue`, `cabin_playback_state`, `playback_history`:** Gestão multi-cabine, controle de acesso RBAC, fila ordenada e histórico de reprodução.
+* **`cache_entries`:** Inventário físico dos artefatos de áudio (`track_id`, `file_path`, `file_size_bytes`, `duration_sec`, `audio_codec`, `hit_count`, `last_served_at`, `created_at`).
+* **`cache_resolution_attempts`:** Log granular de diagnósticos por tier de resolução (`tier`, `method`, `success`, `exit_code`, `error_code`, `duration_ms`, `bytes_received`).
+* **`system_settings`:** Parâmetros dinâmicos persistidos (`target_queue_duration_sec`, `target_cache_duration_sec`, `max_disk_cache_mb`, `upstream_server_url`, `upstream_token`, `metered_network_mode`).
 
-1. **Unit Tests (47 tests):**
-   - `lacraia-shared` (12 tests): LRC parser, diacritic stripping, fuzzy title matching, command deserialization, non-stop mode serialization, starvation alert emit, and cache inventory models.
-   - `lacraia-core` (26 tests): SQLite schema migrations, similarity graph queries, multi-seed graph traversal, RBAC dispatch, cabin persistence, playback history, starvation evaluation, cache inventory & attempt diagnostics, and lookahead daemon.
-   - `lacraia-app` (9 tests): Audio engine lifecycle, gain slider normalization to 11, time formatting, and `VisualizerState` lifecycle.
-2. **Integration Tests (5 tests):**
-   - End-to-end Axum API resolution and static Opus cache delivery (`/cache/`).
-   - Search query sanitization and operator safety.
-   - Autopilot infinite lookahead queue maintenance.
-   - Queue daemon failure isolation (`QueueState::Failed`).
-   - Real resolver download with Android client parameters.
-3. **Automated End-to-End Playwright Suite (`tests/e2e/run_tests.js` - 18 Scenarios):**
-   - Executed against headless Google Chrome in an ephemeral incognito context.
-   - **Test 1:** Portal (`/`): Favicon SVG, OG metadata, kinematics, and cockpit link.
-   - **Test 2:** Cockpit Web (`/app`): Desktop 3-deck architecture and telemetry layout.
-   - **Test 3:** Mobile Viewport (375×667): Bottom navigation tabs and sticky miniplayer.
-   - **Test 4:** Security & Roles: Passenger restrictions, auth modal triggers, and master key login.
-   - **Test 5:** Audio Engine & Sound Output: Playback, currentTime advancement, volume to 11, and visualizer.
-   - **Test 6:** Station Dials: Graph dialect switching across all 5 preset stations.
-   - **Test 7:** Jukebox & Search: Debounced autocomplete, candidate selection, and form submission.
-   - **Test 8:** Autopilot Lookahead: Adding a track triggers automatic population of upcoming slots.
-   - **Test 9:** Queue Management: Direct play from queue and individual item removal.
-   - **Test 10:** Cabin Lock & Doors: Toggle lock and verify passenger enqueuing is strictly blocked.
-   - **Test 11:** Crew & Ejection: Verify crew list, mass ejection signal, and glitch lockout overlay.
-   - **Test 12:** Modals System: QR code canvas, key rotation, ESC closing, and cabin creation.
-   - **Test 13:** Shortcuts & Sticky Miniplayer: Space, Arrows, transport buttons, and input isolation.
-   - **Test 14:** Clean-Slate Lifecycle: Zerada -> Enqueue 1 -> Play -> Pause -> Enqueue 2 -> Jump -> Enqueue 3 -> Next.
-   - **Test 15:** Cabin State Persistence: Reloading cockpit resumes last track & position across sessions.
-   - **Test 16:** Playback History: Track plays record to `/api/history` and render with replay action.
-   - **Test 17:** Buffer Starvation HUD: Displays alert banner overlay distinguishing local vs remote starvation.
-   - **Test 18:** Lookahead Sliding Window & Non-Stop Mode: 3600s temporal headroom with non-stop toggle.
+### 5.1 Política de Cota de Disco e Algoritmo de Expurgo Ponderado (LRFU)
+Para evitar esgotamento de armazenamento em dispositivos móveis mantendo as músicas favoritas e as recém-baixadas protegidas:
+1. **Cotas Padrão (`max_disk_cache_mb`):**
+   - **Mobile / App Standalone:** `1024 MB` (**1 GB**, equivalente a ~17 horas de áudio Opus a 128 kbps).
+   - **Servidor Dedicado (`lacraia-server`):** `51200 MB` (50 GB) ou ilimitado (`0`), configurável via interface.
+2. **Fórmula de Relevância Híbrida (Frequência + Recência):**
+   Sempre que `SUM(file_size_bytes)` em `cache_entries` ultrapassar `max_disk_cache_mb`, o `QueueDaemon` avalia os arquivos elegíveis (excluindo faixas que estão com estado `playing` ou `cached` na fila ativa `queue`) ordenando pelo menor score de retenção:
+
+       Score(t) = (hit_count * 1.0) + (10.0 / (dias_desde_ultimo_uso + 1.0))
+
+   Onde `dias_desde_ultimo_uso = (agora - last_served_at) / 86400`.
+3. **Imunidade de Recém-Chegadas e Favoritas:**
+   - Uma faixa que acabou de ser baixada ou tocada (`dias_desde_ultimo_uso ~ 0`, `hit_count = 1`) recebe `Score ~ 11.0`, ficando imune ao expurgo imediato frente a faixas antigas que tocaram poucas vezes (`dias_desde_ultimo_uso = 15` resulta em `Score ~ 1.6`).
+   - Uma faixa clássica do gosto da usuária (`hit_count >= 12`) mantém `Score > 12.0` mesmo após semanas sem tocar.
+4. **Preservação do Grafo:** O expurgo remove estritamente o arquivo físico em `/cache/` e o registro em `cache_entries`, limpando `tracks.cached_path = NULL`, mas **jamais apaga** a faixa de `tracks` ou `similarity_edges`.
 
 ---
 
-## 9. Static Analysis and Zero Warnings
+## 6. Pipeline de Áudio, Resolver Federado e Manifesto Quente
 
-In compliance with Section 7 of the GOST standard:
-* Rust compilation and linter suites execute with strict warning enforcement (`cargo clippy --all-targets --all-features -- -D warnings` and `cargo fmt -- --check`).
-* Zero compiler warnings are permitted on the `main` branch.
-* External dependencies are pruned and audited for security vulnerabilities via `cargo audit`.
+A resolução de áudio opera em modo *Store-and-Forward* (pré-download integral em blocos de HTTP Range antes da reprodução) através de 5 tiers em cascata:
 
----
+    [ Solicitação de Faixa / Semente do Autopilot ]
+                       │
+                       ▼
+           ┌───────────────────────────┐
+           │ Tier 0: Cache Local Disco │ ──(HIT)──► Serve Imediato (HTTP 206 Range)
+           └───────────────────────────┘
+                       │ (MISS)
+                       ▼
+           ┌───────────────────────────┐
+           │ Tier 0.5: Paredão Matriz  │ ──(Configurado?)──► Puxa .opus do Server de Casa
+           └───────────────────────────┘                     ou delega /api/resolve
+                       │ (Offline / Sem Server)
+                       ▼
+           ┌───────────────────────────┐
+           │ Tier 1: Rust Innertube    │ ──► RustyPipe + Perfis de extractor-manifest.json
+           └───────────────────────────┘
+                       │ (Falha / Rate Limit 429)
+                       ▼
+           ┌───────────────────────────┐
+           │ Tier 2: Rust Piped API    │ ──► Streams via Instâncias Públicas do Manifesto
+           └───────────────────────────┘
+                       │ (Falha & feature `cli-fallback` ativa)
+                       ▼
+           ┌───────────────────────────┐
+           │ Tier 3: CLI yt-dlp/ffmpeg │ ──► yt-dlp (android) + remux copy (-c:a copy)
+           └───────────────────────────┘
 
-## 10. Public Web Showcase and HTTP Security Headers
+### 6.1 Sobrevivência Single-Dev: Manifesto Remoto Quente (`extractor-manifest.json`)
+Para evitar que alterações nos desafios anti-bot do YouTube exijam recompilação do APK Android ou do binário Rust:
+- Ao iniciar (e a cada 12 horas), a `lacraia-core` sincroniza de forma assíncrona o arquivo `https://lacraia.2lp.in/extractor-manifest.json` (mantendo cópia em cache no SQLite para operação offline).
+- O manifesto define dinamicamente os clientes da API `youtubei/v1/player` que não exigem decifração de JS (ex: `ANDROID_VR`, `IOS`, `ANDROID_TESTSUITE`), seus respectivos `clientVersion`, `clientId`, strings de `User-Agent` e a lista atualizada de endpoints Piped/Invidious de fallback.
 
-The public documentation portal and web application reside under `./site`:
-1. **Pure Web Technologies:** HTML5, CSS3, vanilla JavaScript, and SVG vector graphics without mandatory bundler dependencies.
-2. **HTTP Security Headers (`site/_headers`):**
-   ```http
-   /*
-     X-Content-Type-Options: nosniff
-     X-Frame-Options: DENY
-     Referrer-Policy: strict-origin-when-cross-origin
-   ```
-3. **PWA Capabilities:** Standalone web application manifest (`site/app/manifest.json`) and service worker shell caching (`site/app/sw.js`).
-
----
-
-## 11. Continuous Integration and Dual Deployment (CI/CD)
-
-The pipeline (`.forgejo/workflows/ci.yml`) enforces the GOST separation of concerns:
-* **Job `test`:** Runs on all branches and pull requests:
-  - Formatter check (`cargo fmt -- --check`)
-  - Static analysis (`cargo clippy --all-targets --all-features -- -D warnings`)
-  - Workspace test suite execution (`cargo test --workspace`)
-  - Playwright E2E browser test execution (`node tests/e2e/run_tests.js`)
-* **Job `deploy-site`:** Conditioned on `needs: [test]` and `github.ref == 'refs/heads/main'`:
-  - Primary Edge: Cloudflare Workers deployment to `https://lacraia.2lp.in` via Wrangler.
-  - Fallback Redundancy: Automated publication to Codeberg Pages (`https://lumenpink.codeberg.page/lacraia/`).
-
----
-
-## 12. Social Preview and Safe Zone 4:3 (KokoroSim Standard)
-
-To prevent mobile chat truncation and aggressive 1:1 cropping across WhatsApp, Telegram, Discord, and Twitter/X:
-* **Dimensions:** Exactly 1200 × 630 pixels (`site/assets/og_preview.png`).
-* **Safe Zone 4:3:** All critical typographic elements, logotypes, and badges are centered within a protected 720px × 500px area.
-* **Lateral Bleeds:** 240px lateral borders contain solely background textures (asphalt/rockplate and diagonal hazard hatching).
-* **Metadata Length Bounds:**
-  - `<meta property="og:title">`: 50 to 65 characters (maximum 70).
-  - `<meta property="og:description">`: 120 to 155 characters (maximum 160).
+### 6.2 Ingestão Zero-Transcode e Compatibilidade Nativa de Containers
+- **No Mobile e Desktop Standalone:** Os fluxos de áudio extraídos no Tier 1 e Tier 2 (`itag 251` Opus em container WebM ou `itag 140` AAC/M4A) são baixados via requisições de janela (`Range: bytes=0-10485759`) com concorrência limitada a no máximo 2 downloads simultâneos com jitter, sendo persistidos diretamente em disco sem invocação do `ffmpeg`. Os motores de áudio modernos (HTML5 `<audio>`, Android `Media3`/`ExoPlayer` e WebKit) decodificam WebM/Opus nativamente.
+- **No Servidor (`cli-fallback`):** Quando o `ffmpeg` está presente, fluxos nativos em Opus utilizam cópia direta de stream (`-c:a copy`), concluindo o remux em menos de 300 ms sem re-encoding por software.
 
 ---
 
-## 13. Sovereign Android Distribution via A Pratilera (F-Droid / Droid-ify)
+## 7. Dimensionamento Estatístico de Desconexão e `QueueDaemon` Temporal
 
-To ensure autonomous, self-updating delivery across smartphones and vehicular soundwalls without gatekeeping by Google Play Store:
-1. **Canonical Package Identifiers:**
-   - Console & Jukebox: `in.twolp.lacraia.app` (`lacraia.apk`)
-   - Symbiotic Lyric HUD: `in.twolp.lacraia.simbiotyka` (`simbiotyka.apk`)
-2. **Sovereign Signing:**
-   - Production and continuous APKs are signed using the official key (`in_twolp`) backed by `~/.android/in_twolp_release.keystore` and verified via `apksigner`.
-3. **Central Store Integration (A Pratilera na Banca):**
-   - Official Store URL: `https://banca.2lp.in/pratilera`
-   - Canonical HTTPS Entry: Droid-ify and Neo Store repository form input requires `https://banca.2lp.in/pratilera` (avoiding input scheme rejection).
-   - One-touch clipboard copy button provided in web interface for instant addition.
-   - Friendly aliases with automatic 301 redirect: `/patilera`, `/prateleira`, `/repo`.
-4. **Autonomous Distribution Endpoint & Headers (`https://lacraia.2lp.in`):**
-   - Direct APK downloads remain hosted as fallback targets: `https://lacraia.2lp.in/lacraia.apk` and `https://lacraia.2lp.in/simbiotyka.apk`.
-   - MIME type headers configured via `site/_headers` (`application/vnd.android.package-archive` and `Access-Control-Allow-Origin: *`).
-   - Version manifests (`site/version.json` and `site/version-nightly.json`) preserve compatibility with Obtainium and standalone JSON updaters.
+A fila de lookahead é dimensionada por **tempo acumulado de reprodução** em vez de número fixo de arquivos, baseando-se na distribuição estatística de zonas de sombra celular em rodovias (60 a 80 km/h):
 
----
+| Percentil (P) | Extensão sem Sinal | Duração da Queda | Cobertura Garantida pela La Craia |
+| :--- | :--- | :--- | :--- |
+| **P50 (Mediana)** | 2 a 4 km | 3 a 5 min | Coberto com folga |
+| **P80** | 12 a 16 km | 12 a 18 min | Coberto pelo Modo Econômico Mobile (20 min) |
+| **P90** | 25 a 30 km | 25 a 35 min | Coberto pela Janela Padrão (60 min) |
+| **P95 a P99** | 40 a 60 km | 40 a 60 min | **Coberto pela Janela Padrão de Cache (`3600s` / ~57 MB)** |
 
-## 14. Android Visual Identity and Launcher Metadata (Tickets #34 & #44)
-
-To eliminate generic default Android icons and ensure native, professional presentation across Android Launchers, App Drawers, and sovereign stores like Droid-ify / A Pratilera:
-1. **Dedicated Resource Hierarchy:**
-   - Both `packages/lacraia-android/app` (`in.twolp.lacraia.app`) and `packages/lacraia-android/simbiotyka` (`in.twolp.lacraia.simbiotyka`) must provide dedicated mipmap density assets under `src/main/res/`:
-     - `mipmap-mdpi`: 48 × 48 px (`ic_launcher.png`, `ic_launcher_round.png`)
-     - `mipmap-hdpi`: 72 × 72 px (`ic_launcher.png`, `ic_launcher_round.png`)
-     - `mipmap-xhdpi`: 96 × 96 px (`ic_launcher.png`, `ic_launcher_round.png`)
-     - `mipmap-xxhdpi`: 144 × 144 px (`ic_launcher.png`, `ic_launcher_round.png`)
-     - `mipmap-xxxhdpi`: 192 × 192 px (`ic_launcher.png`, `ic_launcher_round.png`)
-2. **App-Specific Vector Visual Identities (Ticket #44):**
-   - **Lacraia (`in.twolp.lacraia.app`):** Canonical vector cyber-centipede avatar: dark graphite armor chassis (`#151618`), neon electric venom antennae (`#d4ff00`) with generous clearance/breathing room from outer boundaries, neon fuchsia pincer forcípulas (`#ff0055`), and fluorescent ocelli.
-   - **Simbiótyka (`in.twolp.lacraia.simbiotyka`):** Derived from the Lacraia avatar, augmented with frameless angular crimson red sunglasses inspired by Kamina (`#f50f26`) featuring a distinct four-pointed anime star flash gleam, replacing legacy mock HUD imagery.
-   - **Color Depth & Formats:** Strict 8-bit RGBA depth per channel (Android Skia / Coil compliant) without 16-bit color allocations.
-3. **Round Icon Masking:**
-   - Circular variants (`ic_launcher_round.png`) are cropped with an anti-aliased circular alpha mask to conform with Android 7.1+ launcher standards.
-4. **Manifest Integration:**
-   - `AndroidManifest.xml` in each module must declare:
-     ```xml
-     android:icon="@mipmap/ic_launcher"
-     android:roundIcon="@mipmap/ic_launcher_round"
-     ```
-   - Any reference to system placeholder `@android:drawable/sym_def_app_icon` is strictly prohibited.
-5. **Binary Verification:**
-   - Final signed APKs in `dist/` must contain valid entries for `res/mipmap-*/ic_launcher.png` and `res/mipmap-*/ic_launcher_round.png`.
+### 7.1 Regras Operacionais do `QueueDaemon`
+1. **Horizonte de Fila Remota (`target_queue_duration_sec = 7200`):** Quando o modo `non_stop` está ativo, o Autopilot consulta o grafo de similaridade multi-semente (`find_similar_multi` usando até 5 sementes recentes) para manter sempre **2 horas (7.200s)** de faixas enfileiradas à frente da música atual.
+2. **Horizonte de Cache Local (`target_cache_duration_sec = 3600`):** Pré-carrega os arquivos de áudio em disco até acumular **1 hora (3.600s)** de áudio físico pronto para tocar. Em redes móveis medidas (4G/5G sem Paredão Matriz), se `metered_network_mode` estiver ativo, reduz o horizonte de pré-download para `1200s` (20 minutos, cobrindo acima de P80) e restaura para `3600s` ao detectar Wi-Fi.
+3. **Prioridade de Metadados e Letras (LRCLIB):** No instante em que uma faixa entra na fila, o arquivo `.lrc` do LRCLIB é resolvido e salvo no SQLite local antes mesmo do término do download do áudio, garantindo que o HUD *Simbiótyka* nunca fique sem letra sincronizada na serra.
+4. **Fallback Offline de Afinidade:** Caso o aparelho entre em zona de sombra prolongada (acima de 1 hora) e esgote os itens `cached` da fila antes do sinal voltar, o `QueueDaemon` executa um *Weighted Random Walk* restrito aos arquivos já presentes no acervo de 1 GB do aparelho (`WHERE t.cached_path IS NOT NULL`), garantindo zero segundos de silêncio.
 
 ---
 
-## 15. Exclusive Player Tab and Touch Gestures Isolation (Ticket #36)
+## 8. Protocolo WebSocket, Controle de Cabines (RBAC) e Visualizador de 32 Patas
 
-To prevent mobile gesture conflicts, swipe interference, and pointer cancellations across playback buttons:
-1. **Stationary & Exclusive Deck 01 Layout:**
-   - In mobile viewports (`<= 859px`), `#deck-01` operates as a dedicated, anchored panel.
-   - Enforce `overscroll-behavior: contain;` and `overflow-x: hidden;` to lock against unintentional lateral drags and pull-to-refresh disruptions.
-2. **Transport Controls Touch Shielding:**
-   - All interactive playback triggers (`.transport-controls .btn`, `#btn-play-pause`, `#btn-prev`, `#btn-next`, `#btn-toggle-nonstop`):
-     - `touch-action: manipulation;` ensuring zero tap delay without triggering horizontal or vertical gesture cancellation.
-     - `user-select: none; -webkit-user-select: none;` preventing text selection outlines during repeated touches.
-     - `-webkit-tap-highlight-color: transparent;` eliminating mobile gray tap flashes.
-     - Minimum tap target height of 48px on mobile for ergonomic reliability.
-3. **Seek Track & Gain Slider Calibration:**
-   - Volume / Gain slider (`.gain-slider`): explicit `touch-action: pan-x;` allowing horizontal volume adjustments without initiating accidental page scrolling.
-   - Seek progress bar (`.progress-track`): explicit `touch-action: none;` for discrete, instantaneous track seeking.
-4. **Explicit Tab Navigation Only:**
-   - Deck navigation between Deck 01 (Playback), Deck 02 (Queue), and Deck 03 (Cabin) is strictly bound to `#mobile-tabs` buttons (`.mobile-tab-btn`).
-   - No swipe listeners or gesture carousels are permitted across the player workspace.
+As seções de sincronização em tempo real, segurança de cabines e interface visual seguem os contratos normativos estabelecidos:
+- **Hierarquia RBAC de 3 Níveis (`ws.rs`):** `MASTER` (`LACRAIA_MASTER_KEY`), `PILOT` (`pilot_token`) e `PASSENGER` (`passenger_key` rotativa de alta entropia).
+- **Tranca de Porta e Alavanca de Ejeção:** Controle `is_locked`, manifesto em tempo real via `CREW_UPDATE` e ejeção atômica individual (`EJECT_PASSENGER`) ou geral (`EJECT_ALL`) com tela de bloqueio temática.
+- **HUD de Estrangulamento (`CACHE_ALERT`):** Alerta visual distinguindo `local_cache_missing` e `remote_buffer_starved`.
+- **Analisador de Espectro de 32 Patas Metaméricas:** Conectado via Web Audio API (`fftSize: 128`, decaimento inercial `0.88`), chave tátil `[ ⚡ PATAS: ON / OFF ]` e respeito a `prefers-reduced-motion: reduce`.
+- **Isolamento de Gestos e Contenção Horizontal Mobile:** Painéis ancorados com `max-width: 100vw; overflow-x: hidden; min-width: 0;`, controles com `touch-action: manipulation;` e navegação estrita por abas (`#mobile-tabs`) sem conflitos de swipe.
 
 ---
 
-## 16. Mobile Viewport Horizontal Containment and Overflow Prevention (Ticket #35)
+## 9. Pirâmide de Testes, CI/CD e Distribuição Própria (A Pratilera)
 
-To prevent horizontal drift, layout distortion, and unwanted lateral scrolling across smartphones:
-1. **Global Viewport Boundary Constraints:**
-   - `html`, `body`, `header`, `main`, and `.cockpit-panel` must enforce `max-width: 100vw; overflow-x: hidden;` with `box-sizing: border-box`.
-2. **Intrinsic Flexbox Min-Width Reset:**
-   - To counteract CSS flex/grid default `min-width: auto`, all cockpit panels (`.cockpit-panel`), inner bodies (`.panel-body`), queue rows (`.queue-item-row`), and search wrappers (`.enqueue-box`, `.jukebox-search-wrapper`) must declare `min-width: 0; max-width: 100%`.
-3. **Adaptive Mobile Padding:**
-   - In viewports `<= 859px`, padding is bounded: `main` at 8px, `.panel-body` at 12px, protecting interactive usable width on narrow displays (down to 320px).
-4. **Zero-Overflow Validation Mandate:**
-   - Automated headless browser auditing across Deck 01, Deck 02, and Deck 03 at 320px, 360px, 375px, and 412px viewports must certify zero overflowing elements (`rect.right <= docWidth + 0.5`).
-
----
-
-## 17. Distribuição Automática no Cloudflare R2 e Notificação à Pratilera (Ticket #45)
-
-Para garantir que os binários da Lacraia e Simbiótyka sejam entregues de forma automatizada pelo bucket R2 e que a loja oficial Pratilera (`banca`) seja atualizada automaticamente a cada push na branch `main`:
-1. **Publicação no Bucket R2 (`twolp-bucket`)**:
-   - `dist/lacraia.apk` é publicado em `twolp-bucket/lacraia.apk`.
-   - `dist/simbiotyka.apk` é publicado em `twolp-bucket/simbiotyka.apk`.
-2. **Gatilho de Atualização da Pratilera**:
-   - O pipeline aciona a API de workflow dispatch da Banca via `POST https://gambi.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches` com `GAMBI_2LP_IN_TOKEN`.
+1. **Pirâmide de Qualidade (4 Tiers):**
+   - **Tier 1 (Fast Gate Rust):** `cargo fmt -- --check`, `cargo clippy -- -D warnings` e `cargo test --workspace` (incluindo testes unitários do cálculo temporal de 3600s/7200s e do score de expurgo LRFU).
+   - **Tier 2 (Smoke E2E):** `node tests/e2e/run_tests.js --smoke` (< 5s).
+   - **Tier 3 (Canonical Regression E2E):** 19 cenários em Headless Chrome cobrindo cabines, áudio, jukebox e janela deslizante.
+   - **Tier 4 (Exhaustive Stress Suite):** `node tests/e2e/run_tests.js --exhaustive` (fuzzing, estresse multi-cabine e soak test) acionado via `.forgejo/workflows/e2e-exhaustive.yml`.
+2. **Distribuição Própria Android e Web:**
+   - Compilação cruzada da `liblacraia_core.so` via NDK e assinatura de produção dos pacotes `in.twolp.lacraia.app` e `in.twolp.lacraia.simbiotyka` com a chave própria `in_twolp` (APK Signature Scheme v2) e ícones vetoriais dedicados (8-bit RGBA).
+   - Publicação automática dos binários no bucket Cloudflare R2 (`twolp-bucket/lacraia.apk` e `twolp-bucket/simbiotyka.apk`) e disparo de webhook para atualização do índice F-Droid/Droid-ify na loja oficial **A Pratilera** (`https://banca.2lp.in/pratilera`).
+   - Deploy dual do portal e do `extractor-manifest.json` no Cloudflare Workers (`https://lacraia.2lp.in`) e Codeberg Pages.
 
 ---
-
-## 18. Versionamento Canônico Android e Esteira Contínua para A Pratilera (Ticket #61)
-
-1. **Versionamento Canônico Dinâmico no Gradle:**
-   - Ambos os aplicativos Android (`lacraia` app e `simbiotyka` HUD) extraem dinamicamente seu `versionName` do arquivo `VERSION` na raiz do repositório.
-   - Em builds de desenvolvimento, o `versionName` reflete a versão completa do CCCP (ex.: `0.2.0-dev.242+20261027.1fba108`).
-   - O `versionCode` é calculado de forma estritamente monotônica crescente a partir do contador incremental `dev.XXX` do SemVer 2.0.0, permitindo atualizações contínuas no Android e no Droid-ify / Neo Store / F-Droid.
-2. **Unificação do Binário Móvel:**
-   - O artefato oficial do app principal é unificado estritamente como `lacraia.apk`.
-   - O artefato oficial do HUD de letras é unificado como `simbiotyka.apk`.
-   - O script de empacotamento local e a esteira de CI publicam diretamente sob essas nomenclaturas canônicas.
-3. **Esteira de CI Dedicada para Android:**
-   - O workflow CI executa o job `deploy-apk` no container `gambi.2lp.in/lumen/gost-ci-android:latest`.
-   - Executa `./gradlew assembleRelease` para compilar ambos os APKs.
-   - Assina os artefatos com a keystore oficial `in_twolp`.
-   - Publica os APKs na raiz do bucket R2 (`twolp-bucket/lacraia.apk` e `twolp-bucket/simbiotyka.apk`) e notifica a esteira da Banca via `workflow_dispatch`.
-
-
