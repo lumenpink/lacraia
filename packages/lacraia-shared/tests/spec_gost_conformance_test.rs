@@ -54,10 +54,25 @@ fn test_spec_gost_2_0_conformance() {
         "9. Pirâmide de Testes",
     ];
 
+    let mut last_idx = 0;
     for secao in secoes_essenciais {
+        let idx = spec
+            .find(secao)
+            .unwrap_or_else(|| panic!("SPEC.md deve conter a seção normativa '{secao}'"));
         assert!(
-            spec.contains(secao),
-            "SPEC.md deve conter a seção normativa '{secao}'"
+            idx >= last_idx,
+            "Seção '{secao}' deve aparecer após a seção anterior em ordem cronológica"
         );
+        last_idx = idx;
     }
+
+    // Licença GPL-3.0 e autoria
+    assert!(
+        spec.contains("GNU General Public License v3.0 (GPL-3.0)"),
+        "SPEC.md deve declarar licença GPL-3.0"
+    );
+    assert!(
+        spec.contains("Lumen Pink"),
+        "SPEC.md deve registrar a autoria"
+    );
 }
