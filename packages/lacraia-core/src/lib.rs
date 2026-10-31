@@ -286,8 +286,9 @@ pub async fn handle_cabin_create(
     State(state): State<AppState>,
     Json(payload): Json<CabinCreateRequest>,
 ) -> Result<Json<CabinCreateResponse>, (StatusCode, String)> {
-    let configured_master =
-        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let configured_master = state.db.get_master_key().unwrap_or_else(|_| {
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string())
+    });
     let provided_master = payload.master_key.as_deref().unwrap_or_default();
 
     if !is_valid_master(provided_master, &configured_master) {
@@ -334,8 +335,9 @@ pub async fn handle_cabin_rotate_key(
     State(state): State<AppState>,
     Json(payload): Json<CabinRotateKeyRequest>,
 ) -> Result<Json<CabinRotateKeyResponse>, (StatusCode, String)> {
-    let configured_master =
-        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let configured_master = state.db.get_master_key().unwrap_or_else(|_| {
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string())
+    });
     let is_master = is_valid_master(
         payload.master_key.as_deref().unwrap_or_default(),
         &configured_master,
@@ -401,10 +403,12 @@ pub async fn handle_list_cabins(
 }
 
 pub async fn handle_master_auth(
+    State(state): State<AppState>,
     Json(payload): Json<MasterAuthRequest>,
 ) -> Result<Json<MasterAuthResponse>, (StatusCode, String)> {
-    let configured_master =
-        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let configured_master = state.db.get_master_key().unwrap_or_else(|_| {
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string())
+    });
     if is_valid_master(&payload.master_key, &configured_master) {
         Ok(Json(MasterAuthResponse {
             valid: true,
@@ -423,8 +427,9 @@ pub async fn handle_cabin_info(
     AxumPath(cabin_id): AxumPath<String>,
     Query(query): Query<CabinInfoQuery>,
 ) -> Result<Json<CabinDetailsResponse>, (StatusCode, String)> {
-    let configured_master =
-        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string());
+    let configured_master = state.db.get_master_key().unwrap_or_else(|_| {
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string())
+    });
     let role = if let Some(ref tok) = query.token {
         state
             .db
@@ -787,8 +792,25 @@ pub async fn handle_get_config(
 
 pub async fn handle_update_config(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(settings): Json<db::SystemSettings>,
 ) -> Result<Json<db::SystemSettings>, (StatusCode, String)> {
+    let configured_master = state.db.get_master_key().unwrap_or_else(|_| {
+        std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string())
+    });
+
+    let header_master = headers.get("X-Master-Key").and_then(|v| v.to_str().ok());
+    let provided_master = header_master
+        .or(settings.master_key.as_deref())
+        .unwrap_or_default();
+
+    if !is_valid_master(provided_master, &configured_master) {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED: Chave Master inválida ou ausente para atualizar configurações".into(),
+        ));
+    }
+
     if settings.target_queue_duration_sec < 300 || settings.target_queue_duration_sec > 86400 {
         return Err((
             StatusCode::BAD_REQUEST,

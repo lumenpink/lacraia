@@ -1762,6 +1762,18 @@
           </div>
           <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Padrão: 1024 MB (1 GB).</div>
         </div>
+
+        <!-- Chave Master Local Embutida (Issue #46) -->
+        <div>
+          <label for="input-master-key" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+            CHAVE MESTRA DA INSTALAÇÃO (ACESSO ADMINISTRATIVO):
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="input-master-key" readonly placeholder="Carregando chave..." style="flex: 3; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: var(--papel-mimeografo); padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
+            <button id="btn-copy-master-key" type="button" class="btn btn-active" style="flex: 1; font-size: 11px;">📋 COPIAR</button>
+          </div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Chave gerada localmente. O app gerencia a autorização automaticamente sem exigir senhas manuais.</div>
+        </div>
       </div>
 
       <div id="settings-status-msg" style="display:none; font-size: 11px; padding: 8px; margin-bottom: 10px; border-radius: 2px;"></div>
@@ -1949,6 +1961,8 @@
       const selectCacheUnit = document.getElementById("select-cache-unit");
       const inputDiskQuota = document.getElementById("input-disk-quota");
       const selectDiskUnit = document.getElementById("select-disk-unit");
+      const inputMasterKey = document.getElementById("input-master-key");
+      const btnCopyMasterKey = document.getElementById("btn-copy-master-key");
       const settingsStatusMsg = document.getElementById("settings-status-msg");
       const roleBadge = document.getElementById("role-badge");
 
@@ -3405,9 +3419,28 @@
             inputDiskQuota.value = dMb;
             selectDiskUnit.value = "MB";
           }
+          if (cfg.masterKey) {
+            state.masterKey = cfg.masterKey;
+            localStorage.setItem("lacraia_master_key", cfg.masterKey);
+            if (inputMasterKey) inputMasterKey.value = cfg.masterKey;
+          }
         } catch (err) {
           console.warn("Failed to load settings:", err);
         }
+      }
+
+      if (btnCopyMasterKey) {
+        btnCopyMasterKey.addEventListener("click", () => {
+          if (inputMasterKey && inputMasterKey.value) {
+            navigator.clipboard.writeText(inputMasterKey.value).then(() => {
+              showToast("📋 CHAVE MESTRA COPIADA!");
+            }).catch(() => {
+              inputMasterKey.select();
+              document.execCommand("copy");
+              showToast("📋 CHAVE MESTRA COPIADA!");
+            });
+          }
+        });
       }
 
       function showSettingsStatus(msg, isSuccess) {
@@ -3444,14 +3477,20 @@
           return;
         }
 
+        const activeMaster = state.masterKey || localStorage.getItem("lacraia_master_key") || "";
+
         try {
           const res = await fetch(`${targetHttpUrl}/api/config`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-Master-Key": activeMaster,
+            },
             body: JSON.stringify({
               targetQueueDurationSec: qSec,
               targetCacheDurationSec: cSec,
               maxDiskCacheMb: dMb,
+              masterKey: activeMaster,
             }),
           });
           if (res.ok) {

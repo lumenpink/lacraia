@@ -20,8 +20,14 @@ async fn test_master_key_generation_and_persistence() {
     let key1 = {
         let db = Database::open(db_path).expect("open database first time");
         let mk = db.get_master_key().expect("get master key");
-        assert!(mk.starts_with("mst_"), "Master key deve iniciar com prefixo mst_");
-        assert!(mk.len() >= 20, "Master key deve ter entropia suficiente (>= 20 caracteres)");
+        assert!(
+            mk.starts_with("mst_"),
+            "Master key deve iniciar com prefixo mst_"
+        );
+        assert!(
+            mk.len() >= 20,
+            "Master key deve ter entropia suficiente (>= 20 caracteres)"
+        );
         mk
     };
 
@@ -42,8 +48,7 @@ async fn test_config_endpoints_master_key_protection() {
     let db = Database::open(tmp.path().to_str().unwrap()).unwrap();
     let active_master = db.get_master_key().unwrap();
 
-    let cache_dir =
-        std::env::temp_dir().join(format!("lacraia_test_mk_{}", uuid::Uuid::new_v4()));
+    let cache_dir = std::env::temp_dir().join(format!("lacraia_test_mk_{}", uuid::Uuid::new_v4()));
     let _ = std::fs::create_dir_all(&cache_dir);
 
     let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
@@ -152,4 +157,37 @@ async fn test_config_endpoints_master_key_protection() {
         StatusCode::OK,
         "POST /api/config com masterKey no corpo deve ser aprovado"
     );
+}
+
+#[tokio::test]
+async fn test_mutation_resistance_master_key() {
+    let tmp = NamedTempFile::new().unwrap();
+    let db = Database::open(tmp.path().to_str().unwrap()).unwrap();
+    let real_master = db.get_master_key().unwrap();
+
+    // 1. Chave vazia ou somente espaços
+    assert!(!lacraia_core::is_valid_master("", &real_master));
+    assert!(!lacraia_core::is_valid_master("   ", &real_master));
+
+    // 2. Chave parcial truncada (prefix match não pode passar)
+    let partial = &real_master[..real_master.len() - 1];
+    assert!(!lacraia_core::is_valid_master(partial, &real_master));
+
+    // 3. Chave com caractere extra adicionado
+    let extended = format!("{}_extra", real_master);
+    assert!(!lacraia_core::is_valid_master(&extended, &real_master));
+
+    // 4. Concorrência: leituras simultâneas devem retornar a mesma chave
+    let mut handles = Vec::new();
+    for _ in 0..8 {
+        let db_clone = db.clone();
+        let expected = real_master.clone();
+        handles.push(tokio::spawn(async move {
+            let key = db_clone.get_master_key().unwrap();
+            assert_eq!(key, expected);
+        }));
+    }
+    for h in handles {
+        h.await.unwrap();
+    }
 }

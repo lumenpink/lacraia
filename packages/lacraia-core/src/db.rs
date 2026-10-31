@@ -3,7 +3,7 @@ use lacraia_shared::{
     AttemptsSuccessDistribution, CacheEntry, CacheResolutionAttempt, PassengerInfo,
     PlaybackHistoryEntry, ResolutionErrorDiagnostic, Role, TierSuccessRate,
 };
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -126,6 +126,8 @@ pub struct SystemSettings {
     pub target_cache_duration_sec: u64,
     #[serde(rename = "maxDiskCacheMb")]
     pub max_disk_cache_mb: u64,
+    #[serde(rename = "masterKey", skip_serializing_if = "Option::is_none")]
+    pub master_key: Option<String>,
 }
 
 impl Default for SystemSettings {
@@ -134,6 +136,7 @@ impl Default for SystemSettings {
             target_queue_duration_sec: 7200,
             target_cache_duration_sec: 3600,
             max_disk_cache_mb: 1024,
+            master_key: None,
         }
     }
 }
@@ -166,6 +169,7 @@ impl Database {
             conn: Arc::new(Mutex::new(conn)),
         };
         db.init_schema()?;
+        db.ensure_master_key()?;
         Ok(db)
     }
 
@@ -175,6 +179,7 @@ impl Database {
             conn: Arc::new(Mutex::new(conn)),
         };
         db.init_schema()?;
+        db.ensure_master_key()?;
         Ok(db)
     }
 
@@ -2074,44 +2079,103 @@ impl Database {
         Ok(None)
     }
 
-    pub fn get_system_settings(&self) -> Result<SystemSettings, DbError> {
+    pub fn ensure_master_key(&self) -> Result<String, DbError> {
         let conn = self.conn.lock().unwrap();
-        let mut target_queue = 7200u64;
-        let mut target_cache = 3600u64;
-        let mut max_disk = 1024u64;
+        let existing: Option<String> = conn
+            .query_row(
+                "SELECT value FROM system_settings WHERE key = 'master_key'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
 
-        let mut stmt = conn.prepare("SELECT key, value FROM system_settings")?;
-        let rows = stmt.query_map([], |row| {
-            let key: String = row.get(0)?;
-            let val: String = row.get(1)?;
-            Ok((key, val))
-        })?;
-
-        for r in rows.flatten() {
-            match r.0.as_str() {
-                "target_queue_duration_sec" => {
-                    if let Ok(v) = r.1.parse::<u64>() {
-                        target_queue = v;
-                    }
-                }
-                "target_cache_duration_sec" => {
-                    if let Ok(v) = r.1.parse::<u64>() {
-                        target_cache = v;
-                    }
-                }
-                "max_disk_cache_mb" => {
-                    if let Ok(v) = r.1.parse::<u64>() {
-                        max_disk = v;
-                    }
-                }
-                _ => {}
+        if let Some(key) = existing {
+            if !key.trim().is_empty() {
+                return Ok(key);
             }
+        }
+
+        let new_key = if let Ok(env_key) = std::env::var("LACRAIA_MASTER_KEY") {
+            if !env_key.trim().is_empty() {
+                env_key
+            } else {
+                format!(
+                    "mst_{}{}",
+                    uuid::Uuid::new_v4().simple(),
+                    &uuid::Uuid::new_v4().simple().to_string()[..8]
+                )
+            }
+        } else {
+            format!(
+                "mst_{}{}",
+                uuid::Uuid::new_v4().simple(),
+                &uuid::Uuid::new_v4().simple().to_string()[..8]
+            )
+        };
+
+        let now = Utc::now().timestamp();
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('master_key', ?1, ?2)",
+            params![new_key, now],
+        )?;
+
+        Ok(new_key)
+    }
+
+    pub fn get_master_key(&self) -> Result<String, DbError> {
+        self.ensure_master_key()
+    }
+
+    pub fn get_system_settings(&self) -> Result<SystemSettings, DbError> {
+        let (target_queue, target_cache, max_disk, mut master_key) = {
+            let conn = self.conn.lock().unwrap();
+            let mut target_queue = 7200u64;
+            let mut target_cache = 3600u64;
+            let mut max_disk = 1024u64;
+            let mut master_key: Option<String> = None;
+
+            let mut stmt = conn.prepare("SELECT key, value FROM system_settings")?;
+            let rows = stmt.query_map([], |row| {
+                let key: String = row.get(0)?;
+                let val: String = row.get(1)?;
+                Ok((key, val))
+            })?;
+
+            for r in rows.flatten() {
+                match r.0.as_str() {
+                    "target_queue_duration_sec" => {
+                        if let Ok(v) = r.1.parse::<u64>() {
+                            target_queue = v;
+                        }
+                    }
+                    "target_cache_duration_sec" => {
+                        if let Ok(v) = r.1.parse::<u64>() {
+                            target_cache = v;
+                        }
+                    }
+                    "max_disk_cache_mb" => {
+                        if let Ok(v) = r.1.parse::<u64>() {
+                            max_disk = v;
+                        }
+                    }
+                    "master_key" if !r.1.trim().is_empty() => {
+                        master_key = Some(r.1);
+                    }
+                    _ => {}
+                }
+            }
+            (target_queue, target_cache, max_disk, master_key)
+        };
+
+        if master_key.is_none() {
+            master_key = self.ensure_master_key().ok();
         }
 
         Ok(SystemSettings {
             target_queue_duration_sec: target_queue,
             target_cache_duration_sec: target_cache,
             max_disk_cache_mb: max_disk,
+            master_key,
         })
     }
 
@@ -2130,6 +2194,14 @@ impl Database {
             "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('max_disk_cache_mb', ?1, ?2)",
             params![settings.max_disk_cache_mb.to_string(), now],
         )?;
+        if let Some(ref mk) = settings.master_key {
+            if !mk.trim().is_empty() {
+                conn.execute(
+                    "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('master_key', ?1, ?2)",
+                    params![mk.trim(), now],
+                )?;
+            }
+        }
         Ok(())
     }
 }
@@ -2905,11 +2977,17 @@ mod tests {
             "Default disk cache budget must be 1024 MB"
         );
 
+        assert!(
+            defaults.master_key.is_some(),
+            "Default settings must include the active master key"
+        );
+
         // 2. Update settings and verify persistence (Issue #26)
         let updated = SystemSettings {
             target_queue_duration_sec: 10800,
             target_cache_duration_sec: 5400,
             max_disk_cache_mb: 2048,
+            master_key: defaults.master_key.clone(),
         };
         db.update_system_settings(&updated).unwrap();
 

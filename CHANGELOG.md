@@ -10,6 +10,7 @@
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
 
 ### Features
+  - (auth) chave master local embutida para gestao de configuracoes (closes #46)
   - (ci) continuous deployment soberano no obizero sem watchtower (closes #53)
   - (updater) integrar publicacao na banca e auto-atualizacao opendesktop xdg (closes #52)
   - (spec) add GOST-compliant technical specification SPEC-01 (#29)

@@ -373,6 +373,8 @@ async fn test_config_api_endpoints_get_and_post() {
         "Default maxDiskCacheMb must be 1024"
     );
 
+    let master_key = db.get_master_key().unwrap();
+
     // 2. POST /api/config: update values and verify daemon dynamic update
     let update_payload = serde_json::json!({
         "targetQueueDurationSec": 10800,
@@ -384,6 +386,7 @@ async fn test_config_api_endpoints_get_and_post() {
         .method("POST")
         .uri("/api/config")
         .header("Content-Type", "application/json")
+        .header("X-Master-Key", &master_key)
         .body(Body::from(serde_json::to_vec(&update_payload).unwrap()))
         .unwrap();
 
@@ -405,6 +408,7 @@ async fn test_config_api_endpoints_get_and_post() {
         .method("POST")
         .uri("/api/config")
         .header("Content-Type", "application/json")
+        .header("X-Master-Key", &master_key)
         .body(Body::from(serde_json::to_vec(&invalid_payload).unwrap()))
         .unwrap();
 
