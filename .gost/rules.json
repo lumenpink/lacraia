@@ -1,0 +1,473 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "GOST Deterministic Compliance Rules",
+  "version": "2.0.0",
+  "waiver_policy": {
+    "config_file": "custom_rules.json",
+    "inline_directive_pattern": "gost-ignore:\\s*(GOST-[0-9A-Z-]+)\\s*\\(ticket #[0-9]+\\s*-\\s*.{10,}\\)",
+    "require_ticket_id": true,
+    "min_reason_length": 20,
+    "forbid_ai_modification": true
+  },
+  "rules": [
+    {
+      "id": "GOST-01-LICENSE",
+      "section": 2,
+      "title": "Licença Raiz Declarada e Mapeamento de Satélites no README",
+      "severity": "MUST",
+      "check": "license_and_satellites_mapped",
+      "target": "LICENSE",
+      "valid_spdx": [
+        "CC0-1.0",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "AGPL-3.0-only",
+        "AGPL-3.0-or-later",
+        "Apache-2.0",
+        "CC-BY-SA-4.0",
+        "CC-BY-ND-4.0"
+      ],
+      "satellite_files": [
+        "LICENSE-MEDIA",
+        "LICENSE-LOGO",
+        "LICENSE-APACHE"
+      ],
+      "require_readme_mapping_if_satellite_present": true
+    },
+    {
+      "id": "GOST-02-ANATOMY-ROOT",
+      "section": 3,
+      "title": "Anatomia Mínima da Raiz e Bloqueio de Arquivos Poluentes",
+      "severity": "MUST",
+      "check": "root_anatomy_and_cleanliness",
+      "required_files": [
+        "GOSTVER",
+        ".gost/metadata.json",
+        "LICENSE",
+        "VERSION",
+        "CHANGELOG.md",
+        "README.md",
+        ".gitignore",
+        ".editorconfig",
+        "site/index.html",
+        ".forgejo/workflows/ci.yml"
+      ],
+      "require_one_of": [
+        "site/_headers",
+        "wrangler.jsonc"
+      ],
+      "forbidden_root_files": [
+        "compose.yml",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        ".prettierrc",
+        ".prettierrc.json",
+        ".eslintrc",
+        ".eslintrc.js"
+      ]
+    },
+    {
+      "id": "GOST-03-VERSION-SEMVER-SYNC",
+      "section": 4,
+      "title": "Conformidade SemVer 2.0.0 e Sincronia Multi-Arquivo da Versão",
+      "severity": "MUST",
+      "check": "semver_multi_file_sync",
+      "target": "VERSION",
+      "semver_pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "sync_targets": [
+        "CHANGELOG.md",
+        "Cargo.toml",
+        "package.json",
+        "composer.json",
+        "DESCRIPTION",
+        "site/index.html"
+      ]
+    },
+    {
+      "id": "GOST-04-COMMIT-PHASE-TAG",
+      "section": 5,
+      "title": "Rastreabilidade de Ticket e Marcador de Fase nos Commits (ph3..ph9)",
+      "severity": "MUST",
+      "check": "commit_phase_pattern",
+      "intermediate_pattern": "^(docs|test|feat|fix|refactor|chore)(\\([a-z0-9_-]+\\))?: .+ \\(ref #[0-9]+ - ph[3-8]\\)$",
+      "closing_pattern": "^(docs|feat|fix|chore)(\\([a-z0-9_-]+\\))?: .+ \\(closes #[0-9]+ - ph9\\)$"
+    },
+    {
+      "id": "GOST-04-A-CLOSE-RESOLUTION-REPORT",
+      "section": 5,
+      "title": "Laudo Textual de Resolução Obrigatório no Corpo do Commit da Fase 9 e Postagem no Ticket",
+      "severity": "MUST",
+      "check": "phase9_resolution_body",
+      "min_body_chars": 80,
+      "required_body_headers": [
+        "[Resumo]:",
+        "[Solução]:",
+        "[Validação]:"
+      ],
+      "auto_post_to_issue_on_merge": true
+    },
+    {
+      "id": "GOST-04-B-MAESTRO-SINGLE-ENTRYPOINT",
+      "section": 6,
+      "title": "Soberania do Maestro como Ponto Único de Entrada para Git e Tickets",
+      "severity": "MUST",
+      "check": "maestro_wrapper_enforcement",
+      "forbid_direct_cli": [
+        "git commit",
+        "git merge",
+        "git push",
+        "git pull",
+        "git tag",
+        "tea",
+        "gh",
+        "glab"
+      ]
+    },
+    {
+      "id": "GOST-05-BRANCH-AND-LOCAL-FIRST",
+      "section": 5,
+      "title": "Isolamento de Branch por Ticket, Branches Persistentes (vN / epic/*) e Governança Local-First",
+      "severity": "MUST",
+      "check": "branch_and_phase_progression",
+      "work_branch_pattern": "^(feat|fix|docs|refactor|test|chore)/([0-9]+)-([a-z0-9-]+)$",
+      "allowed_persistent_remote_branches_pattern": "^(main|pages|v[0-9]+(\\.[0-9]+|\\.x)?|release/v[0-9]+\\.[0-9x]+|epic/[a-z0-9-]+)$",
+      "forbid_work_branch_push_without_flag": "--multidev",
+      "genesis_ticket_rule": {
+        "ticket_id": 1,
+        "type": "chore",
+        "allow_atomic_init_on_main": true
+      },
+      "phase_rules": {
+        "ph3_forbid_paths": ["src/", "lib/", "R/", "bin/", "tests/", "spec/"],
+        "ph4_require_test_failure": true,
+        "ph5_require_test_success": true,
+        "ph7_require_order": ["test", "refactor"],
+        "fast_track_types": {
+          "docs": [1, 2, 3, 8, 9],
+          "chore": [1, 2, 3, 5, 8, 9]
+        }
+      }
+    },
+    {
+      "id": "GOST-06-CI-TEST-COVERAGE",
+      "section": 7,
+      "title": "Piso Mínimo de Cobertura (≥90%) Aferido na Esteira de CI",
+      "severity": "MUST",
+      "check": "ci_coverage_threshold_enforced",
+      "threshold": 90,
+      "expected_ci_flags": [
+        "--fail-under-lines 90",
+        "--fail-under 90",
+        "--min=90",
+        "percent_coverage(covr::package_coverage()) >= 90",
+        "--coverage.thresholds.lines 90",
+        "--kcov"
+      ]
+    },
+    {
+      "id": "GOST-07-STATIC-ZERO-WARNINGS",
+      "section": 8,
+      "title": "Tolerância Zero a Avisos em Linters e Ausência de Artefatos de Debug",
+      "severity": "MUST",
+      "check": "linter_and_debug_cleanliness",
+      "require_zero_warnings_flag": true,
+      "forbidden_debug_tokens_in_src": [
+        "var_dump(",
+        "print_r(",
+        "dd(",
+        "debugger;",
+        "dbg!("
+      ]
+    },
+    {
+      "id": "GOST-08-FORMAT-DETERMINISTIC",
+      "section": 8,
+      "title": "Formatação Determinística e .editorconfig Canônico",
+      "severity": "MUST",
+      "check": "formatter_and_editorconfig",
+      "editorconfig_required_keys": [
+        "charset = utf-8",
+        "end_of_line = lf",
+        "insert_final_newline = true",
+        "trim_trailing_whitespace = true"
+      ]
+    },
+    {
+      "id": "GOST-09-SITE-SECURITY-HEADERS",
+      "section": 9,
+      "title": "Cabeçalhos HTTP de Segurança na Vitrine Web",
+      "severity": "MUST",
+      "check": "security_headers_present",
+      "targets": ["site/_headers", "wrangler.jsonc"],
+      "required_headers": [
+        "X-Content-Type-Options: nosniff",
+        "X-Frame-Options: DENY",
+        "Referrer-Policy: strict-origin-when-cross-origin"
+      ]
+    },
+    {
+      "id": "GOST-10-CI-HERMETIC-SINGLE-FILE",
+      "section": 10,
+      "title": "Esteira Única Hermética (ci.yml), Filas Padronizadas e Bloqueio de Downloads Externos",
+      "severity": "MUST",
+      "check": "ci_workflow_ast_audit",
+      "workflow_path": ".forgejo/workflows/ci.yml",
+      "forbid_extra_workflow_files": true,
+      "forbid_github_workflows_dir": true,
+      "canonical_jobs": ["test", "build", "release", "deploy", "deploy-site", "deploy-stack"],
+      "required_job": "test",
+      "require_needs_test_on_downstream_jobs": true,
+      "forbidden_run_commands": [
+        "apt-get ",
+        "apt ",
+        "apk add",
+        "pip install",
+        "npm install -g",
+        "cargo install",
+        "rustup ",
+        "wget ",
+        "git clone"
+      ],
+      "allow_healthcheck_probe_exception": true
+    },
+    {
+      "id": "GOST-11-INTL-10-LANGUAGES-PARITY",
+      "section": 11,
+      "title": "Paridade Matemática de Chaves nas 10 Línguas e Suporte RTL em Árabe",
+      "severity": "MUST",
+      "check": "locales_ast_parity_and_rtl",
+      "languages": ["en", "pt", "es", "fr", "de", "it", "ru", "zh", "ja", "ar"],
+      "require_rtl_attribute_in_ar": "dir=\"rtl\"",
+      "forbid_physical_horizontal_css": ["margin-left", "margin-right", "padding-left", "padding-right", "text-align: left", "text-align: right"]
+    },
+    {
+      "id": "GOST-12-BANNER-AND-OG-SYNC",
+      "section": 9,
+      "title": "Banner Open Graph Minimalista (1200x630) e Sincronia com metadata.json",
+      "severity": "MUST",
+      "check": "og_banner_and_meta_sync",
+      "banner_path": "site/assets/og_preview.png",
+      "card_preview_path": "site/card_preview.html",
+      "width": 1200,
+      "height": 630,
+      "og_title_template": "{title} — {tagline}",
+      "max_og_title_chars": 65,
+      "og_description_source": "{summary}",
+      "max_og_description_chars": 140
+    },
+    {
+      "id": "GOST-13-XDG-AND-STREAMS-DISCIPLINE",
+      "section": 13,
+      "title": "Conformidade XDG Base Directory, Proibição de $HOME Solto e Suporte NO_COLOR",
+      "severity": "MUST",
+      "check": "xdg_and_streams_scanner",
+      "forbidden_hardcoded_paths_in_src": [
+        "\"~/.",
+        "'~/.",
+        "\"/home/",
+        "'/home/"
+      ],
+      "required_env_vars_support": [
+        "XDG_CONFIG_HOME",
+        "XDG_STATE_HOME",
+        "NO_COLOR"
+      ]
+    },
+    {
+      "id": "GOST-14-CLI-AUTO-UPDATE-CONTRACT",
+      "section": 10,
+      "title": "Contrato Universal de Subcomandos de Auto-Atualização e Config em CLIs",
+      "severity": "SHOULD",
+      "check": "cli_update_subcommands_present",
+      "applies_to_artifact_type": "cli_binary",
+      "required_subcommands": [
+        "update",
+        "check-update",
+        "config"
+      ]
+    },
+    {
+      "id": "GOST-15-OCI-CONTAINERS-AND-COMPOSE",
+      "section": 13,
+      "title": "Padrões OCI/Docker (compose.yaml, Multi-Stage, Non-Root, Sem :latest, Sem Watchtower, Healthcheck)",
+      "severity": "MUST",
+      "check": "container_manifest_audit",
+      "compose_filename": "compose.yaml",
+      "require_dockerignore": true,
+      "dockerfile_requirements": {
+        "require_multi_stage": true,
+        "require_non_root_user": true,
+        "forbid_latest_tag": true,
+        "require_healthcheck": true
+      },
+      "forbidden_strings_in_compose": [
+        "watchtower",
+        "com.centurylinklabs.watchtower"
+      ]
+    },
+    {
+      "id": "GOST-20-SITE-TYPE-AND-SSOT-DOCS",
+      "section": 9,
+      "title": "Topologia site_type (doc vs app), SSOT em Markdown e README <= 50 Linhas",
+      "severity": "MUST",
+      "check": "docs_topology_and_readme_length",
+      "max_readme_lines": 50,
+      "app_docs_subdir": "site/doc/",
+      "forbid_manual_long_html_prose": true
+    },
+    {
+      "id": "GOST-24-ZERO-BINARIES-IN-GIT",
+      "section": 10,
+      "title": "Veto Absoluto a Binários Compilados e Pacotes no Histórico Git",
+      "severity": "MUST",
+      "check": "git_tree_binary_ban",
+      "forbidden_extensions": [
+        ".exe",
+        ".dll",
+        ".so",
+        ".dylib",
+        ".a",
+        ".tar.gz",
+        ".tgz",
+        ".zip",
+        ".whl",
+        ".deb",
+        ".rpm",
+        ".apk",
+        ".AppImage"
+      ],
+      "forbid_elf_binaries_in_tree": true
+    },
+    {
+      "id": "GOST-25-REMOTES-AND-INBOX-QUARANTINE",
+      "section": 15,
+      "title": "Topologia de Remotes (Origin Único de Push, Espelhos com no_push) e Quarentena inbox/*",
+      "severity": "MUST",
+      "check": "git_remotes_and_inbox_isolation",
+      "main_branch_remote": "origin",
+      "mirror_remotes_require_no_push": true,
+      "mirror_pr_fetch_refspec": "+refs/pull/*/head:refs/remotes/<remote>/pr/*",
+      "inbox_namespace": "refs/heads/inbox/*"
+    },
+    {
+      "id": "GOST-26-METADATA-MANIFEST-SSOT",
+      "section": 3,
+      "title": "Validação Estrita do Manifesto .gost/metadata.json e Filtro Anti-Jargão",
+      "severity": "MUST",
+      "check": "metadata_json_schema_and_jargon",
+      "target": ".gost/metadata.json",
+      "required_fields": [
+        "slug",
+        "title",
+        "site_type",
+        "tagline",
+        "summary",
+        "abstract",
+        "tags",
+        "icon",
+        "theme"
+      ],
+      "limits": {
+        "slug_max": 24,
+        "title_max": 25,
+        "tagline_max": 60,
+        "title_plus_tagline_max": 65,
+        "summary_min": 50,
+        "summary_max": 140,
+        "abstract_min": 150,
+        "abstract_max": 500,
+        "tags_min": 3,
+        "tags_max": 8,
+        "tag_item_max": 20
+      },
+      "forbidden_jargon_in_prose": [
+        "soberano",
+        "soberana",
+        "hexagonal",
+        "ssot",
+        "rust puro",
+        "em rust",
+        "em php",
+        "wasm"
+      ]
+    },
+    {
+      "id": "GOST-27-DDD-HEXAGONAL-PURITY",
+      "section": 12,
+      "title": "Pureza Arquitetural do Domínio (Zero I/O no Core) e Inversão de Dependência",
+      "severity": "MUST",
+      "check": "domain_layer_io_ban",
+      "domain_paths": [
+        "src/domain/",
+        "src/Domain/",
+        "lib/core.sh",
+        "R/domain_",
+        "internal/domain/"
+      ],
+      "forbidden_imports_by_lang": {
+        "rust": [
+          "std::fs",
+          "std::net",
+          "std::process",
+          "std::env",
+          "tokio::fs",
+          "tokio::net",
+          "reqwest",
+          "rusqlite",
+          "sqlx",
+          "clap"
+        ],
+        "php": [
+          "PDO",
+          "curl_init",
+          "file_get_contents",
+          "file_put_contents",
+          "fopen",
+          "$_GET",
+          "$_POST",
+          "$_SERVER",
+          "$_ENV",
+          "getenv"
+        ],
+        "javascript": [
+          "node:fs",
+          "node:net",
+          "node:child_process",
+          "node:http",
+          "fetch(",
+          "process.env",
+          "localStorage"
+        ],
+        "shell": [
+          "curl ",
+          "wget ",
+          "git ",
+          "sqlite3 ",
+          "ssh "
+        ],
+        "r": [
+          "read.csv",
+          "write.csv",
+          "readRDS",
+          "saveRDS",
+          "httr",
+          "curl",
+          "DBI"
+        ],
+        "go": [
+          "net/http",
+          "database/sql",
+          "os",
+          "io/fs"
+        ],
+        "python": [
+          "sqlite3",
+          "requests",
+          "fastapi",
+          "os",
+          "sys"
+        ]
+      }
+    }
+  ]
+}
