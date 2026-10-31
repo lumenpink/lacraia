@@ -126,6 +126,8 @@ pub struct SystemSettings {
     pub target_cache_duration_sec: u64,
     #[serde(rename = "maxDiskCacheMb")]
     pub max_disk_cache_mb: u64,
+    #[serde(rename = "vanModeEnabled", default)]
+    pub van_mode_enabled: bool,
     #[serde(rename = "masterKey", skip_serializing_if = "Option::is_none")]
     pub master_key: Option<String>,
 }
@@ -136,6 +138,7 @@ impl Default for SystemSettings {
             target_queue_duration_sec: 7200,
             target_cache_duration_sec: 3600,
             max_disk_cache_mb: 1024,
+            van_mode_enabled: false,
             master_key: None,
         }
     }
@@ -2127,11 +2130,12 @@ impl Database {
     }
 
     pub fn get_system_settings(&self) -> Result<SystemSettings, DbError> {
-        let (target_queue, target_cache, max_disk, mut master_key) = {
+        let (target_queue, target_cache, max_disk, van_mode, mut master_key) = {
             let conn = self.conn.lock().unwrap();
             let mut target_queue = 7200u64;
             let mut target_cache = 3600u64;
             let mut max_disk = 1024u64;
+            let mut van_mode = false;
             let mut master_key: Option<String> = None;
 
             let mut stmt = conn.prepare("SELECT key, value FROM system_settings")?;
@@ -2158,13 +2162,18 @@ impl Database {
                             max_disk = v;
                         }
                     }
+                    "van_mode_enabled" => {
+                        if let Ok(b) = r.1.parse::<bool>() {
+                            van_mode = b;
+                        }
+                    }
                     "master_key" if !r.1.trim().is_empty() => {
                         master_key = Some(r.1);
                     }
                     _ => {}
                 }
             }
-            (target_queue, target_cache, max_disk, master_key)
+            (target_queue, target_cache, max_disk, van_mode, master_key)
         };
 
         if master_key.is_none() {
@@ -2175,6 +2184,7 @@ impl Database {
             target_queue_duration_sec: target_queue,
             target_cache_duration_sec: target_cache,
             max_disk_cache_mb: max_disk,
+            van_mode_enabled: van_mode,
             master_key,
         })
     }
@@ -2193,6 +2203,10 @@ impl Database {
         conn.execute(
             "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('max_disk_cache_mb', ?1, ?2)",
             params![settings.max_disk_cache_mb.to_string(), now],
+        )?;
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('van_mode_enabled', ?1, ?2)",
+            params![settings.van_mode_enabled.to_string(), now],
         )?;
         if let Some(ref mk) = settings.master_key {
             if !mk.trim().is_empty() {
@@ -2981,12 +2995,17 @@ mod tests {
             defaults.master_key.is_some(),
             "Default settings must include the active master key"
         );
+        assert!(
+            !defaults.van_mode_enabled,
+            "Default settings must have van_mode_enabled = false (monousuário)"
+        );
 
         // 2. Update settings and verify persistence (Issue #26)
         let updated = SystemSettings {
             target_queue_duration_sec: 10800,
             target_cache_duration_sec: 5400,
             max_disk_cache_mb: 2048,
+            van_mode_enabled: true,
             master_key: defaults.master_key.clone(),
         };
         db.update_system_settings(&updated).unwrap();

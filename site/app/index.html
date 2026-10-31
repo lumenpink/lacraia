@@ -1774,6 +1774,18 @@
           </div>
           <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Chave gerada localmente. O app gerencia a autorização automaticamente sem exigir senhas manuais.</div>
         </div>
+
+        <!-- Modo Van (Compartilhamento Coletivo e Cabines - Issue #45) -->
+        <div style="border-top: 1px solid var(--borda-chassi); padding-top: 10px;">
+          <label style="display:flex; align-items:center; justify-content:space-between; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; cursor:pointer;">
+            <span>🚐 MODO VAN (CABINES &amp; SESSÃO EM GRUPO):</span>
+            <input type="checkbox" id="check-van-mode" style="cursor:pointer; width:16px; height:16px; accent-color:var(--veneno-eletrico);" />
+          </label>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 4px;">
+            Desativado (Padrão Monousuário): Console individual focado na reprodução do paredão.<br>
+            Ativado (Modo Van): Exibe controles de cabine, lista de passageiros, QR Code e HUD de tripulação.
+          </div>
+        </div>
       </div>
 
       <div id="settings-status-msg" style="display:none; font-size: 11px; padding: 8px; margin-bottom: 10px; border-radius: 2px;"></div>
@@ -1963,6 +1975,7 @@
       const selectDiskUnit = document.getElementById("select-disk-unit");
       const inputMasterKey = document.getElementById("input-master-key");
       const btnCopyMasterKey = document.getElementById("btn-copy-master-key");
+      const checkVanMode = document.getElementById("check-van-mode");
       const settingsStatusMsg = document.getElementById("settings-status-msg");
       const roleBadge = document.getElementById("role-badge");
 
@@ -3424,9 +3437,33 @@
             localStorage.setItem("lacraia_master_key", cfg.masterKey);
             if (inputMasterKey) inputMasterKey.value = cfg.masterKey;
           }
+          const vanMode = cfg.vanModeEnabled === true;
+          if (checkVanMode) checkVanMode.checked = vanMode;
+          applyVanMode(vanMode);
         } catch (err) {
           console.warn("Failed to load settings:", err);
         }
+      }
+
+      function applyVanMode(enabled) {
+        state.vanModeEnabled = !!enabled;
+        const displayVal = enabled ? "" : "none";
+        if (cabinBadge) cabinBadge.style.display = displayVal;
+        if (btnCabinAccess) btnCabinAccess.style.display = displayVal;
+        if (roleBadge) roleBadge.style.display = displayVal;
+        const doorBadge = document.getElementById("door-badge");
+        if (doorBadge) doorBadge.style.display = displayVal;
+        const tabBtnDeck03 = document.getElementById("tab-btn-deck-03");
+        if (tabBtnDeck03) tabBtnDeck03.style.display = displayVal;
+        const deck03 = document.getElementById("deck-03");
+        if (deck03) deck03.style.display = displayVal;
+      }
+      window.applyVanMode = applyVanMode;
+
+      if (checkVanMode) {
+        checkVanMode.addEventListener("change", (e) => {
+          applyVanMode(e.target.checked);
+        });
       }
 
       if (btnCopyMasterKey) {
@@ -3478,6 +3515,7 @@
         }
 
         const activeMaster = state.masterKey || localStorage.getItem("lacraia_master_key") || "";
+        const vanMode = checkVanMode ? checkVanMode.checked : false;
 
         try {
           const res = await fetch(`${targetHttpUrl}/api/config`, {
@@ -3490,10 +3528,12 @@
               targetQueueDurationSec: qSec,
               targetCacheDurationSec: cSec,
               maxDiskCacheMb: dMb,
+              vanModeEnabled: vanMode,
               masterKey: activeMaster,
             }),
           });
           if (res.ok) {
+            applyVanMode(vanMode);
             showSettingsStatus("Configurações salvas com sucesso!", true);
             showToast("⚙️ CONFIGURAÇÕES SALVAS!");
             setTimeout(() => {
@@ -3915,6 +3955,8 @@
       });
 
       // Initial Boot
+      applyVanMode(false);
+      loadSettings();
       renderState();
       startPlaybackLoop();
       syncCabinInfo();

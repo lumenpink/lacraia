@@ -4,7 +4,6 @@ use axum::{
 };
 use lacraia_core::{
     build_app, AppState, CompositeSimilarityEngine, Database, MediaResolver, PlaybackHub,
-    SystemSettings,
 };
 use lacraia_shared::WsMessage;
 use serde_json::Value;
@@ -16,7 +15,9 @@ use tower::ServiceExt;
 #[test]
 fn test_default_settings_is_monousuario() {
     let db = Database::open_in_memory().expect("abrir banco em memória");
-    let settings = db.get_system_settings().expect("obter configurações padrão");
+    let settings = db
+        .get_system_settings()
+        .expect("obter configurações padrão");
 
     assert!(
         !settings.van_mode_enabled,
@@ -150,8 +151,8 @@ fn test_html_van_mode_contract() {
         .unwrap()
         .parent()
         .unwrap();
-    let html = std::fs::read_to_string(root.join("site/app/index.html"))
-        .expect("ler site/app/index.html");
+    let html =
+        std::fs::read_to_string(root.join("site/app/index.html")).expect("ler site/app/index.html");
 
     assert!(
         html.contains("check-van-mode"),
@@ -165,4 +166,21 @@ fn test_html_van_mode_contract() {
         html.contains("vanModeEnabled"),
         "HTML deve sincronizar com o parâmetro vanModeEnabled"
     );
+
+    // Validar presença de todos os IDs de elementos controlados pelo Modo Van
+    let elementos_van = [
+        "cabin-badge",
+        "btn-cabin-access",
+        "door-badge",
+        "role-badge",
+        "tab-btn-deck-03",
+        "deck-03",
+    ];
+
+    for id in elementos_van {
+        assert!(
+            html.contains(id),
+            "Elemento coletivo '{id}' deve existir no template HTML para ser controlado pelo modo van"
+        );
+    }
 }
