@@ -460,3 +460,68 @@ jobs:
             echo '-> Limpando camadas orfas...'
             docker image prune -f
           "
+
+      - name: "CD on obione via SSH (Micro-Relay)"
+        env:
+          OBIONE_SSH_HOST: ${{ secrets.OBIONE_SSH_HOST }}
+          OBIONE_SSH_USER: ${{ secrets.OBIONE_SSH_USER }}
+          OBIONE_SSH_KEY: ${{ secrets.OBIONE_SSH_KEY }}
+        run: |
+          SSH_HOST="${OBIONE_SSH_HOST:-100.124.111.43}"
+          SSH_USER="${OBIONE_SSH_USER:-ubuntu}"
+          echo "-> Iniciando deploy no nó obione ($SSH_HOST)..."
+
+          if [ -f ~/.ssh/id_obitwo ]; then
+            SSH_OPTS="-i ~/.ssh/id_obitwo -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          elif [ -f ~/.ssh/id_ed25519 ]; then
+            SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          elif [ -n "$OBIONE_SSH_KEY" ]; then
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            echo "$OBIONE_SSH_KEY" > /tmp/id_ci_obione
+            chmod 600 /tmp/id_ci_obione
+            SSH_OPTS="-i /tmp/id_ci_obione -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          else
+            SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          fi
+
+          ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "
+            set -eo pipefail
+            if [ -d ~/stacks/relay ]; then
+              cd ~/stacks/relay
+              OLD_IMAGE_ID=\$(docker inspect --format='{{.Id}}' gambi.2lp.in/lumen/lacraia:latest 2>/dev/null || true)
+              echo \"OLD_IMAGE_ID=\$OLD_IMAGE_ID\"
+
+              echo '-> Puxando imagem mais recente...'
+              docker compose pull || true
+
+              echo '-> Aplicando atualizacao no container lacraia_relay...'
+              docker compose up -d --no-build lacraia_relay
+
+              echo '-> Sondando estabilidade do container lacraia_relay (polling 15s)...'
+              SUCCESS=0
+              for i in \$(seq 1 15); do
+                STATUS=\$(docker inspect --format='{{.State.Status}}' lacraia_relay 2>/dev/null || echo 'unknown')
+                if [ \"\$STATUS\" = 'running' ]; then
+                  echo \"  [PASS] Container lacraia_relay saudavel e ativo (tentativa \$i/15).\"
+                  SUCCESS=1
+                  break
+                fi
+                sleep 1
+              done
+
+              if [ \$SUCCESS -ne 1 ]; then
+                echo '✘ [FALHA] Container nao estabilizou no prazo limite! Acionando Rollback...'
+                if [ -n \"\$OLD_IMAGE_ID\" ]; then
+                  docker tag \"\$OLD_IMAGE_ID\" gambi.2lp.in/lumen/lacraia:latest
+                  docker compose up -d --no-build lacraia_relay
+                  echo \"✔ Rollback concluido para imagem anterior \$OLD_IMAGE_ID.\"
+                fi
+                exit 1
+              fi
+
+              echo '-> Limpando camadas orfas no obione...'
+              docker image prune -f
+            else
+              echo 'Aviso: ~/stacks/relay ainda nao existe no obione. Aguardando replicacao do baquara-infra.'
+            fi
+          "

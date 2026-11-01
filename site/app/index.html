@@ -1839,7 +1839,7 @@
           <label for="input-relay-url" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
             MICRO-RELAY WEBSOCKET PARA CONECTIVIDADE 5G (opcional):
           </label>
-          <input type="text" id="input-relay-url" placeholder="ex: wss://relay.2lp.in/relay/ws ou ws://127.0.0.1:8090/relay/ws" style="width: 100%; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
+          <input type="text" id="input-relay-url" placeholder="ex: wss://lacraia-relay.2lp.in/relay/ws" style="width: 100%; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
           <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">
             Permite que passageiros no seu próprio 5G controlem o som da van atrás de CGNAT sem necessidade de Wi-Fi ou IP fixo.
           </div>
@@ -3609,7 +3609,7 @@
           }
         }
         if (inputRemoteServer) inputRemoteServer.value = remoteUrl;
-        if (inputRelayUrl) inputRelayUrl.value = localStorage.getItem("lacraia_relay_url") || "";
+        if (inputRelayUrl) inputRelayUrl.value = localStorage.getItem("lacraia_relay_url") || "wss://lacraia-relay.2lp.in/relay/ws";
 
         try {
           const res = await fetch(`${targetHttpUrl}/api/config`);
@@ -4326,7 +4326,7 @@
       function connectWs() {
         try {
           let finalWsUrl;
-          const storedRelay = localStorage.getItem("lacraia_relay_url");
+          const storedRelay = localStorage.getItem("lacraia_relay_url") || "wss://lacraia-relay.2lp.in/relay/ws";
           if (storedRelay && (state.vanHash || vanParam)) {
             const rUrl = new URL(storedRelay, window.location.href);
             rUrl.searchParams.set("room", state.vanHash || state.cabinId);
