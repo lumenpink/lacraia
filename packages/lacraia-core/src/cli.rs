@@ -280,18 +280,18 @@ pub async fn cmd_tui(args: &[String]) -> Result<(), Box<dyn std::error::Error>> 
 
 pub async fn cmd_relay(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let mut port: u16 = 8090;
-    let mut i = 0;
-    while i < args.len() {
-        if (args[i] == "--port" || args[i] == "-p") && i + 1 < args.len() {
-            port = args[i + 1].parse().unwrap_or(8090);
-            i += 1;
-        }
-        i += 1;
-    }
     if let Ok(p_env) = std::env::var("PORT") {
         if let Ok(p) = p_env.parse() {
             port = p;
         }
+    }
+    let mut i = 0;
+    while i < args.len() {
+        if (args[i] == "--port" || args[i] == "-p") && i + 1 < args.len() {
+            port = args[i + 1].parse().unwrap_or(port);
+            i += 1;
+        }
+        i += 1;
     }
 
     let app = lacraia_core::relay::build_relay_app();
