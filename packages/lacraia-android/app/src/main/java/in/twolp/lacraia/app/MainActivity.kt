@@ -40,12 +40,18 @@ class MainActivity : AppCompatActivity() {
                 cacheMode = WebSettings.LOAD_DEFAULT
                 useWideViewPort = true
                 loadWithOverviewMode = true
+                userAgentString = "${userAgentString} LacraiaApp/0.2.0"
             }
 
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                     return false
+                }
+
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    view?.evaluateJavascript("window.LACRAIA_NATIVE = true;", null)
                 }
             }
         }
@@ -64,16 +70,13 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("lacraia_prefs", MODE_PRIVATE)
         val defaultEndpoint = "http://10.0.2.2:2011"
         val savedEndpoint = prefs.getString("server_endpoint", null)
-        val targetUrl = intent?.getStringExtra("TARGET_URL") ?: savedEndpoint
+        val targetUrl = intent?.getStringExtra("TARGET_URL") ?: savedEndpoint ?: defaultEndpoint
 
-        if (targetUrl == null) {
-            showServerConfigDialog(defaultEndpoint)
-        } else {
-            webView.loadUrl(targetUrl)
-        }
+        // Plug-and-play: carrega o Cockpit local de imediato sem popup bloqueante
+        webView.loadUrl(targetUrl)
     }
 
-    private fun showServerConfigDialog(defaultEndpoint: String) {
+    fun showServerConfigDialog(defaultEndpoint: String) {
         val input = EditText(this).apply {
             setText(defaultEndpoint)
             setSelection(defaultEndpoint.length)

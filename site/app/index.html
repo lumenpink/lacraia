@@ -1381,6 +1381,7 @@
       <button id="btn-cabin-access" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Gerenciar Acesso e QR Code da Cabine">🔑 ACESSO &amp; QR</button>
       <button id="btn-open-settings" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Configurações de Fila e Cache">⚙️ CONFIG</button>
       <div id="door-badge" class="badge badge-locked">🔓 PORTAS ABERTAS</div>
+      <a href="/" id="btn-bancada" class="badge badge-btn">&larr; BANCADA</a>
     </div>
   </header>
 
@@ -1717,6 +1718,27 @@
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
+        <!-- Conexão do Servidor: Local Embutido vs Homelab Remoto -->
+        <div style="border-bottom: 1px solid var(--borda-chassi); padding-bottom: 10px;">
+          <label style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+            ORIGEM DO PAREDÃO (SERVIDOR DO APP):
+          </label>
+          <div style="display:flex; gap:16px; margin-bottom:6px; font-size:11px;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="radio" name="server-origin-mode" id="radio-server-local" value="local" checked style="accent-color:var(--veneno-eletrico);" />
+              <span>Autônomo Local (Embutido)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="radio" name="server-origin-mode" id="radio-server-homelab" value="homelab" style="accent-color:var(--veneno-eletrico);" />
+              <span>Homelab Remoto</span>
+            </label>
+          </div>
+          <div id="homelab-config-box" style="display:none; margin-top:6px;">
+            <input type="text" id="input-remote-server" placeholder="http://homelab.local:2011" style="width:100%; background:var(--asfalto-frio); border:1px solid var(--borda-chassi); color:#fff; padding:6px; font-family:var(--font-mono); font-size:11px; box-sizing:border-box;" />
+            <div style="font-size:10px; color:var(--chumbo); margin-top:2px;">Endereço HTTP/WS da sua central doméstica com cache massivo.</div>
+          </div>
+        </div>
+
         <!-- Fila do Autopilot -->
         <div>
           <label for="input-queue-size" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
@@ -1917,7 +1939,20 @@
       let targetWsUrl = `${isHttps ? 'wss:' : 'ws:'}//${location.host}/ws`;
       let targetHttpUrl = `${location.protocol}//${location.host}`;
 
-      if (location.protocol === 'file:') {
+      function isNativeApp() {
+        return window.LACRAIA_NATIVE === true || navigator.userAgent.includes("LacraiaApp");
+      }
+
+      // Check stored custom Homelab/Remote Server
+      const storedServerMode = localStorage.getItem("lacraia_server_mode") || "local";
+      const storedRemoteUrl = localStorage.getItem("lacraia_remote_server_url");
+      if (storedServerMode === "homelab" && storedRemoteUrl) {
+        try {
+          const u = new URL(storedRemoteUrl);
+          targetHttpUrl = u.origin;
+          targetWsUrl = `${u.protocol === 'https:' ? 'wss:' : 'ws:'}//${u.host}/ws`;
+        } catch (_) {}
+      } else if (location.protocol === 'file:') {
         targetWsUrl = 'ws://localhost:2011/ws';
         targetHttpUrl = 'http://localhost:2011';
       } else if (location.host === 'lacraia.2lp.in') {
@@ -1958,6 +1993,24 @@
 
       // Elements
       const audio = document.getElementById("audio-engine");
+      const btnBancada = document.getElementById("btn-bancada");
+      if (btnBancada && isNativeApp()) {
+        btnBancada.style.display = "none";
+      }
+
+      const radioServerLocal = document.getElementById("radio-server-local");
+      const radioServerHomelab = document.getElementById("radio-server-homelab");
+      const homelabConfigBox = document.getElementById("homelab-config-box");
+      const inputRemoteServer = document.getElementById("input-remote-server");
+
+      if (radioServerLocal && radioServerHomelab) {
+        radioServerLocal.addEventListener("change", () => {
+          if (homelabConfigBox) homelabConfigBox.style.display = "none";
+        });
+        radioServerHomelab.addEventListener("change", () => {
+          if (homelabConfigBox) homelabConfigBox.style.display = "block";
+        });
+      }
 
       const cabinBadge = document.getElementById("cabin-badge");
       const cabinNameDisplay = document.getElementById("cabin-name-display");
@@ -3403,6 +3456,19 @@
 
       // Modal: Configurações de Fila & Cache (Issue #25 e #26)
       async function loadSettings() {
+        const serverMode = localStorage.getItem("lacraia_server_mode") || "local";
+        const remoteUrl = localStorage.getItem("lacraia_remote_server_url") || "";
+        if (radioServerLocal && radioServerHomelab) {
+          if (serverMode === "homelab") {
+            radioServerHomelab.checked = true;
+            if (homelabConfigBox) homelabConfigBox.style.display = "block";
+          } else {
+            radioServerLocal.checked = true;
+            if (homelabConfigBox) homelabConfigBox.style.display = "none";
+          }
+        }
+        if (inputRemoteServer) inputRemoteServer.value = remoteUrl;
+
         try {
           const res = await fetch(`${targetHttpUrl}/api/config`);
           if (!res.ok) return;
@@ -3515,6 +3581,11 @@
 
         const activeMaster = state.masterKey || localStorage.getItem("lacraia_master_key") || "";
         const vanMode = checkVanMode ? checkVanMode.checked : false;
+
+        const selectedMode = (radioServerHomelab && radioServerHomelab.checked) ? "homelab" : "local";
+        const remoteServerUrl = inputRemoteServer ? inputRemoteServer.value.trim() : "";
+        localStorage.setItem("lacraia_server_mode", selectedMode);
+        localStorage.setItem("lacraia_remote_server_url", remoteServerUrl);
 
         try {
           const res = await fetch(`${targetHttpUrl}/api/config`, {
