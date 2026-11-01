@@ -11,6 +11,7 @@
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
 
 ### Features
+  - (ui) implementar interface de terminal TUI para a lacraia (closes #43)
   - (config) reestruturar para operacao monousuario e modo van secundario (closes #45)
   - (auth) chave master local embutida para gestao de configuracoes (closes #46)
   - (ci) continuous deployment soberano no obizero sem watchtower (closes #53)

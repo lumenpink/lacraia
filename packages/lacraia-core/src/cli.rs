@@ -12,12 +12,13 @@ use std::time::Duration;
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn print_help() {
-    println!("La Craia — Automotive audio streaming engine & sovereign player\n");
+    println!("La Craia — Automotive audio streaming engine & autonomous player\n");
     println!("USO:");
     println!("  lacraia-core [COMANDO] [OPÇÕES]\n");
     println!("COMANDOS:");
+    println!("  tui                          Inicia o cockpit em modo texto no terminal (TUI)");
     println!("  check-update                 Verifica se há novas versões disponíveis na Banca");
-    println!("  update                       Atualiza o binário soberano de forma atômica");
+    println!("  update                       Atualiza o binário autônomo de forma atômica");
     println!("  config <SUBCOMANDO>          Gerencia opções de configuração XDG (config.toml)");
     println!("\nSUBCOMANDOS DE CONFIGURAÇÃO:");
     println!("  config show                  Exibe a configuração atual em formato TOML");
@@ -59,7 +60,7 @@ pub async fn cmd_check_update(channel_opt: Option<&str>) -> Result<(), Box<dyn s
         ver_url
     };
 
-    println!("⚡ La Craia Updater // Banca Soberana 2lp.in");
+    println!("⚡ La Craia Updater // Banca Independente 2lp.in");
     println!("Canal de Distribuição : {}", channel);
     println!("Versão Local Atual    : v{}", CURRENT_VERSION);
     println!("Endpoint de Consulta  : {}", target_url);
@@ -257,6 +258,25 @@ pub fn cmd_config(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+pub async fn cmd_tui(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cabin_id = "default".to_string();
+    let mut i = 0;
+    while i < args.len() {
+        if (args[i] == "--cabin" || args[i] == "-c") && i + 1 < args.len() {
+            cabin_id = args[i + 1].clone();
+            i += 1;
+        }
+        i += 1;
+    }
+
+    let state = lacraia_shared::tui::TuiState {
+        active_cabin: cabin_id,
+        ..Default::default()
+    };
+    lacraia_shared::tui::run_interactive_tui(state);
+    Ok(())
+}
+
 pub async fn handle_cli_args(args: &[String]) -> Result<bool, Box<dyn std::error::Error>> {
     if args.is_empty() {
         return Ok(false);
@@ -306,6 +326,10 @@ pub async fn handle_cli_args(args: &[String]) -> Result<bool, Box<dyn std::error
         }
         "config" => {
             cmd_config(&args[1..])?;
+            Ok(true)
+        }
+        "tui" | "--tui" => {
+            cmd_tui(&args[1..]).await?;
             Ok(true)
         }
         _ => Ok(false),

@@ -6,6 +6,25 @@ use lacraia_shared::{PlaybackState, Track};
 use ui::{format_gain_11, format_time, PlayerState, QueueController, VisualizerState};
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if lacraia_shared::tui::is_tui_requested(&args) {
+        let mut cabin_id = "default".to_string();
+        let mut i = 0;
+        while i < args.len() {
+            if (args[i] == "--cabin" || args[i] == "-c") && i + 1 < args.len() {
+                cabin_id = args[i + 1].clone();
+                i += 1;
+            }
+            i += 1;
+        }
+        let state = lacraia_shared::tui::TuiState {
+            active_cabin: cabin_id,
+            ..Default::default()
+        };
+        lacraia_shared::tui::run_interactive_tui(state);
+        return;
+    }
+
     dioxus_logger::init(tracing::Level::INFO).expect("failed to init logger");
     dioxus::launch(App);
 }
