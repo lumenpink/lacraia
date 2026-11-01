@@ -1,4 +1,4 @@
-use lacraia_app::{audio, ui};
+use lacraia_app::ui;
 
 use dioxus::prelude::*;
 use lacraia_shared::{PlaybackState, Track};

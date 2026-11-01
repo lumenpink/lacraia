@@ -1,6 +1,6 @@
 #[cfg(feature = "desktop")]
 mod tests {
-    use lacraia_app::embedded_core::{EmbeddedCoreHandle, EmbeddedCoreManager};
+    use lacraia_app::embedded_core::EmbeddedCoreManager;
 
     #[tokio::test]
     async fn test_embedded_core_lifecycle_and_http_endpoints() {
@@ -9,13 +9,10 @@ mod tests {
         let cache_dir = tmp.path().join("cache");
 
         // 1. Iniciar servidor embutido na porta efêmera 0
-        let mut handle = EmbeddedCoreManager::start_embedded_server(
-            0,
-            Some(&db_path),
-            Some(&cache_dir),
-        )
-        .await
-        .expect("iniciar servidor embutido");
+        let mut handle =
+            EmbeddedCoreManager::start_embedded_server(0, Some(&db_path), Some(&cache_dir))
+                .await
+                .expect("iniciar servidor embutido");
 
         let port = handle.port;
         assert!(port > 0, "Porta alocada deve ser maior que 0");
@@ -24,7 +21,10 @@ mod tests {
 
         // 2. Provedor de vitalidade (healthcheck)
         let alive = EmbeddedCoreManager::is_server_alive(&base_url).await;
-        assert!(alive, "Servidor embutido deve responder ao probe de vitalidade");
+        assert!(
+            alive,
+            "Servidor embutido deve responder ao probe de vitalidade"
+        );
 
         // 3. Consulta à API de fila do servidor embutido
         let client = reqwest::Client::new();
@@ -38,8 +38,9 @@ mod tests {
         let body: serde_json::Value = resp.json().await.expect("json da fila");
         assert!(body.is_array(), "Fila inicial deve ser um array");
 
-        // 4. Desligamento gracioso
+        // 4. Desligamento gracioso e idempotência
         handle.stop();
+        handle.stop(); // Segundo stop deve ser no-op sem panic
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         let alive_after = EmbeddedCoreManager::is_server_alive(&base_url).await;
@@ -54,6 +55,10 @@ mod tests {
         let dead_url = "http://127.0.0.1:59999";
         let alive = EmbeddedCoreManager::is_server_alive(dead_url).await;
         assert!(!alive, "Probe em porta morta deve retornar false");
+
+        let invalid_url = "not-a-valid-url";
+        let alive_invalid = EmbeddedCoreManager::is_server_alive(invalid_url).await;
+        assert!(!alive_invalid, "Probe em URL inválida deve retornar false");
     }
 
     #[tokio::test]
