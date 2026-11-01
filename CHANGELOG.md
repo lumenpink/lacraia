@@ -11,6 +11,7 @@
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
 
 ### Features
+  - (app) isolar cockpit nativo e solicitar endereco do servidor (closes #38)
   - (desktop) empacotar lacraia-core criando app desktop autonomo (closes #39)
   - (ui) implementar interface de terminal TUI para a lacraia (closes #43)
   - (config) reestruturar para operacao monousuario e modo van secundario (closes #45)

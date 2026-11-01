@@ -42,6 +42,7 @@ dioxus-logger = "0.5"
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
 web-sys = { version = "0.3", optional = true, features = [
     "HtmlAudioElement",
     "MediaMetadata",

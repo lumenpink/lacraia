@@ -8,6 +8,8 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -59,8 +61,50 @@ class MainActivity : AppCompatActivity() {
                 or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         )
 
-        val targetUrl = intent?.getStringExtra("TARGET_URL") ?: "https://lacraia.2lp.in"
-        webView.loadUrl(targetUrl)
+        val prefs = getSharedPreferences("lacraia_prefs", MODE_PRIVATE)
+        val defaultEndpoint = "http://10.0.2.2:2011/app"
+        val savedEndpoint = prefs.getString("server_endpoint", null)
+        val targetUrl = intent?.getStringExtra("TARGET_URL") ?: savedEndpoint
+
+        if (targetUrl == null) {
+            showServerConfigDialog(defaultEndpoint)
+        } else {
+            webView.loadUrl(targetUrl)
+        }
+    }
+
+    private fun showServerConfigDialog(defaultEndpoint: String) {
+        val input = EditText(this).apply {
+            setText(defaultEndpoint)
+            setSelection(defaultEndpoint.length)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("La Craia :: Endereço do Core")
+            .setMessage("Informe o endpoint HTTP do servidor lacraia-core para carregar o Cockpit:")
+            .setView(input)
+            .setCancelable(false)
+            .setPositiveButton("Conectar") { _, _ ->
+                var url = input.text.toString().trim()
+                if (url.isEmpty()) {
+                    url = defaultEndpoint
+                }
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    url = "http://$url"
+                }
+                if (!url.endsWith("/app") && !url.endsWith("/app/")) {
+                    url = "${url.trimEnd('/')}/app"
+                }
+                val prefs = getSharedPreferences("lacraia_prefs", MODE_PRIVATE)
+                prefs.edit().putString("server_endpoint", url).apply()
+                webView.loadUrl(url)
+            }
+            .setNegativeButton("Modo Local Padrão") { _, _ ->
+                val prefs = getSharedPreferences("lacraia_prefs", MODE_PRIVATE)
+                prefs.edit().putString("server_endpoint", defaultEndpoint).apply()
+                webView.loadUrl(defaultEndpoint)
+            }
+            .show()
     }
 
     override fun onBackPressed() {

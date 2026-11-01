@@ -35,7 +35,7 @@ fn test_server_config_save_and_load() {
     let tmp = tempfile::tempdir().unwrap();
     let cfg_file = tmp.path().join("client.toml");
 
-    let mut cfg = ServerConfig {
+    let cfg = ServerConfig {
         server_url: "http://paredao.local:2011".to_string(),
         cabin_id: "cabine_vip".to_string(),
     };
@@ -45,6 +45,17 @@ fn test_server_config_save_and_load() {
     let loaded = ServerConfig::load(Some(&cfg_file));
     assert_eq!(loaded.server_url, "http://paredao.local:2011");
     assert_eq!(loaded.cabin_id, "cabine_vip");
+
+    // Mutante: Arquivo inexistente deve retornar defaults
+    let non_existent = tmp.path().join("nao_existe.toml");
+    let fallback = ServerConfig::load(Some(&non_existent));
+    assert_eq!(fallback, ServerConfig::default());
+
+    // Mutante: Conteúdo inválido deve retornar defaults sem pânico
+    let invalid_file = tmp.path().join("invalido.toml");
+    std::fs::write(&invalid_file, b"NOT_A_VALID_TOML = [[[}}").unwrap();
+    let safe_fallback = ServerConfig::load(Some(&invalid_file));
+    assert_eq!(safe_fallback, ServerConfig::default());
 }
 
 #[test]
@@ -54,7 +65,8 @@ fn test_android_main_activity_cockpit_isolation() {
         .unwrap()
         .parent()
         .unwrap();
-    let kt_path = root.join("packages/lacraia-android/app/src/main/java/in/twolp/lacraia/app/MainActivity.kt");
+    let kt_path = root
+        .join("packages/lacraia-android/app/src/main/java/in/twolp/lacraia/app/MainActivity.kt");
     let kt_content = std::fs::read_to_string(&kt_path).expect("ler MainActivity.kt");
 
     // Não deve conter a URL do site de apresentação institucional como fallback padrão

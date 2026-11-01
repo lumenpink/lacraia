@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod server_config;
 pub mod ui;
 
 #[cfg(feature = "desktop")]
