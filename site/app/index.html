@@ -4327,9 +4327,10 @@
         try {
           let finalWsUrl;
           const storedRelay = localStorage.getItem("lacraia_relay_url") || "wss://lacraia-relay.2lp.in/relay/ws";
-          if (storedRelay && (state.vanHash || vanParam)) {
+          const vanHashId = state.vanHash || vanParam;
+          if (storedRelay && vanHashId) {
             const rUrl = new URL(storedRelay, window.location.href);
-            rUrl.searchParams.set("room", state.vanHash || state.cabinId);
+            rUrl.searchParams.set("room", vanHashId);
             rUrl.searchParams.set("role", isPilotOrMaster() ? "host" : "client");
             finalWsUrl = rUrl.toString().replace(/^http/, "ws");
           } else {
