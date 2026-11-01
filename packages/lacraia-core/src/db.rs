@@ -19,6 +19,8 @@ pub enum DbError {
     CabinLocked(String),
     #[error("Quota exceeded: {0}")]
     QuotaExceeded(String),
+    #[error("Porteiro bloqueou a requisicao: {0}")]
+    BouncerBlocked(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +30,9 @@ pub struct CabinRecord {
     pub is_locked: bool,
     pub pilot_token: String,
     pub passenger_key: String,
+    pub van_hash: String,
+    pub pin: String,
+    pub bouncer_enabled: bool,
     pub created_at: i64,
 }
 
@@ -39,6 +44,7 @@ pub struct PassengerRecord {
     pub device: Option<String>,
     pub token: String,
     pub is_active: bool,
+    pub is_approved: bool,
     pub joined_at: i64,
 }
 
@@ -224,6 +230,9 @@ impl Database {
                 is_locked INTEGER NOT NULL DEFAULT 0,
                 pilot_token TEXT NOT NULL,
                 passenger_key TEXT NOT NULL DEFAULT '',
+                van_hash TEXT NOT NULL DEFAULT '',
+                pin TEXT NOT NULL DEFAULT '421',
+                bouncer_enabled INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL
             );
 
@@ -234,6 +243,7 @@ impl Database {
                 device TEXT,
                 token TEXT NOT NULL UNIQUE,
                 is_active INTEGER NOT NULL DEFAULT 1,
+                is_approved INTEGER NOT NULL DEFAULT 1,
                 joined_at INTEGER NOT NULL,
                 FOREIGN KEY (cabin_id) REFERENCES cabins(id) ON DELETE CASCADE
             );
@@ -336,6 +346,22 @@ impl Database {
         let _ = conn.execute("ALTER TABLE queue ADD COLUMN requested_by TEXT", []);
         let _ = conn.execute(
             "ALTER TABLE playback_history ADD COLUMN status TEXT NOT NULL DEFAULT 'played'",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE cabins ADD COLUMN van_hash TEXT NOT NULL DEFAULT ''",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE cabins ADD COLUMN pin TEXT NOT NULL DEFAULT '421'",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE cabins ADD COLUMN bouncer_enabled INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE passengers ADD COLUMN is_approved INTEGER NOT NULL DEFAULT 1",
             [],
         );
 
@@ -959,8 +985,23 @@ impl Database {
         max_quota: usize,
     ) -> Result<i64, DbError> {
         if let Some(user) = requested_by {
-            if !user.trim().is_empty() {
+            let clean_name = user.trim().trim_start_matches('@');
+            if !clean_name.is_empty() {
                 let conn = self.conn.lock().unwrap();
+                let is_unapproved: Option<bool> = conn
+                    .query_row(
+                        "SELECT is_approved == 0 FROM passengers WHERE cabin_id = ?1 AND (name = ?2 OR name = ?3) AND is_active = 1",
+                        params![cabin_id, clean_name, user],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+
+                if let Some(true) = is_unapproved {
+                    return Err(DbError::BouncerBlocked(
+                        "Passageiro não-aprovado pelo porteiro da cabine".into(),
+                    ));
+                }
+
                 let mut stmt = conn.prepare(
                     "SELECT COUNT(*) FROM queue WHERE cabin_id = ?1 AND requested_by = ?2 AND state IN ('pending', 'playing')",
                 )?;
@@ -1399,12 +1440,21 @@ impl Database {
     ) -> Result<CabinRecord, DbError> {
         let conn = self.conn.lock().unwrap();
         let now = Utc::now().timestamp();
+        let van_hash = format!(
+            "{:012x}",
+            (id.as_bytes().iter().fold(0xa5a5a5a5u64, |acc, &b| acc
+                .wrapping_mul(31)
+                .wrapping_add(b as u64)))
+                & 0xffffffffffff
+        );
+        let pin = "421".to_string();
+
         conn.execute(
             r#"
-            INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, created_at)
-            VALUES (?1, ?2, 0, ?3, ?4, ?5)
+            INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, van_hash, pin, bouncer_enabled, created_at)
+            VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6, 0, ?7)
             "#,
-            params![id, name, pilot_token, passenger_key, now],
+            params![id, name, pilot_token, passenger_key, van_hash, pin, now],
         )?;
 
         Ok(CabinRecord {
@@ -1413,6 +1463,9 @@ impl Database {
             is_locked: false,
             pilot_token: pilot_token.to_string(),
             passenger_key: passenger_key.to_string(),
+            van_hash,
+            pin,
+            bouncer_enabled: false,
             created_at: now,
         })
     }
@@ -1429,17 +1482,26 @@ impl Database {
             "key_{}",
             &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
         );
+        let van_hash = format!(
+            "{:012x}",
+            (id.as_bytes().iter().fold(0xa5a5a5a5u64, |acc, &b| acc
+                .wrapping_mul(31)
+                .wrapping_add(b as u64)))
+                & 0xffffffffffff
+        );
+        let default_pin = "421".to_string();
+
         conn.execute(
             r#"
-            INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, created_at)
-            VALUES (?1, ?2, 0, ?3, ?4, ?5)
+            INSERT INTO cabins (id, name, is_locked, pilot_token, passenger_key, van_hash, pin, bouncer_enabled, created_at)
+            VALUES (?1, ?2, 0, ?3, ?4, ?5, ?6, 0, ?7)
             ON CONFLICT(id) DO NOTHING
             "#,
-            params![id, name, pilot_token, default_key, now],
+            params![id, name, pilot_token, default_key, van_hash, default_pin, now],
         )?;
 
         let cabin = conn.query_row(
-            "SELECT id, name, is_locked, pilot_token, passenger_key, created_at FROM cabins WHERE id = ?1",
+            "SELECT id, name, is_locked, pilot_token, passenger_key, COALESCE(van_hash, ''), COALESCE(pin, '421'), COALESCE(bouncer_enabled, 0), created_at FROM cabins WHERE id = ?1",
             params![id],
             |row| {
                 Ok(CabinRecord {
@@ -1448,7 +1510,10 @@ impl Database {
                     is_locked: row.get::<_, i64>(2)? == 1,
                     pilot_token: row.get(3)?,
                     passenger_key: row.get(4)?,
-                    created_at: row.get(5)?,
+                    van_hash: row.get(5)?,
+                    pin: row.get(6)?,
+                    bouncer_enabled: row.get::<_, i64>(7)? == 1,
+                    created_at: row.get(8)?,
                 })
             },
         )?;
@@ -1459,7 +1524,7 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let cabin = conn
             .query_row(
-                "SELECT id, name, is_locked, pilot_token, passenger_key, created_at FROM cabins WHERE id = ?1",
+                "SELECT id, name, is_locked, pilot_token, passenger_key, COALESCE(van_hash, ''), COALESCE(pin, '421'), COALESCE(bouncer_enabled, 0), created_at FROM cabins WHERE id = ?1",
                 params![id],
                 |row| {
                     Ok(CabinRecord {
@@ -1468,7 +1533,10 @@ impl Database {
                         is_locked: row.get::<_, i64>(2)? == 1,
                         pilot_token: row.get(3)?,
                         passenger_key: row.get(4)?,
-                        created_at: row.get(5)?,
+                        van_hash: row.get(5)?,
+                        pin: row.get(6)?,
+                        bouncer_enabled: row.get::<_, i64>(7)? == 1,
+                        created_at: row.get(8)?,
                     })
                 },
             )
@@ -1479,7 +1547,7 @@ impl Database {
     pub fn list_cabins(&self) -> Result<Vec<CabinRecord>, DbError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, name, is_locked, pilot_token, passenger_key, created_at FROM cabins ORDER BY created_at ASC",
+            "SELECT id, name, is_locked, pilot_token, passenger_key, COALESCE(van_hash, ''), COALESCE(pin, '421'), COALESCE(bouncer_enabled, 0), created_at FROM cabins ORDER BY created_at ASC",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(CabinRecord {
@@ -1488,7 +1556,10 @@ impl Database {
                 is_locked: row.get::<_, i64>(2)? == 1,
                 pilot_token: row.get(3)?,
                 passenger_key: row.get(4)?,
-                created_at: row.get(5)?,
+                van_hash: row.get(5)?,
+                pin: row.get(6)?,
+                bouncer_enabled: row.get::<_, i64>(7)? == 1,
+                created_at: row.get(8)?,
             })
         })?;
         let mut list = Vec::new();
@@ -1496,6 +1567,110 @@ impl Database {
             list.push(r?);
         }
         Ok(list)
+    }
+
+    pub fn get_cabin_by_van_hash(&self, van_hash: &str) -> Result<Option<CabinRecord>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let cabin = conn
+            .query_row(
+                "SELECT id, name, is_locked, pilot_token, passenger_key, COALESCE(van_hash, ''), COALESCE(pin, '421'), COALESCE(bouncer_enabled, 0), created_at FROM cabins WHERE van_hash = ?1",
+                params![van_hash],
+                |row| {
+                    Ok(CabinRecord {
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                        is_locked: row.get::<_, i64>(2)? == 1,
+                        pilot_token: row.get(3)?,
+                        passenger_key: row.get(4)?,
+                        van_hash: row.get(5)?,
+                        pin: row.get(6)?,
+                        bouncer_enabled: row.get::<_, i64>(7)? == 1,
+                        created_at: row.get(8)?,
+                    })
+                },
+            )
+            .ok();
+        Ok(cabin)
+    }
+
+    pub fn verify_cabin_pin(&self, cabin_id: &str, pin: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let stored_pin: Option<String> = conn
+            .query_row(
+                "SELECT pin FROM cabins WHERE id = ?1",
+                params![cabin_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(stored_pin.as_deref() == Some(pin))
+    }
+
+    pub fn rotate_cabin_pin(&self, cabin_id: &str) -> Result<String, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let current_pin: String = conn
+            .query_row(
+                "SELECT pin FROM cabins WHERE id = ?1",
+                params![cabin_id],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| "421".to_string());
+
+        let mut next_val = (Utc::now().timestamp_subsec_millis() % 900) + 100;
+        let mut new_pin = format!("{:03}", next_val);
+        if new_pin == current_pin {
+            next_val = ((next_val + 7) % 900) + 100;
+            new_pin = format!("{:03}", next_val);
+        }
+
+        conn.execute(
+            "UPDATE cabins SET pin = ?1 WHERE id = ?2",
+            params![new_pin, cabin_id],
+        )?;
+        Ok(new_pin)
+    }
+
+    pub fn set_bouncer_mode(&self, cabin_id: &str, enabled: bool) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE cabins SET bouncer_enabled = ?1 WHERE id = ?2",
+            params![if enabled { 1 } else { 0 }, cabin_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn is_bouncer_enabled(&self, cabin_id: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let enabled = conn
+            .query_row(
+                "SELECT bouncer_enabled FROM cabins WHERE id = ?1",
+                params![cabin_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|val| val == 1)
+            .unwrap_or(false);
+        Ok(enabled)
+    }
+
+    pub fn is_passenger_approved(&self, passenger_id: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let approved = conn
+            .query_row(
+                "SELECT is_approved FROM passengers WHERE id = ?1",
+                params![passenger_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|val| val == 1)
+            .unwrap_or(false);
+        Ok(approved)
+    }
+
+    pub fn approve_passenger(&self, passenger_id: &str, approved: bool) -> Result<(), DbError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE passengers SET is_approved = ?1 WHERE id = ?2",
+            params![if approved { 1 } else { 0 }, passenger_id],
+        )?;
+        Ok(())
     }
 
     pub fn rotate_passenger_key(&self, cabin_id: &str, new_key: &str) -> Result<(), DbError> {
@@ -2046,12 +2221,23 @@ impl Database {
         let prefix = if token.len() >= 8 { &token[..8] } else { token };
         let passenger_id = format!("psg_{}", prefix);
 
+        let is_bouncer = conn
+            .query_row(
+                "SELECT bouncer_enabled FROM cabins WHERE id = ?1",
+                params![cabin_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|val| val == 1)
+            .unwrap_or(false);
+
+        let is_approved = if is_bouncer { 0 } else { 1 };
+
         conn.execute(
             r#"
-            INSERT INTO passengers (id, cabin_id, name, device, token, is_active, joined_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)
+            INSERT INTO passengers (id, cabin_id, name, device, token, is_active, is_approved, joined_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7)
             "#,
-            params![passenger_id, cabin_id, name, device, token, now],
+            params![passenger_id, cabin_id, name, device, token, is_approved, now],
         )?;
 
         Ok(PassengerRecord {
@@ -2061,6 +2247,7 @@ impl Database {
             device: device.map(|d| d.to_string()),
             token: token.to_string(),
             is_active: true,
+            is_approved: is_approved == 1,
             joined_at: now,
         })
     }
@@ -2069,7 +2256,7 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"
-            SELECT id, name, device, joined_at
+            SELECT id, name, device, joined_at, is_approved
             FROM passengers
             WHERE cabin_id = ?1 AND is_active = 1
             ORDER BY joined_at ASC
@@ -2077,11 +2264,13 @@ impl Database {
         )?;
 
         let rows = stmt.query_map(params![cabin_id], |row| {
+            let is_approved: i64 = row.get(4).unwrap_or(1);
             Ok(PassengerInfo {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 device: row.get(2)?,
                 joined_at: row.get(3)?,
+                is_approved: is_approved == 1,
             })
         })?;
 

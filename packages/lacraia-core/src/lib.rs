@@ -121,6 +121,12 @@ pub struct CabinDetailsResponse {
     pub passenger_key: Option<String>,
     #[serde(rename = "isPilot", skip_serializing_if = "Option::is_none")]
     pub is_pilot: Option<bool>,
+    #[serde(rename = "vanHash", skip_serializing_if = "Option::is_none")]
+    pub van_hash: Option<String>,
+    #[serde(rename = "pin", skip_serializing_if = "Option::is_none")]
+    pub pin: Option<String>,
+    #[serde(rename = "bouncerEnabled")]
+    pub bouncer_enabled: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -154,6 +160,10 @@ pub struct CabinCreateResponse {
     pub pilot_url: String,
     #[serde(rename = "passengerUrl")]
     pub passenger_url: String,
+    #[serde(rename = "vanHash", skip_serializing_if = "Option::is_none")]
+    pub van_hash: Option<String>,
+    #[serde(rename = "pin", skip_serializing_if = "Option::is_none")]
+    pub pin: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -171,6 +181,72 @@ pub struct CabinRotateKeyResponse {
     pub cabin_id: String,
     #[serde(rename = "passengerKey")]
     pub passenger_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CabinVerifyPinRequest {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub pin: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinVerifyPinResponse {
+    pub valid: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CabinRotatePinRequest {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub token: Option<String>,
+    #[serde(rename = "masterKey")]
+    pub master_key: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinRotatePinResponse {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub pin: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CabinSetBouncerRequest {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub enabled: bool,
+    pub token: Option<String>,
+    #[serde(rename = "masterKey")]
+    pub master_key: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinSetBouncerResponse {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CabinApprovePassengerRequest {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    #[serde(rename = "passengerId")]
+    pub passenger_id: String,
+    pub approved: bool,
+    pub token: Option<String>,
+    #[serde(rename = "masterKey")]
+    pub master_key: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CabinApprovePassengerResponse {
+    #[serde(rename = "cabinId")]
+    pub cabin_id: String,
+    #[serde(rename = "passengerId")]
+    pub passenger_id: String,
+    pub approved: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -325,6 +401,8 @@ pub async fn handle_cabin_create(
             passenger_key: rec.passenger_key.clone(),
             pilot_url: format!("/app?cabin={}&pilot_token={}", rec.id, rec.pilot_token),
             passenger_url: format!("/app?cabin={}&key={}", rec.id, rec.passenger_key),
+            van_hash: Some(rec.van_hash),
+            pin: Some(rec.pin),
         })),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -333,29 +411,37 @@ pub async fn handle_cabin_create(
     }
 }
 
-pub async fn handle_cabin_rotate_key(
-    State(state): State<AppState>,
-    Json(payload): Json<CabinRotateKeyRequest>,
-) -> Result<Json<CabinRotateKeyResponse>, (StatusCode, String)> {
-    let configured_master = state.db.get_master_key().unwrap_or_else(|_| {
+fn check_pilot_or_master(
+    db: &Database,
+    cabin_id: &str,
+    token: Option<&str>,
+    master_key: Option<&str>,
+) -> bool {
+    let configured_master = db.get_master_key().unwrap_or_else(|_| {
         std::env::var("LACRAIA_MASTER_KEY").unwrap_or_else(|_| "lacraia_master_2011".to_string())
     });
-    let is_master = is_valid_master(
-        payload.master_key.as_deref().unwrap_or_default(),
-        &configured_master,
-    );
-
-    let is_pilot = if let Some(ref tok) = payload.token {
-        state
-            .db
-            .validate_token(&payload.cabin_id, tok, Some(&configured_master))
+    if is_valid_master(master_key.unwrap_or_default(), &configured_master) {
+        return true;
+    }
+    if let Some(tok) = token {
+        db.validate_token(cabin_id, tok, Some(&configured_master))
             .unwrap_or(None)
             == Some(lacraia_shared::Role::Pilot)
     } else {
         false
-    };
+    }
+}
 
-    if !is_master && !is_pilot {
+pub async fn handle_cabin_rotate_key(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinRotateKeyRequest>,
+) -> Result<Json<CabinRotateKeyResponse>, (StatusCode, String)> {
+    if !check_pilot_or_master(
+        &state.db,
+        &payload.cabin_id,
+        payload.token.as_deref(),
+        payload.master_key.as_deref(),
+    ) {
         return Err((
             StatusCode::UNAUTHORIZED,
             "UNAUTHORIZED: Apenas o Piloto da cabine ou a Master podem rotacionar a chave".into(),
@@ -375,6 +461,154 @@ pub async fn handle_cabin_rotate_key(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Falha ao rotacionar chave: {}", e),
         )),
+    }
+}
+
+pub async fn handle_cabin_verify_pin(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinVerifyPinRequest>,
+) -> Result<Json<CabinVerifyPinResponse>, (StatusCode, String)> {
+    match state.db.verify_cabin_pin(&payload.cabin_id, &payload.pin) {
+        Ok(valid) => Ok(Json(CabinVerifyPinResponse { valid })),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao verificar PIN: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_cabin_rotate_pin(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinRotatePinRequest>,
+) -> Result<Json<CabinRotatePinResponse>, (StatusCode, String)> {
+    if !check_pilot_or_master(
+        &state.db,
+        &payload.cabin_id,
+        payload.token.as_deref(),
+        payload.master_key.as_deref(),
+    ) {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED: Apenas o Piloto da cabine ou a Master podem rotacionar o PIN".into(),
+        ));
+    }
+
+    match state.db.rotate_cabin_pin(&payload.cabin_id) {
+        Ok(new_pin) => Ok(Json(CabinRotatePinResponse {
+            cabin_id: payload.cabin_id,
+            pin: new_pin,
+        })),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao rotacionar PIN: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_cabin_set_bouncer(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinSetBouncerRequest>,
+) -> Result<Json<CabinSetBouncerResponse>, (StatusCode, String)> {
+    if !check_pilot_or_master(
+        &state.db,
+        &payload.cabin_id,
+        payload.token.as_deref(),
+        payload.master_key.as_deref(),
+    ) {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED: Apenas o Piloto da cabine ou a Master podem alterar o modo porteiro"
+                .into(),
+        ));
+    }
+
+    match state
+        .db
+        .set_bouncer_mode(&payload.cabin_id, payload.enabled)
+    {
+        Ok(()) => {
+            let update = state
+                .hub
+                .build_state_update_for_cabin(&payload.cabin_id)
+                .await;
+            let _ = state.hub.tx.send(update);
+            Ok(Json(CabinSetBouncerResponse {
+                cabin_id: payload.cabin_id,
+                enabled: payload.enabled,
+            }))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao alterar modo porteiro: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_cabin_approve_passenger(
+    State(state): State<AppState>,
+    Json(payload): Json<CabinApprovePassengerRequest>,
+) -> Result<Json<CabinApprovePassengerResponse>, (StatusCode, String)> {
+    if !check_pilot_or_master(
+        &state.db,
+        &payload.cabin_id,
+        payload.token.as_deref(),
+        payload.master_key.as_deref(),
+    ) {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED: Apenas o Piloto da cabine ou a Master podem aprovar passageiros".into(),
+        ));
+    }
+
+    match state
+        .db
+        .approve_passenger(&payload.passenger_id, payload.approved)
+    {
+        Ok(()) => {
+            let update = state
+                .hub
+                .build_state_update_for_cabin(&payload.cabin_id)
+                .await;
+            let _ = state.hub.tx.send(update);
+            Ok(Json(CabinApprovePassengerResponse {
+                cabin_id: payload.cabin_id,
+                passenger_id: payload.passenger_id,
+                approved: payload.approved,
+            }))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Falha ao atualizar aprovação de passageiro: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_cabin_by_van_hash(
+    State(state): State<AppState>,
+    AxumPath(van_hash): AxumPath<String>,
+) -> Result<Json<CabinDetailsResponse>, (StatusCode, String)> {
+    let cabin = state.db.get_cabin_by_van_hash(&van_hash).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("DB error: {}", e),
+        )
+    })?;
+
+    if let Some(c) = cabin {
+        let passengers = state.db.get_active_passengers(&c.id).unwrap_or_default();
+        Ok(Json(CabinDetailsResponse {
+            id: c.id,
+            name: c.name,
+            is_locked: c.is_locked,
+            passengers_count: passengers.len(),
+            passenger_key: None,
+            is_pilot: Some(false),
+            van_hash: Some(c.van_hash),
+            pin: None,
+            bouncer_enabled: c.bouncer_enabled,
+        }))
+    } else {
+        Err((StatusCode::NOT_FOUND, "Cabine da Van não encontrada".into()))
     }
 }
 
@@ -465,6 +699,9 @@ pub async fn handle_cabin_info(
                 None
             },
             is_pilot: Some(is_pilot),
+            van_hash: Some(c.van_hash),
+            pin: if is_pilot { Some(c.pin) } else { None },
+            bouncer_enabled: c.bouncer_enabled,
         }))
     } else {
         Err((StatusCode::NOT_FOUND, "Cabine não encontrada".into()))
@@ -753,6 +990,7 @@ pub async fn handle_queue_append(
         Err(e) => {
             let status = match e {
                 DbError::QuotaExceeded(_) => StatusCode::TOO_MANY_REQUESTS,
+                DbError::BouncerBlocked(_) => StatusCode::FORBIDDEN,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             };
             Err((status, format!("Failed to enqueue track: {}", e)))
@@ -882,6 +1120,14 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
         .route("/api/cabins", get(handle_list_cabins))
         .route("/api/cabin/create", post(handle_cabin_create))
         .route("/api/cabin/rotate-key", post(handle_cabin_rotate_key))
+        .route("/api/cabin/verify-pin", post(handle_cabin_verify_pin))
+        .route("/api/cabin/rotate-pin", post(handle_cabin_rotate_pin))
+        .route("/api/cabin/bouncer", post(handle_cabin_set_bouncer))
+        .route(
+            "/api/cabin/approve-passenger",
+            post(handle_cabin_approve_passenger),
+        )
+        .route("/api/cabin/by-van/:van_hash", get(handle_cabin_by_van_hash))
         .route("/api/cabin/auth/master", post(handle_master_auth))
         .route("/api/cabin/join", post(handle_cabin_join))
         .route("/api/cabin/:id", get(handle_cabin_info))

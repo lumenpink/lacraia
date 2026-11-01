@@ -12,6 +12,7 @@
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
 
 ### Features
+  - (core,app) seguranca de proximidade com hash fixo e pin (closes #65)
   - (core,app) cota de fila por passageiro e purga na ejecao (closes #64)
   - (app) inicializacao plug-and-play e deteccao nativa (closes #63)
   - (app) isolar cockpit nativo e solicitar endereco do servidor (closes #38)

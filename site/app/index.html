@@ -1378,6 +1378,11 @@
         <span id="ws-text">WS :: OFFLINE</span>
       </div>
       <div id="role-badge" class="badge badge-passenger badge-btn" title="Clique para alterar papel ou autenticar">PASSAGEIRO</div>
+      <div id="pin-badge" class="badge" style="display:none; background:var(--concreto-rachado); border:1px solid var(--amarelo-alerta); color:var(--amarelo-alerta); font-weight:bold; align-items:center; gap:4px;">
+        <span>PIN: <b id="pin-val">---</b></span>
+        <button id="btn-rotate-pin-ui" style="background:transparent; border:none; color:var(--amarelo-alerta); cursor:pointer; font-size:11px; padding:0 2px;" title="Girar PIN do Painel da Van">🔄</button>
+      </div>
+      <button id="btn-toggle-bouncer" class="badge badge-btn" style="display:none; background:var(--concreto-rachado); border:1px solid var(--chumbo); color:var(--papel-jornal-molhado); cursor:pointer;" title="Modo Porteiro (Aprovação de Passageiros)">🛡️ PORTEIRO: OFF</button>
       <button id="btn-cabin-access" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Gerenciar Acesso e QR Code da Cabine">🔑 ACESSO &amp; QR</button>
       <button id="btn-open-settings" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Configurações de Fila e Cache">⚙️ CONFIG</button>
       <div id="door-badge" class="badge badge-locked">🔓 PORTAS ABERTAS</div>
@@ -1656,6 +1661,9 @@
       <div id="qr-link-text" style="font-size: 11px; color: #fff; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); padding: 8px; border-radius: 2px; word-break: break-all; margin: 6px 0;">
         https://mylacraia.2lp.in/?cabin=default&amp;key=...
       </div>
+      <div id="van-hash-box" style="font-size:11px; color:var(--chumbo); margin-bottom:10px;">
+        HASH FIXO DO ADESIVO: <span id="van-hash-val" style="color:var(--veneno-eletrico); font-family:var(--font-mono); font-weight:bold;">---</span>
+      </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
         <button class="btn btn-active" id="btn-copy-passenger-link" style="flex:1;">📋 COPIAR LINK</button>
         <button class="btn btn-alert" id="btn-rotate-key" style="flex:1;">🔄 GIRAR CHAVE</button>
@@ -1666,6 +1674,24 @@
         <button class="btn btn-danger" id="btn-copy-pilot-link" style="width:100%; font-size:10px;">📋 COPIAR LINK DO PILOTO</button>
       </div>
       <button class="btn btn-main" id="btn-close-qr" style="margin-top:10px;">FECHAR [ESC]</button>
+    </div>
+  </div>
+
+  <!-- Modal: PIN de Proximidade da Van -->
+  <div class="modal-overlay" id="pin-modal">
+    <div class="modal-card">
+      <div class="modal-title">🚐 SEGURANÇA DA VAN :: PIN DE PROXIMIDADE</div>
+      <div style="font-size: 12px; color: var(--papel-jornal-molhado); margin-bottom: 12px;">
+        Para evitar sabotagem remota, digite o PIN de 3 dígitos exibido no painel de instrumentos da van:
+      </div>
+      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:14px;">
+        <input type="text" id="input-van-pin" maxlength="3" pattern="[0-9]*" inputmode="numeric" placeholder="000" style="font-size:28px; text-align:center; width:120px; letter-spacing:8px; font-weight:bold; background:var(--asfalto-frio); color:var(--veneno-eletrico); border:2px solid var(--veneno-eletrico); padding:6px; border-radius:4px;" />
+      </div>
+      <div id="pin-error-msg" style="display:none; color:var(--fucsia-furacao); font-size:11px; text-align:center; margin-bottom:10px;">
+        PIN INCORRETO! Olhe para o painel da van.
+      </div>
+      <button class="btn btn-main" id="btn-submit-pin" style="width:100%; font-size:12px;">DESBLOQUEAR ENFILEIRAMENTO</button>
+      <button class="btn btn-alert" id="btn-cancel-pin" style="width:100%; font-size:11px; margin-top:8px;">CONTINUAR APENAS OUVINDO</button>
     </div>
   </div>
 
@@ -1878,6 +1904,7 @@
 
       // URL parameters & Active Cabin
       const urlParams = new URLSearchParams(window.location.search);
+      const vanParam = urlParams.get("van");
       const cabinParam = urlParams.get("cabin") || localStorage.getItem("lacraia_active_cabin") || "default";
       const pilotTokenParam = urlParams.get("pilot_token");
       const masterKeyParam = urlParams.get("master_key");
@@ -1930,7 +1957,10 @@
         queue: [],
         station: "MPB & Samba",
         nonStop: true,
-        wsConnected: false
+        wsConnected: false,
+        vanHash: "",
+        pin: "",
+        bouncerEnabled: false
       };
 
       // Network & Core Daemon Endpoints
@@ -2209,6 +2239,37 @@
           }
         }
 
+        // PIN & Bouncer Controls
+        const pinBadge = document.getElementById("pin-badge");
+        const pinVal = document.getElementById("pin-val");
+        const btnToggleBouncer = document.getElementById("btn-toggle-bouncer");
+
+        if (pinBadge && pinVal) {
+          if (isPilotOrMaster() && state.pin) {
+            pinBadge.style.display = "inline-flex";
+            pinVal.textContent = state.pin;
+          } else {
+            pinBadge.style.display = "none";
+          }
+        }
+
+        if (btnToggleBouncer) {
+          if (isPilotOrMaster()) {
+            btnToggleBouncer.style.display = "inline-flex";
+            if (state.bouncerEnabled) {
+              btnToggleBouncer.textContent = "🛡️ PORTEIRO: ON";
+              btnToggleBouncer.style.borderColor = "var(--fucsia-furacao)";
+              btnToggleBouncer.style.color = "var(--fucsia-furacao)";
+            } else {
+              btnToggleBouncer.textContent = "🛡️ PORTEIRO: OFF";
+              btnToggleBouncer.style.borderColor = "var(--chumbo)";
+              btnToggleBouncer.style.color = "var(--papel-jornal-molhado)";
+            }
+          } else {
+            btnToggleBouncer.style.display = "none";
+          }
+        }
+
         // Update Mobile Tab Badges
         const tabQueueBadge = document.getElementById("tab-queue-badge");
         const tabCrewBadge = document.getElementById("tab-crew-badge");
@@ -2262,9 +2323,13 @@
           name.className = "crew-item-name";
           name.textContent = p.name;
           
+          const isPending = p.isApproved === false || p.is_approved === false;
           const dev = document.createElement("span");
           dev.className = "crew-item-device";
-          dev.textContent = `${p.device} ${p.track ? `• Solicitou: ${p.track}` : ''}`;
+          dev.textContent = `${p.device} ${p.track ? `• Solicitou: ${p.track}` : ''} ${isPending ? '• [AGUARDANDO PORTEIRO]' : ''}`;
+          if (isPending) {
+            dev.style.color = "var(--fucsia-furacao)";
+          }
           
           info.appendChild(name);
           info.appendChild(dev);
@@ -2272,6 +2337,17 @@
 
           if (!isP) {
             if (isPilotOrMaster()) {
+              if (isPending) {
+                const approveBtn = document.createElement("button");
+                approveBtn.className = "btn btn-main crew-item-btn";
+                approveBtn.style.padding = "2px 8px";
+                approveBtn.style.fontSize = "10px";
+                approveBtn.style.marginRight = "6px";
+                approveBtn.textContent = "✔ APROVAR";
+                approveBtn.title = `Aprovar ${p.name}`;
+                approveBtn.onclick = () => approvePassenger(p.id, true);
+                item.appendChild(approveBtn);
+              }
               const ejectBtn = document.createElement("button");
               ejectBtn.className = "btn btn-danger crew-item-btn";
               ejectBtn.textContent = "👢";
@@ -2832,6 +2908,15 @@
         cacheTrackStreamUrl(candidate);
         const reqUser = (state.role === "PILOTO" || state.role === "MASTER") ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
 
+        // Verificação de PIN de proximidade da Van para passageiros (Issue #65)
+        if (!isPilotOrMaster() && (state.vanHash || vanParam)) {
+          const pinVerified = localStorage.getItem("lacraia_van_pin_verified_" + state.cabinId);
+          if (!pinVerified) {
+            openPinModal();
+            return;
+          }
+        }
+
         // Cota de fila por passageiro (Anti-Flood - Issue #64)
         if (state.role !== "PILOTO" && state.role !== "MASTER") {
           const myPendingCount = (state.queue || []).filter(q => q.requestedBy === reqUser).length;
@@ -2882,8 +2967,18 @@
               requestedBy: reqUser,
               cabinId: state.cabinId || "default"
             })
-          }).then(r => r.json()).then(() => {
-            syncQueue();
+          }).then(async r => {
+            if (r.status === 429) {
+              showToast("⚠️ COTA ESGOTADA: Limite de 3 cantigas simultâneas!");
+              return;
+            }
+            if (r.status === 403) {
+              showToast("⛔ AGUARDE: O motorista precisa liberar sua entrada (Modo Porteiro ativo)!");
+              return;
+            }
+            if (r.ok) {
+              syncQueue();
+            }
           }).catch(() => {});
         }
 
@@ -3143,11 +3238,17 @@
 
       function updateQrModalContent() {
         const baseUrl = window.location.origin;
-        let passengerUrl = `${baseUrl}/?cabin=${encodeURIComponent(state.cabinId)}`;
+        const vanParam = state.vanHash ? `van=${encodeURIComponent(state.vanHash)}` : `cabin=${encodeURIComponent(state.cabinId)}`;
+        let passengerUrl = `${baseUrl}/?${vanParam}`;
         if (state.passengerKey) {
           passengerUrl += `&key=${encodeURIComponent(state.passengerKey)}`;
         }
         if (qrLinkText) qrLinkText.textContent = passengerUrl;
+
+        const vanHashVal = document.getElementById("van-hash-val");
+        if (vanHashVal) {
+          vanHashVal.textContent = state.vanHash || state.cabinId;
+        }
 
         if (isPilotOrMaster()) {
           if (pilotDelegationBox) pilotDelegationBox.style.display = "block";
@@ -3648,6 +3749,21 @@
 
       // Sincronização e Auto-Join de Passageiro
       async function syncCabinInfo() {
+        if (vanParam && !state.vanHashResolved) {
+          try {
+            const vResp = await fetch(`${targetHttpUrl}/api/cabin/by-van/${encodeURIComponent(vanParam)}`);
+            if (vResp.ok) {
+              const vData = await vResp.json();
+              state.cabinId = vData.id;
+              state.cabinName = vData.name;
+              state.vanHash = vData.vanHash;
+              state.bouncerEnabled = vData.bouncerEnabled;
+              state.vanHashResolved = true;
+              localStorage.setItem("lacraia_active_cabin", vData.id);
+            }
+          } catch (_) {}
+        }
+
         try {
           const tokenParam = state.myToken ? `?token=${encodeURIComponent(state.myToken)}` : "";
           const resp = await fetch(`${targetHttpUrl}/api/cabin/${state.cabinId}${tokenParam}`);
@@ -3655,6 +3771,11 @@
             const data = await resp.json();
             state.cabinName = data.name;
             state.isLocked = data.isLocked;
+            state.vanHash = data.vanHash || state.vanHash;
+            state.bouncerEnabled = data.bouncerEnabled;
+            if (data.pin) {
+              state.pin = data.pin;
+            }
             if (data.passengerKey) {
               state.passengerKey = data.passengerKey;
               localStorage.setItem("lacraia_passenger_key_" + state.cabinId, data.passengerKey);
@@ -3665,6 +3786,14 @@
             renderState();
           }
         } catch (_) {}
+
+        // Se passageiro em modo van, verifica se já preencheu o PIN do painel
+        if (!isPilotOrMaster() && (vanParam || state.vanHash)) {
+          const pinVerified = localStorage.getItem("lacraia_van_pin_verified_" + state.cabinId);
+          if (!pinVerified) {
+            openPinModal();
+          }
+        }
 
         // Se passageiro e não tem token registrado, faz o auto-join
         if (!isPilotOrMaster()) {
@@ -3700,6 +3829,161 @@
         }
       }
 
+      // PIN Modal & Bouncer Handlers
+      const pinModal = document.getElementById("pin-modal");
+      const inputVanPin = document.getElementById("input-van-pin");
+      const pinErrorMsg = document.getElementById("pin-error-msg");
+      const btnSubmitPin = document.getElementById("btn-submit-pin");
+      const btnCancelPin = document.getElementById("btn-cancel-pin");
+      const btnRotatePinUi = document.getElementById("btn-rotate-pin-ui");
+      const btnToggleBouncer = document.getElementById("btn-toggle-bouncer");
+
+      function openPinModal() {
+        if (pinModal) {
+          pinModal.classList.add("active");
+          if (inputVanPin) {
+            inputVanPin.value = "";
+            inputVanPin.focus();
+          }
+          if (pinErrorMsg) pinErrorMsg.style.display = "none";
+        }
+      }
+
+      function closePinModal() {
+        if (pinModal) pinModal.classList.remove("active");
+      }
+
+      async function verifyVanPin() {
+        const pin = inputVanPin ? inputVanPin.value.trim() : "";
+        if (!pin || pin.length !== 3) {
+          if (pinErrorMsg) {
+            pinErrorMsg.textContent = "DIGITE OS 3 DÍGITOS EXIBIDOS NO PAINEL!";
+            pinErrorMsg.style.display = "block";
+          }
+          return;
+        }
+
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/cabin/verify-pin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cabinId: state.cabinId,
+              pin: pin
+            })
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.valid) {
+              localStorage.setItem("lacraia_van_pin_verified_" + state.cabinId, "true");
+              closePinModal();
+              showToast("✔ PIN CONFIRMADO! ACESSO AO SOM LIBERADO!");
+            } else {
+              if (pinErrorMsg) {
+                pinErrorMsg.textContent = "PIN INCORRETO! Olhe para o painel de instrumentos.";
+                pinErrorMsg.style.display = "block";
+              }
+            }
+          } else {
+            alert("Erro ao validar PIN.");
+          }
+        } catch (e) {
+          alert("Falha de rede ao validar PIN: " + e.message);
+        }
+      }
+
+      async function rotatePin() {
+        if (!confirm("Deseja rotacionar o PIN de 3 dígitos do painel da van?")) return;
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/cabin/rotate-pin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cabinId: state.cabinId,
+              token: state.myToken,
+              masterKey: localStorage.getItem("lacraia_master_key") || null
+            })
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            state.pin = data.pin;
+            renderState();
+            showToast(`🔄 NOVO PIN DO PAINEL: ${data.pin}`);
+          } else {
+            const err = await resp.text();
+            alert("Erro ao rotacionar PIN: " + err);
+          }
+        } catch (e) {
+          alert("Falha na rede: " + e.message);
+        }
+      }
+
+      async function toggleBouncer() {
+        const nextState = !state.bouncerEnabled;
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/cabin/bouncer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cabinId: state.cabinId,
+              enabled: nextState,
+              token: state.myToken,
+              masterKey: localStorage.getItem("lacraia_master_key") || null
+            })
+          });
+          if (resp.ok) {
+            state.bouncerEnabled = nextState;
+            renderState();
+            showToast(nextState ? "🛡️ MODO PORTEIRO ATIVADO!" : "🛡️ MODO PORTEIRO DESATIVADO!");
+          } else {
+            const err = await resp.text();
+            alert("Erro ao alterar modo porteiro: " + err);
+          }
+        } catch (e) {
+          alert("Falha na rede: " + e.message);
+        }
+      }
+
+      async function approvePassenger(passengerId, approved) {
+        try {
+          const resp = await fetch(`${targetHttpUrl}/api/cabin/approve-passenger`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cabinId: state.cabinId,
+              passengerId: passengerId,
+              approved: approved,
+              token: state.myToken,
+              masterKey: localStorage.getItem("lacraia_master_key") || null
+            })
+          });
+          if (resp.ok) {
+            showToast("✔ PASSAGEIRO APROVADO PELO PORTEIRO!");
+            syncCabinInfo();
+          } else {
+            const err = await resp.text();
+            alert("Erro ao aprovar passageiro: " + err);
+          }
+        } catch (e) {
+          alert("Falha na rede: " + e.message);
+        }
+      }
+
+      if (btnSubmitPin) btnSubmitPin.addEventListener("click", verifyVanPin);
+      if (btnCancelPin) btnCancelPin.addEventListener("click", closePinModal);
+      if (inputVanPin) {
+        inputVanPin.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") verifyVanPin();
+        });
+      }
+      if (btnRotatePinUi) btnRotatePinUi.addEventListener("click", rotatePin);
+      if (btnToggleBouncer) btnToggleBouncer.addEventListener("click", toggleBouncer);
+      if (pinModal) {
+        pinModal.addEventListener("click", (e) => {
+          if (e.target === pinModal) closePinModal();
+        });
+      }
+
       // Keyboard Controls
       window.addEventListener("keydown", (e) => {
         if (e.target.tagName === "INPUT") return;
@@ -3715,6 +3999,7 @@
           if (authModal) authModal.classList.remove("active");
           if (cabinModal) cabinModal.classList.remove("active");
           if (settingsModal) settingsModal.classList.remove("active");
+          if (pinModal) pinModal.classList.remove("active");
         }
       });
 
@@ -3983,6 +4268,15 @@
         } else if (type === "UNAUTHORIZED") {
           showToast("⚠️ Comando não autorizado: privilégios de Piloto necessários");
           openAuthModal();
+        } else if (type === "ERROR") {
+          const errText = msg.message || (typeof msg.payload === 'string' ? msg.payload : JSON.stringify(msg.payload || ''));
+          if (errText.includes("porteiro") || errText.includes("aprovado")) {
+            showToast("⛔ AGUARDE: O motorista precisa liberar sua entrada (Modo Porteiro ativo)!");
+          } else if (errText.includes("Cota") || errText.includes("quota")) {
+            showToast("⚠️ COTA ESGOTADA: Limite de 3 cantigas simultâneas!");
+          } else {
+            showToast("⚠️ " + errText);
+          }
         } else if (type === "RELOAD" || type === "DEV_RELOAD") {
           console.log("⚡ [LIVE-RELOAD] Sinal WebSocket de recarregamento recebido!");
           location.reload();

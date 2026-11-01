@@ -410,6 +410,7 @@ mod tests {
                 name: "Mari".into(),
                 device: Some("iPhone 14".into()),
                 joined_at: 1727048000000,
+                is_approved: true,
             }],
         });
         state.handle_ws_message(crew_msg);

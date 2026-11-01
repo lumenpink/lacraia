@@ -1,11 +1,17 @@
+use axum::{
+    body::Body,
+    http::{header, Request, StatusCode},
+};
 use lacraia_core::{
     build_app, AppState, CompositeSimilarityEngine, Database, MediaResolver, PlaybackHub,
     QueueDaemon, TrackRecord,
 };
 use lacraia_shared::WsMessage;
+use serde_json::Value;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
+use tower::ServiceExt;
 
 fn setup_test_context() -> (Database, Arc<PlaybackHub>, axum::Router) {
     let db = Database::open_in_memory().unwrap();
@@ -152,4 +158,172 @@ async fn test_bouncer_approval_flow() {
         .enqueue_track_with_quota("trk_reggae", Some(&psg.name), "van-furacao", 3)
         .unwrap();
     assert!(q_id > 0);
+}
+
+#[tokio::test]
+async fn test_van_security_api_endpoints() {
+    let (db, _hub, app) = setup_test_context();
+    let master_key = db.get_master_key().unwrap();
+
+    // 1. Criar cabine via POST /api/cabin/create
+    let create_payload = serde_json::json!({
+        "id": "furacao-2000",
+        "name": "Van Furacão 2000",
+        "masterKey": master_key
+    });
+    let req = Request::builder()
+        .uri("/api/cabin/create")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&create_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let created: Value = serde_json::from_slice(&bytes).unwrap();
+    let van_hash = created["vanHash"].as_str().unwrap().to_string();
+    let initial_pin = created["pin"].as_str().unwrap().to_string();
+    let pilot_token = created["pilotToken"].as_str().unwrap().to_string();
+    let passenger_key = created["passengerKey"].as_str().unwrap().to_string();
+    assert_eq!(initial_pin.len(), 3);
+
+    // 2. Resolver van via van_hash em GET /api/cabin/by-van/:van_hash
+    let req = Request::builder()
+        .uri(format!("/api/cabin/by-van/{}", van_hash))
+        .method("GET")
+        .body(Body::empty())
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let resolved: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(resolved["id"], "furacao-2000");
+    assert_eq!(resolved["bouncerEnabled"], false);
+    assert!(
+        resolved.get("pin").is_none() || resolved["pin"].is_null(),
+        "Endpoint público de passageiro por van_hash NÃO deve vazar o PIN!"
+    );
+
+    // 3. Validar PIN em POST /api/cabin/verify-pin
+    let verify_payload = serde_json::json!({
+        "cabinId": "furacao-2000",
+        "pin": initial_pin
+    });
+    let req = Request::builder()
+        .uri("/api/cabin/verify-pin")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&verify_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let v: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(v["valid"], true);
+
+    // 4. Rotacionar PIN em POST /api/cabin/rotate-pin (somente piloto ou master)
+    let rotate_payload = serde_json::json!({
+        "cabinId": "furacao-2000",
+        "token": pilot_token
+    });
+    let req = Request::builder()
+        .uri("/api/cabin/rotate-pin")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&rotate_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let rotated: Value = serde_json::from_slice(&bytes).unwrap();
+    let new_pin = rotated["pin"].as_str().unwrap().to_string();
+    assert_ne!(new_pin, initial_pin);
+
+    // 5. Ativar Modo Porteiro em POST /api/cabin/bouncer
+    let bouncer_payload = serde_json::json!({
+        "cabinId": "furacao-2000",
+        "token": pilot_token,
+        "enabled": true
+    });
+    let req = Request::builder()
+        .uri("/api/cabin/bouncer")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&bouncer_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // 6. Passageiro entra na cabine via POST /api/cabin/join
+    let join_payload = serde_json::json!({
+        "cabinId": "furacao-2000",
+        "name": "Passageiro Suspeito",
+        "key": passenger_key
+    });
+    let req = Request::builder()
+        .uri("/api/cabin/join")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&join_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let joined: Value = serde_json::from_slice(&bytes).unwrap();
+    let passenger_id = joined["passengerId"].as_str().unwrap().to_string();
+
+    // 7. Passageiro tenta enfileirar faixa antes da aprovação -> 403 FORBIDDEN
+    let enqueue_payload = serde_json::json!({
+        "trackId": "online:track123",
+        "cabinId": "furacao-2000",
+        "requestedBy": "Passageiro Suspeito"
+    });
+    let req = Request::builder()
+        .uri("/api/queue")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&enqueue_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(
+        resp.status(),
+        StatusCode::FORBIDDEN,
+        "Passageiro não aprovado pelo porteiro deve receber 403 Forbidden"
+    );
+
+    // 8. Piloto aprova passageiro via POST /api/cabin/approve-passenger
+    let approve_payload = serde_json::json!({
+        "cabinId": "furacao-2000",
+        "token": pilot_token,
+        "passengerId": passenger_id,
+        "approved": true
+    });
+    let req = Request::builder()
+        .uri("/api/cabin/approve-passenger")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&approve_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // 9. Passageiro tenta enfileirar novamente -> Sucesso 200 OK
+    let req = Request::builder()
+        .uri("/api/queue")
+        .method("POST")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(serde_json::to_vec(&enqueue_payload).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
 }

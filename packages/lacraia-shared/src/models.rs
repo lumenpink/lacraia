@@ -32,6 +32,12 @@ pub struct PassengerInfo {
     pub device: Option<String>,
     #[serde(rename = "joinedAt")]
     pub joined_at: i64,
+    #[serde(rename = "isApproved", default = "default_approved")]
+    pub is_approved: bool,
+}
+
+fn default_approved() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

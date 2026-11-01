@@ -304,6 +304,7 @@ mod tests {
                 name: "Mari".into(),
                 device: Some("iPhone 14".into()),
                 joined_at: 1727048000000,
+                is_approved: true,
             }],
         });
         let json_crew = serde_json::to_string(&crew_msg).unwrap();
