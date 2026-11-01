@@ -2832,6 +2832,15 @@
         cacheTrackStreamUrl(candidate);
         const reqUser = (state.role === "PILOTO" || state.role === "MASTER") ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE");
 
+        // Cota de fila por passageiro (Anti-Flood - Issue #64)
+        if (state.role !== "PILOTO" && state.role !== "MASTER") {
+          const myPendingCount = (state.queue || []).filter(q => q.requestedBy === reqUser).length;
+          if (myPendingCount >= 3) {
+            showToast("⚠️ COTA EXCEDIDA: MÁXIMO DE 3 MÚSICAS NA FILA!");
+            return;
+          }
+        }
+
         let actionCmd = "QUEUE_APPEND";
         let toastMsg = `➕ "${candidate.title.toUpperCase()}" ADICIONADA À FILA!`;
 

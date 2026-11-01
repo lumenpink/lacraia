@@ -21,7 +21,9 @@ pub mod resolver;
 pub mod similarity;
 pub mod ws;
 
-pub use db::{CabinPlaybackState, Database, QueueEntry, QueueState, SystemSettings, TrackRecord};
+pub use db::{
+    CabinPlaybackState, Database, DbError, QueueEntry, QueueState, SystemSettings, TrackRecord,
+};
 pub use queue_daemon::QueueDaemon;
 pub use resolver::{MediaResolver, ResolverError, TrackResolution};
 pub use similarity::{CompositeSimilarityEngine, SimilarityEngine};
@@ -730,10 +732,11 @@ pub async fn handle_queue_append(
                 )
                 .map(|e| e.id)
         }
-        _ => state.db.enqueue_track_with_meta(
+        _ => state.db.enqueue_track_with_quota(
             &payload.track_id,
             payload.requested_by.as_deref(),
             &cabin_id,
+            3,
         ),
     };
 
@@ -747,10 +750,13 @@ pub async fn handle_queue_append(
                 "cabinId": cabin_id
             })))
         }
-        Err(e) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to enqueue track: {}", e),
-        )),
+        Err(e) => {
+            let status = match e {
+                DbError::QuotaExceeded(_) => StatusCode::TOO_MANY_REQUESTS,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            Err((status, format!("Failed to enqueue track: {}", e)))
+        }
     }
 }
 

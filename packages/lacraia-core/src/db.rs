@@ -17,6 +17,8 @@ pub enum DbError {
     TrackNotFound(String),
     #[error("Cabin locked: {0}")]
     CabinLocked(String),
+    #[error("Quota exceeded: {0}")]
+    QuotaExceeded(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -262,6 +264,7 @@ impl Database {
                 passenger_name TEXT,
                 played_at INTEGER NOT NULL,
                 duration_sec INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'played',
                 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
             );
 
@@ -331,6 +334,10 @@ impl Database {
             [],
         );
         let _ = conn.execute("ALTER TABLE queue ADD COLUMN requested_by TEXT", []);
+        let _ = conn.execute(
+            "ALTER TABLE playback_history ADD COLUMN status TEXT NOT NULL DEFAULT 'played'",
+            [],
+        );
 
         // Seed default cabin if not exists
         let default_pilot_token = std::env::var("LACRAIA_PILOT_TOKEN")
@@ -942,6 +949,31 @@ impl Database {
         }
 
         Ok(results)
+    }
+
+    pub fn enqueue_track_with_quota(
+        &self,
+        track_id: &str,
+        requested_by: Option<&str>,
+        cabin_id: &str,
+        max_quota: usize,
+    ) -> Result<i64, DbError> {
+        if let Some(user) = requested_by {
+            if !user.trim().is_empty() {
+                let conn = self.conn.lock().unwrap();
+                let mut stmt = conn.prepare(
+                    "SELECT COUNT(*) FROM queue WHERE cabin_id = ?1 AND requested_by = ?2 AND state IN ('pending', 'playing')",
+                )?;
+                let count: usize = stmt.query_row(params![cabin_id, user], |row| row.get(0))?;
+                if count >= max_quota {
+                    return Err(DbError::QuotaExceeded(format!(
+                        "Cota de fila excedida: máximo de {} faixas por passageiro simultaneamente",
+                        max_quota
+                    )));
+                }
+            }
+        }
+        self.enqueue_track_with_meta(track_id, requested_by, cabin_id)
     }
 
     pub fn enqueue_track(&self, track_id: &str) -> Result<i64, DbError> {
@@ -1943,7 +1975,7 @@ impl Database {
 
         let mut query = String::from(
             r#"
-            SELECT h.id, h.cabin_id, h.track_id, t.title, t.artist, h.passenger_name, h.played_at, h.duration_sec
+            SELECT h.id, h.cabin_id, h.track_id, t.title, t.artist, h.passenger_name, h.played_at, h.duration_sec, COALESCE(h.status, 'played')
             FROM playback_history h
             LEFT JOIN tracks t ON t.id = h.track_id
             WHERE 1=1
@@ -1980,6 +2012,7 @@ impl Database {
             let passenger_name: Option<String> = row.get(5)?;
             let played_at: i64 = row.get(6)?;
             let duration_sec: u64 = row.get::<_, Option<u64>>(7)?.unwrap_or(210);
+            let status: String = row.get(8)?;
 
             Ok(PlaybackHistoryEntry {
                 id,
@@ -1990,6 +2023,7 @@ impl Database {
                 passenger_name,
                 played_at,
                 duration_sec,
+                status,
             })
         })?;
 
@@ -2060,10 +2094,44 @@ impl Database {
 
     pub fn eject_passenger(&self, passenger_id: &str) -> Result<(), DbError> {
         let conn = self.conn.lock().unwrap();
+
+        // 1. Obter informações do passageiro (cabine e nome)
+        let passenger_info: Option<(String, String)> = conn
+            .query_row(
+                "SELECT cabin_id, name FROM passengers WHERE id = ?1",
+                params![passenger_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+
+        // 2. Desativar passageiro
         conn.execute(
             "UPDATE passengers SET is_active = 0 WHERE id = ?1",
             params![passenger_id],
         )?;
+
+        // 3. Purgar músicas pendentes do passageiro e registrar no histórico como 'ejected'
+        if let Some((cabin_id, name)) = passenger_info {
+            let mut q_stmt = conn.prepare(
+                "SELECT id, track_id FROM queue WHERE cabin_id = ?1 AND requested_by = ?2 AND state = 'pending'",
+            )?;
+            let queued_tracks: Vec<(i64, String)> = q_stmt
+                .query_map(params![cabin_id, name], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            let now = Utc::now().timestamp();
+            for (qid, track_id) in queued_tracks {
+                let _ = conn.execute("DELETE FROM queue WHERE id = ?1", params![qid]);
+                let _ = conn.execute(
+                    "INSERT INTO playback_history (cabin_id, track_id, passenger_name, played_at, duration_sec, status) VALUES (?1, ?2, ?3, ?4, 0, 'ejected')",
+                    params![cabin_id, track_id, name, now],
+                );
+            }
+        }
+
         Ok(())
     }
 

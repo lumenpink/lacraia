@@ -458,10 +458,12 @@ impl PlaybackHub {
                 track_id,
                 requested_by,
             } => {
-                if let Err(e) =
-                    self.db
-                        .enqueue_track_with_meta(&track_id, requested_by.as_deref(), cabin_id)
-                {
+                if let Err(e) = self.db.enqueue_track_with_quota(
+                    &track_id,
+                    requested_by.as_deref(),
+                    cabin_id,
+                    3,
+                ) {
                     return Err(format!("Failed to enqueue track: {}", e));
                 }
             }
@@ -574,6 +576,8 @@ impl PlaybackHub {
                     is_locked,
                     passengers,
                 }));
+                let update = self.build_state_update_for_cabin(cabin_id).await;
+                let _ = self.tx.send(update);
             }
             CommandAction::EjectAll => {
                 let _ = self.db.eject_all_passengers(cabin_id);
@@ -587,6 +591,8 @@ impl PlaybackHub {
                     is_locked,
                     passengers: vec![],
                 }));
+                let update = self.build_state_update_for_cabin(cabin_id).await;
+                let _ = self.tx.send(update);
             }
             CommandAction::ToggleNonStop => {
                 let current = self.is_cabin_non_stop(cabin_id).await;

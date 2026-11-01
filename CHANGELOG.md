@@ -12,6 +12,7 @@
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
 
 ### Features
+  - (core,app) cota de fila por passageiro e purga na ejecao (closes #64)
   - (app) inicializacao plug-and-play e deteccao nativa (closes #63)
   - (app) isolar cockpit nativo e solicitar endereco do servidor (closes #38)
   - (desktop) empacotar lacraia-core criando app desktop autonomo (closes #39)

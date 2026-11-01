@@ -80,6 +80,13 @@ pub struct PlaybackHistoryEntry {
     /// Track duration in seconds.
     #[serde(rename = "durationSec")]
     pub duration_sec: u64,
+    /// Playback status: "played", "ejected", or "skipped".
+    #[serde(default = "default_history_status")]
+    pub status: String,
+}
+
+fn default_history_status() -> String {
+    "played".to_string()
 }
 
 /// Starvation or cache absence alert classification.
