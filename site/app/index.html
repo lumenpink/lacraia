@@ -3818,10 +3818,10 @@
           wsBadge.className = "badge";
           wsDot.style.background = "var(--chumbo)";
           if (isHttps && targetWsUrl.startsWith('ws://')) {
-            wsText.textContent = "WS :: MODO LOCAL (HTTPS BLOQUEIA WS)";
+            wsText.textContent = "WS :: MODO AUTÔNOMO LOCAL (HTTPS)";
             coreUrlDisplay.innerHTML = `<span style="color:var(--alerta-solavanco);">Para conectar ao daemon local, acesse: <a href="http://localhost:8080/app/" style="color:var(--veneno-eletrico); text-decoration:underline;">http://localhost:8080/app/</a></span>`;
           } else {
-            wsText.textContent = "WS :: RECONECTANDO...";
+            wsText.textContent = "WS :: MODO AUTÔNOMO LOCAL";
             coreUrlDisplay.textContent = `${targetWsUrl} (offline - fallback autônomo)`;
           }
         }

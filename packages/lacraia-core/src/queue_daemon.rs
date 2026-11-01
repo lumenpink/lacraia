@@ -561,6 +561,19 @@ impl QueueDaemon {
         let mut processed = 0;
         for cid in &cabin_ids {
             if let Ok(q) = self.db.get_queue_for_cabin(cid) {
+                // Pre-promote any Pending entries that already have a verified local cache file
+                for (entry, track) in &q {
+                    if entry.state == QueueState::Pending {
+                        if let Some(ref path) = track.cached_path {
+                            if std::path::Path::new(path).exists() {
+                                if let Ok(()) = self.db.mark_cached(&track.id, path) {
+                                    processed += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 let targets = self.find_prefetch_targets_for_window(&q);
                 for track in targets {
                     info!(

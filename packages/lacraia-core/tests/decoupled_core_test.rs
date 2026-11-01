@@ -9,7 +9,8 @@ use tokio::sync::broadcast;
 #[tokio::test]
 async fn test_decoupled_core_offline_queue_step() {
     let db = Database::open_in_memory().unwrap();
-    let tmp_cache = std::env::temp_dir().join(format!("lacraia_decoupled_{}", uuid::Uuid::new_v4()));
+    let tmp_cache =
+        std::env::temp_dir().join(format!("lacraia_decoupled_{}", uuid::Uuid::new_v4()));
     let _ = std::fs::create_dir_all(&tmp_cache);
 
     // 1. Inserir faixa com arquivo em cache local existente
@@ -100,8 +101,8 @@ fn test_html_cockpit_autonomous_mode_and_offline_resilience() {
         .unwrap()
         .parent()
         .unwrap();
-    let html = std::fs::read_to_string(root.join("site/app/index.html"))
-        .expect("ler site/app/index.html");
+    let html =
+        std::fs::read_to_string(root.join("site/app/index.html")).expect("ler site/app/index.html");
 
     // Deve conter sinalização explícita de Modo Autônomo Local
     assert!(

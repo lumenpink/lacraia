@@ -404,6 +404,44 @@ impl Database {
         }
     }
 
+    pub fn find_track_by_artist_and_title(
+        &self,
+        artist: &str,
+        title: &str,
+    ) -> Result<Option<TrackRecord>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let norm_artist = strip_accents(artist.trim());
+        let norm_title = strip_accents(title.trim());
+
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT id, artist, title, duration_sec, cached_path, genres, last_played_at
+            FROM tracks
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(TrackRecord {
+                id: row.get(0)?,
+                artist: row.get(1)?,
+                title: row.get(2)?,
+                duration_sec: row.get(3)?,
+                cached_path: row.get(4)?,
+                genres: row.get(5)?,
+                last_played_at: row.get(6)?,
+            })
+        })?;
+
+        for r in rows {
+            let trk = r?;
+            if strip_accents(trk.artist.trim()) == norm_artist
+                && strip_accents(trk.title.trim()) == norm_title
+            {
+                return Ok(Some(trk));
+            }
+        }
+        Ok(None)
+    }
+
     pub fn search_tracks(&self, term: &str, limit: usize) -> Result<Vec<TrackRecord>, DbError> {
         let conn = self.conn.lock().unwrap();
         let trimmed = term.trim();
@@ -2484,6 +2522,24 @@ mod tests {
         // 4. Empty query returns default list up to limit
         let results = db.search_tracks("", 3).unwrap();
         assert_eq!(results.len(), 3);
+
+        // 5. Test find_track_by_artist_and_title (exact and normalized with accents)
+        let exact = db
+            .find_track_by_artist_and_title("MC Serginho", "Vai Lacraia")
+            .unwrap();
+        assert!(exact.is_some());
+        assert_eq!(exact.unwrap().id, "trk_1");
+
+        let normalized = db
+            .find_track_by_artist_and_title("chico buarque", "construcao")
+            .unwrap();
+        assert!(normalized.is_some());
+        assert_eq!(normalized.unwrap().id, "trk_2");
+
+        let missing = db
+            .find_track_by_artist_and_title("Nao Existe", "Nao Existe")
+            .unwrap();
+        assert!(missing.is_none());
     }
 
     #[test]

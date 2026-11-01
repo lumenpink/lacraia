@@ -402,13 +402,19 @@ impl MediaResolver {
         let target_path = self.cache_dir.join(&safe_filename);
         let target_path_str = target_path.to_string_lossy().to_string();
 
-        // 1. Check if DB already knows a cached_path for this track (either track_id or raw_track_id)
+        // 1. Check if DB already knows a cached_path for this track (either track_id or raw_track_id or artist/title)
         let db_existing = self
             .db
             .get_track(&track_id)
             .ok()
             .flatten()
-            .or_else(|| self.db.get_track(&raw_track_id).ok().flatten());
+            .or_else(|| self.db.get_track(&raw_track_id).ok().flatten())
+            .or_else(|| {
+                self.db
+                    .find_track_by_artist_and_title(artist, title)
+                    .ok()
+                    .flatten()
+            });
 
         if let Some(ref existing) = db_existing {
             if let Some(ref path) = existing.cached_path {
