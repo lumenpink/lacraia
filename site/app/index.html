@@ -1360,7 +1360,7 @@
   <!-- Top Header Navigation -->
   <header>
     <div class="brand-section">
-      <a href="/" title="Voltar ao portal La Craia">
+      <a href="/" title="La Craia Cockpit">
         <img src="/assets/icon.svg" width="28" height="28" alt="La Craia Exoskeleton" class="brand-logo-img">
       </a>
       <div>
@@ -1381,7 +1381,6 @@
       <button id="btn-cabin-access" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Gerenciar Acesso e QR Code da Cabine">🔑 ACESSO &amp; QR</button>
       <button id="btn-open-settings" class="badge badge-btn" style="background:var(--concreto-rachado); border:1px solid var(--veneno-eletrico); color:var(--veneno-eletrico); cursor:pointer;" title="Configurações de Fila e Cache">⚙️ CONFIG</button>
       <div id="door-badge" class="badge badge-locked">🔓 PORTAS ABERTAS</div>
-      <a href="/" class="badge badge-btn">&larr; BANCADA</a>
     </div>
   </header>
 
@@ -1654,7 +1653,7 @@
         LINK DE PASSAGEIRO COM CHAVE EMBUTIDA:
       </div>
       <div id="qr-link-text" style="font-size: 11px; color: #fff; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); padding: 8px; border-radius: 2px; word-break: break-all; margin: 6px 0;">
-        https://mylacraia.2lp.in/app?cabin=default&amp;key=...
+        https://mylacraia.2lp.in/?cabin=default&amp;key=...
       </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
         <button class="btn btn-active" id="btn-copy-passenger-link" style="flex:1;">📋 COPIAR LINK</button>
@@ -3081,8 +3080,8 @@
       }
 
       function updateQrModalContent() {
-        const baseUrl = `${window.location.origin}/app`;
-        let passengerUrl = `${baseUrl}?cabin=${encodeURIComponent(state.cabinId)}`;
+        const baseUrl = window.location.origin;
+        let passengerUrl = `${baseUrl}/?cabin=${encodeURIComponent(state.cabinId)}`;
         if (state.passengerKey) {
           passengerUrl += `&key=${encodeURIComponent(state.passengerKey)}`;
         }
@@ -3091,7 +3090,7 @@
         if (isPilotOrMaster()) {
           if (pilotDelegationBox) pilotDelegationBox.style.display = "block";
           const pilotToken = state.role === "MASTER" ? (localStorage.getItem("lacraia_pilot_token_" + state.cabinId) || state.myToken) : state.myToken;
-          const pilotUrl = `${baseUrl}?cabin=${encodeURIComponent(state.cabinId)}&pilot_token=${encodeURIComponent(pilotToken || '')}`;
+          const pilotUrl = `${baseUrl}/?cabin=${encodeURIComponent(state.cabinId)}&pilot_token=${encodeURIComponent(pilotToken || '')}`;
           if (pilotLinkText) pilotLinkText.textContent = pilotUrl;
           if (btnRotateKey) btnRotateKey.style.display = "block";
         } else {
@@ -3819,7 +3818,7 @@
           wsDot.style.background = "var(--chumbo)";
           if (isHttps && targetWsUrl.startsWith('ws://')) {
             wsText.textContent = "WS :: MODO AUTÔNOMO LOCAL (HTTPS)";
-            coreUrlDisplay.innerHTML = `<span style="color:var(--alerta-solavanco);">Para conectar ao daemon local, acesse: <a href="http://localhost:8080/app/" style="color:var(--veneno-eletrico); text-decoration:underline;">http://localhost:8080/app/</a></span>`;
+            coreUrlDisplay.innerHTML = `<span style="color:var(--alerta-solavanco);">Para conectar ao daemon local, acesse: <a href="http://localhost:8080/" style="color:var(--veneno-eletrico); text-decoration:underline;">http://localhost:8080/</a></span>`;
           } else {
             wsText.textContent = "WS :: MODO AUTÔNOMO LOCAL";
             coreUrlDisplay.textContent = `${targetWsUrl} (offline - fallback autônomo)`;

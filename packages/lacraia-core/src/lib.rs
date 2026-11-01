@@ -883,8 +883,14 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
         .nest_service("/cache", ServeDir::new(cache_dir));
 
     if let Some(dir) = site_dir {
-        if dir.exists() {
-            app = app.fallback_service(ServeDir::new(dir));
+        let cockpit_dir = dir.join("app");
+        let target_dir = if cockpit_dir.exists() {
+            cockpit_dir
+        } else {
+            dir
+        };
+        if target_dir.exists() {
+            app = app.fallback_service(ServeDir::new(target_dir));
         }
     }
 

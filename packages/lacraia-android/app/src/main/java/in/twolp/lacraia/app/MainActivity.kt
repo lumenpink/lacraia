@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val prefs = getSharedPreferences("lacraia_prefs", MODE_PRIVATE)
-        val defaultEndpoint = "http://10.0.2.2:2011/app"
+        val defaultEndpoint = "http://10.0.2.2:2011"
         val savedEndpoint = prefs.getString("server_endpoint", null)
         val targetUrl = intent?.getStringExtra("TARGET_URL") ?: savedEndpoint
 
@@ -91,9 +91,6 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (!url.startsWith("http://") && !url.startsWith("https://")) {
                     url = "http://$url"
-                }
-                if (!url.endsWith("/app") && !url.endsWith("/app/")) {
-                    url = "${url.trimEnd('/')}/app"
                 }
                 val prefs = getSharedPreferences("lacraia_prefs", MODE_PRIVATE)
                 prefs.edit().putString("server_endpoint", url).apply()

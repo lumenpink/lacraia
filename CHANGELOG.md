@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+  - (app) unificar cockpit como rota raiz exclusiva sem subcaminho /app
   - (daemon) isolar prefetch por cabine e hermetizar suite de testes (closes #62)
 
 ### Changed
@@ -16,7 +17,7 @@
   - (ui) implementar interface de terminal TUI para a lacraia (closes #43)
   - (config) reestruturar para operacao monousuario e modo van secundario (closes #45)
   - (auth) chave master local embutida para gestao de configuracoes (closes #46)
-  - (ci) continuous deployment soberano no obizero sem watchtower (closes #53)
+  - (ci) continuous deployment autonomo no obizero sem watchtower (closes #53)
   - (updater) integrar publicacao na banca e auto-atualizacao opendesktop xdg (closes #52)
   - (spec) add GOST-compliant technical specification SPEC-01 (#29)
   - (audio) implement real-time 32-bar biomechanical spectrum visualizer (#16)
