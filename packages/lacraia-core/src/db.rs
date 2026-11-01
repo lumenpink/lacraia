@@ -2528,13 +2528,13 @@ mod tests {
             .find_track_by_artist_and_title("MC Serginho", "Vai Lacraia")
             .unwrap();
         assert!(exact.is_some());
-        assert_eq!(exact.unwrap().id, "trk_1");
+        assert_eq!(exact.unwrap().id, "mc serginho:vai lacraia");
 
         let normalized = db
             .find_track_by_artist_and_title("chico buarque", "construcao")
             .unwrap();
         assert!(normalized.is_some());
-        assert_eq!(normalized.unwrap().id, "trk_2");
+        assert_eq!(normalized.unwrap().id, "chico buarque:construcao");
 
         let missing = db
             .find_track_by_artist_and_title("Nao Existe", "Nao Existe")
