@@ -88,4 +88,57 @@ fn test_android_main_activity_cockpit_isolation() {
         !kt_content.contains("/app"),
         "MainActivity.kt não deve depender de caminho /app; o Cockpit é o único caminho"
     );
+
+    // Opção A: User-Agent nativo e inicialização plug-and-play sem diálogo bloqueante no onCreate
+    assert!(
+        kt_content.contains("LacraiaApp"),
+        "MainActivity.kt deve identificar o User-Agent com 'LacraiaApp'"
+    );
+    assert!(
+        kt_content.contains("LACRAIA_NATIVE"),
+        "MainActivity.kt deve injetar window.LACRAIA_NATIVE = true para bridge JS"
+    );
+    assert!(
+        !kt_content.contains("showServerConfigDialog(defaultEndpoint)"),
+        "MainActivity.kt não deve abrir pop-up bloqueante de servidor no onCreate"
+    );
+}
+
+#[test]
+fn test_cockpit_native_app_detection_and_bancada_toggle() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let html_path = root.join("site/app/index.html");
+    let html = std::fs::read_to_string(&html_path).expect("ler site/app/index.html");
+
+    // 1. O botão BANCADA deve estar presente no HTML para o ambiente Web/PWA
+    assert!(
+        html.contains("BANCADA"),
+        "O Cockpit deve conter o botão BANCADA no HTML para a versão Web/PWA"
+    );
+
+    // 2. Deve conter lógica isNativeApp detectando User-Agent e window.LACRAIA_NATIVE
+    assert!(
+        html.contains("isNativeApp") || html.contains("LACRAIA_NATIVE"),
+        "Cockpit deve implementar a detecção isNativeApp via User-Agent ou bridge nativa"
+    );
+    assert!(
+        html.contains("LacraiaApp"),
+        "Cockpit deve verificar a presença de 'LacraiaApp' no User-Agent"
+    );
+
+    // 3. O botão BANCADA deve ser ocultado para apps nativos
+    assert!(
+        html.contains("btn-bancada") || html.contains("bancada-link"),
+        "O botão BANCADA deve possuir um ID dedicado para controle de exibição"
+    );
+
+    // 4. Modal CONFIG deve possuir seletor de Homelab / Servidor Remoto
+    assert!(
+        html.contains("homelab") || html.contains("input-remote-server"),
+        "O modal CONFIG deve possuir opção para configurar servidor Homelab remoto"
+    );
 }
