@@ -1833,6 +1833,17 @@
             Ativado (Modo Van): Exibe controles de cabine, lista de passageiros, QR Code e HUD de tripulação.
           </div>
         </div>
+
+        <!-- Conectividade 5G / Micro-Relay WebSocket (Issue #66) -->
+        <div style="border-top: 1px solid var(--borda-chassi); padding-top: 10px;">
+          <label for="input-relay-url" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+            MICRO-RELAY WEBSOCKET PARA CONECTIVIDADE 5G (opcional):
+          </label>
+          <input type="text" id="input-relay-url" placeholder="ex: wss://relay.2lp.in/relay/ws ou ws://127.0.0.1:8090/relay/ws" style="width: 100%; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">
+            Permite que passageiros no seu próprio 5G controlem o som da van atrás de CGNAT sem necessidade de Wi-Fi ou IP fixo.
+          </div>
+        </div>
       </div>
 
       <div id="settings-status-msg" style="display:none; font-size: 11px; padding: 8px; margin-bottom: 10px; border-radius: 2px;"></div>
@@ -2057,6 +2068,7 @@
       const selectDiskUnit = document.getElementById("select-disk-unit");
       const inputMasterKey = document.getElementById("input-master-key");
       const btnCopyMasterKey = document.getElementById("btn-copy-master-key");
+      const inputRelayUrl = document.getElementById("input-relay-url");
       const checkVanMode = document.getElementById("check-van-mode");
       const settingsStatusMsg = document.getElementById("settings-status-msg");
       const roleBadge = document.getElementById("role-badge");
@@ -3003,25 +3015,44 @@
           const results = await resp.json();
           renderSearchResults(results, q);
         } catch (err) {
-          console.warn("Search HTTP query failed, falling back to MusicBrainz / local matches:", err);
+          console.warn("Search HTTP query failed, falling back to direct client search (iTunes / MusicBrainz):", err);
           let foundOnline = [];
           try {
-            const cleanQ = q.replace(/["\\]/g, "");
-            const mbUrl = `https://musicbrainz.org/ws/2/recording?query=recording:%22${encodeURIComponent(cleanQ)}%22^3%20OR%20artist:%22${encodeURIComponent(cleanQ)}%22^2%20OR%20%22${encodeURIComponent(cleanQ)}%22&fmt=json&limit=6`;
-            const mbResp = await fetch(mbUrl);
-            if (mbResp.ok) {
-              const mbData = await mbResp.json();
-              if (mbData.recordings && mbData.recordings.length > 0) {
-                foundOnline = mbData.recordings.map(r => ({
-                  id: `mb:${r.id}`,
-                  artist: r["artist-credit"] && r["artist-credit"][0] ? r["artist-credit"][0].name : "Desconhecido",
-                  title: r.title,
-                  durationSec: r.length ? Math.floor(r.length / 1000) : 210,
+            const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=8`;
+            const itResp = await fetch(itunesUrl);
+            if (itResp.ok) {
+              const itData = await itResp.json();
+              if (itData.results && itData.results.length > 0) {
+                foundOnline = itData.results.map(r => ({
+                  id: `${r.artistName} - ${r.trackName}`,
+                  artist: r.artistName,
+                  title: r.trackName,
+                  durationSec: r.trackTimeMillis ? Math.round(r.trackTimeMillis / 1000) : 210,
                   cached: false
                 }));
               }
             }
           } catch (_) {}
+
+          if (foundOnline.length === 0) {
+            try {
+              const cleanQ = q.replace(/["\\]/g, "");
+              const mbUrl = `https://musicbrainz.org/ws/2/recording?query=recording:%22${encodeURIComponent(cleanQ)}%22^3%20OR%20artist:%22${encodeURIComponent(cleanQ)}%22^2%20OR%20%22${encodeURIComponent(cleanQ)}%22&fmt=json&limit=6`;
+              const mbResp = await fetch(mbUrl);
+              if (mbResp.ok) {
+                const mbData = await mbResp.json();
+                if (mbData.recordings && mbData.recordings.length > 0) {
+                  foundOnline = mbData.recordings.map(r => ({
+                    id: `mb:${r.id}`,
+                    artist: r["artist-credit"] && r["artist-credit"][0] ? r["artist-credit"][0].name : "Desconhecido",
+                    title: r.title,
+                    durationSec: r.length ? Math.floor(r.length / 1000) : 210,
+                    cached: false
+                  }));
+                }
+              }
+            } catch (_) {}
+          }
 
           if (foundOnline.length > 0) {
             renderSearchResults(foundOnline, q);
@@ -3578,6 +3609,7 @@
           }
         }
         if (inputRemoteServer) inputRemoteServer.value = remoteUrl;
+        if (inputRelayUrl) inputRelayUrl.value = localStorage.getItem("lacraia_relay_url") || "";
 
         try {
           const res = await fetch(`${targetHttpUrl}/api/config`);
@@ -3696,6 +3728,7 @@
         const remoteServerUrl = inputRemoteServer ? inputRemoteServer.value.trim() : "";
         localStorage.setItem("lacraia_server_mode", selectedMode);
         localStorage.setItem("lacraia_remote_server_url", remoteServerUrl);
+        if (inputRelayUrl) localStorage.setItem("lacraia_relay_url", inputRelayUrl.value.trim());
 
         try {
           const res = await fetch(`${targetHttpUrl}/api/config`, {
@@ -4268,6 +4301,12 @@
         } else if (type === "UNAUTHORIZED") {
           showToast("⚠️ Comando não autorizado: privilégios de Piloto necessários");
           openAuthModal();
+        } else if (type === "RELAY_STATUS") {
+          if (msg.status === "HOST_OFFLINE") {
+            showToast("ℹ️ Som da van está temporariamente desconectado do relay.");
+          } else if (msg.status === "HOST_ONLINE") {
+            showToast("🔊 Som da van conectado ao micro-relay!");
+          }
         } else if (type === "ERROR") {
           const errText = msg.message || (typeof msg.payload === 'string' ? msg.payload : JSON.stringify(msg.payload || ''));
           if (errText.includes("porteiro") || errText.includes("aprovado")) {
@@ -4286,12 +4325,21 @@
 
       function connectWs() {
         try {
-          const wsUrlObj = new URL(targetWsUrl, window.location.href);
-          wsUrlObj.searchParams.set("cabin", state.cabinId);
-          if (state.myToken) {
-            wsUrlObj.searchParams.set("token", state.myToken);
+          let finalWsUrl;
+          const storedRelay = localStorage.getItem("lacraia_relay_url");
+          if (storedRelay && (state.vanHash || vanParam)) {
+            const rUrl = new URL(storedRelay, window.location.href);
+            rUrl.searchParams.set("room", state.vanHash || state.cabinId);
+            rUrl.searchParams.set("role", isPilotOrMaster() ? "host" : "client");
+            finalWsUrl = rUrl.toString().replace(/^http/, "ws");
+          } else {
+            const wsUrlObj = new URL(targetWsUrl, window.location.href);
+            wsUrlObj.searchParams.set("cabin", state.cabinId);
+            if (state.myToken) {
+              wsUrlObj.searchParams.set("token", state.myToken);
+            }
+            finalWsUrl = wsUrlObj.toString().replace(/^http/, "ws");
           }
-          const finalWsUrl = wsUrlObj.toString().replace(/^http/, "ws");
 
           ws = new WebSocket(finalWsUrl);
           ws.onopen = () => {

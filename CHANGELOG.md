@@ -12,6 +12,7 @@
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
 
 ### Features
+  - (core,relay) micro-relay websocket para 5g e busca direta (closes #66)
   - (core,app) seguranca de proximidade com hash fixo e pin (closes #65)
   - (core,app) cota de fila por passageiro e purga na ejecao (closes #64)
   - (app) inicializacao plug-and-play e deteccao nativa (closes #63)

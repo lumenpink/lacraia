@@ -16,6 +16,7 @@ pub fn print_help() {
     println!("USO:");
     println!("  lacraia-core [COMANDO] [OPÇÕES]\n");
     println!("COMANDOS:");
+    println!("  relay [--port <PORT>]        Inicia o micro-relay WebSocket ultraleve para 5G");
     println!("  tui                          Inicia o cockpit em modo texto no terminal (TUI)");
     println!("  check-update                 Verifica se há novas versões disponíveis na Banca");
     println!("  update                       Atualiza o binário autônomo de forma atômica");
@@ -277,6 +278,33 @@ pub async fn cmd_tui(args: &[String]) -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
+pub async fn cmd_relay(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let mut port: u16 = 8090;
+    let mut i = 0;
+    while i < args.len() {
+        if (args[i] == "--port" || args[i] == "-p") && i + 1 < args.len() {
+            port = args[i + 1].parse().unwrap_or(8090);
+            i += 1;
+        }
+        i += 1;
+    }
+    if let Ok(p_env) = std::env::var("PORT") {
+        if let Ok(p) = p_env.parse() {
+            port = p;
+        }
+    }
+
+    let app = lacraia_core::relay::build_relay_app();
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+    println!(
+        "🚀 [OBIONE] La Craia Micro-Relay escutando em ws://{}/relay/ws (health: http://{}/relay/health)",
+        addr, addr
+    );
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
 pub async fn handle_cli_args(args: &[String]) -> Result<bool, Box<dyn std::error::Error>> {
     if args.is_empty() {
         return Ok(false);
@@ -330,6 +358,10 @@ pub async fn handle_cli_args(args: &[String]) -> Result<bool, Box<dyn std::error
         }
         "tui" | "--tui" => {
             cmd_tui(&args[1..]).await?;
+            Ok(true)
+        }
+        "relay" => {
+            cmd_relay(&args[1..]).await?;
             Ok(true)
         }
         _ => Ok(false),

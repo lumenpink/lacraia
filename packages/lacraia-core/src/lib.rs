@@ -17,9 +17,12 @@ use tracing::info;
 
 pub mod db;
 pub mod queue_daemon;
+pub mod relay;
 pub mod resolver;
 pub mod similarity;
 pub mod ws;
+
+pub use relay::{build_relay_app, start_relay_host_connector};
 
 pub use db::{
     CabinPlaybackState, Database, DbError, QueueEntry, QueueState, SystemSettings, TrackRecord,
@@ -1106,6 +1109,7 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
         .allow_headers(Any);
 
     let cache_dir = state.cache_dir.clone();
+    let relay_app = relay::build_relay_app();
     let mut app = Router::new()
         .route("/health", get(health_check))
         .route(
@@ -1149,4 +1153,5 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
     app.layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+        .merge(relay_app)
 }

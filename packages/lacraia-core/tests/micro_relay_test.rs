@@ -1,9 +1,13 @@
 use futures::{SinkExt, StreamExt};
-use lacraia_core::relay::build_relay_app;
+use lacraia_core::relay::{build_relay_app, start_relay_host_connector};
+use lacraia_core::{Database, PlaybackHub, TrackRecord};
+use lacraia_shared::WsMessage;
 use serde_json::Value;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -100,7 +104,10 @@ async fn test_micro_relay_room_isolation() {
     let client1_url = format!("ws://{}/relay/ws?room=van-furacao&role=client", addr);
     let (mut client1_ws, _) = connect_async(&client1_url).await.unwrap();
 
-    // Cliente 2 em outra sala "outra-van"
+    // Host 2 e Cliente 2 em outra sala "outra-van"
+    let host2_url = format!("ws://{}/relay/ws?room=outra-van&role=host", addr);
+    let (_host2_ws, _) = connect_async(&host2_url).await.unwrap();
+
     let client2_url = format!("ws://{}/relay/ws?room=outra-van&role=client", addr);
     let (mut client2_ws, _) = connect_async(&client2_url).await.unwrap();
 
@@ -149,4 +156,64 @@ async fn test_micro_relay_host_offline_notification() {
     } else {
         panic!("Esperava notificação de status em JSON");
     }
+}
+
+#[tokio::test]
+async fn test_relay_host_connector_auto_reconnect_and_passenger_queueing() {
+    let (addr, _server_handle) = spawn_test_relay().await;
+
+    // 1. Inicializar banco e hub do som da van
+    let db = Database::open_in_memory().unwrap();
+    db.seed_defaults_if_empty().unwrap();
+    db.create_cabin("van-furacao", "Van Furacão", "tok_pilot", "pass_key")
+        .unwrap();
+    db.upsert_track(&TrackRecord {
+        id: "online:chiclete".into(),
+        artist: "Chiclete com Banana".into(),
+        title: "Voa Voa".into(),
+        duration_sec: 240,
+        cached_path: None,
+        genres: None,
+        last_played_at: None,
+    })
+    .unwrap();
+
+    let (tx, _rx) = broadcast::channel::<WsMessage>(100);
+    let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+
+    // 2. Iniciar conector upstream da van que se pluga ao micro-relay
+    let relay_url = format!("ws://{}/relay/ws", addr);
+    let _connector_handle =
+        start_relay_host_connector(relay_url, "van-furacao".into(), hub.clone()).await;
+
+    // Aguardar pequena folga para estabelecimento da conexão
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    // 3. Passageiro entra no browser pelo 5G conectando ao micro-relay
+    let client_url = format!("ws://{}/relay/ws?room=van-furacao&role=client", addr);
+    let (mut client_ws, _) = connect_async(&client_url).await.unwrap();
+
+    // 4. Passageiro envia comando de enfileiramento via WebSocket
+    let enqueue_cmd = serde_json::json!({
+        "action": "QUEUE_APPEND",
+        "trackId": "online:chiclete",
+        "requestedBy": "Passageiro 5G"
+    });
+    client_ws
+        .send(Message::Text(enqueue_cmd.to_string()))
+        .await
+        .unwrap();
+
+    // Aguardar o hub da van processar o comando
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // 5. Verificar se a música foi registrada no banco de dados da van
+    let queue = db.get_queue_for_cabin("van-furacao").unwrap();
+    assert_eq!(
+        queue.len(),
+        1,
+        "A música enfileirada pelo passageiro no 5G deve constar na fila da van"
+    );
+    assert_eq!(queue[0].1.title, "Voa Voa");
+    assert_eq!(queue[0].0.requested_by.as_deref(), Some("Passageiro 5G"));
 }
