@@ -75,13 +75,17 @@ fn test_android_main_activity_cockpit_isolation() {
         "MainActivity.kt não deve carregar o site de apresentação institucional"
     );
 
-    // Deve conter configuração persistente de servidor e padrão de cockpit
+    // Deve conter configuração persistente de servidor e padrão de cockpit na raiz
     assert!(
         kt_content.contains("server_endpoint"),
         "MainActivity.kt deve gerenciar a preferência server_endpoint"
     );
     assert!(
-        kt_content.contains("10.0.2.2:2011/app"),
-        "MainActivity.kt deve sugerir 10.0.2.2:2011/app para o emulador Android"
+        kt_content.contains("10.0.2.2:2011"),
+        "MainActivity.kt deve sugerir 10.0.2.2:2011 para o emulador Android"
+    );
+    assert!(
+        !kt_content.contains("/app"),
+        "MainActivity.kt não deve depender de caminho /app; o Cockpit é o único caminho"
     );
 }

@@ -415,3 +415,51 @@ async fn test_config_api_endpoints_get_and_post() {
     let invalid_resp = app.oneshot(invalid_req).await.unwrap();
     assert_eq!(invalid_resp.status(), StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn test_root_route_serves_cockpit_directly() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let site_dir = root.join("site");
+
+    let db = Database::open_in_memory().unwrap();
+    let (tx, _rx) = broadcast::channel(16);
+    let hub = Arc::new(PlaybackHub::new(db.clone(), tx));
+    let similarity = Arc::new(CompositeSimilarityEngine::new(None, db.clone()));
+    let resolver = Arc::new(MediaResolver::new_offline(root.join("cache"), db.clone()));
+
+    let state = AppState {
+        db,
+        similarity,
+        resolver,
+        hub,
+        cache_dir: root.join("cache"),
+        daemon: None,
+    };
+
+    let app = build_app(state, Some(site_dir));
+
+    let req = Request::builder()
+        .uri("/")
+        .body(Body::empty())
+        .unwrap();
+
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+    let body_str = String::from_utf8_lossy(&bytes);
+
+    // O conteúdo da raiz deve ser o Cockpit (e não a landing page com o zine)
+    assert!(
+        body_str.contains("cassette-container") || body_str.contains("cassette-deck") || body_str.contains("COCKPIT"),
+        "A raiz '/' deve servir o Cockpit diretamente"
+    );
+    assert!(
+        !body_str.contains("caderno-section"),
+        "A raiz '/' não deve conter seções de cadernos da landing page"
+    );
+}
