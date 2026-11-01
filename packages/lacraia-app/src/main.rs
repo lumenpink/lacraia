@@ -1,5 +1,4 @@
-pub mod audio;
-pub mod ui;
+use lacraia_app::{audio, ui};
 
 use dioxus::prelude::*;
 use lacraia_shared::{PlaybackState, Track};

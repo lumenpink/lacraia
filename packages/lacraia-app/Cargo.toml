@@ -7,13 +7,17 @@ license.workspace = true
 repository.workspace = true
 description = "Automotive player and cockpit application for La Craia built with Dioxus (Linux Desktop & Web/PWA)"
 
+[lib]
+name = "lacraia_app"
+path = "src/lib.rs"
+
 [[bin]]
 name = "lacraia-app"
 path = "src/main.rs"
 
 [features]
 default = ["desktop"]
-desktop = ["dioxus/desktop"]
+desktop = ["dioxus/desktop", "dep:lacraia-core", "dep:tokio", "dep:reqwest"]
 web = [
     "dioxus/web",
     "dep:web-sys",
@@ -23,6 +27,9 @@ web = [
 
 [dependencies]
 lacraia-shared = { path = "../lacraia-shared" }
+lacraia-core = { path = "../lacraia-core", optional = true }
+tokio = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 dioxus = { version = "0.6" }
 dioxus-logger = "0.5"
 tracing = { workspace = true }
@@ -38,3 +45,8 @@ web-sys = { version = "0.3", optional = true, features = [
 ] }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = { workspace = true }
+reqwest = { workspace = true }
