@@ -1,7 +1,7 @@
 use chrono::Utc;
 use lacraia_shared::{
     AttemptsSuccessDistribution, CacheEntry, CacheResolutionAttempt, PassengerInfo,
-    PlaybackHistoryEntry, ResolutionErrorDiagnostic, Role, TierSuccessRate,
+    PlaybackHistoryEntry, Playlist, PlaylistItem, ResolutionErrorDiagnostic, Role, TierSuccessRate,
 };
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,8 @@ pub enum DbError {
     QuotaExceeded(String),
     #[error("Porteiro bloqueou a requisicao: {0}")]
     BouncerBlocked(String),
+    #[error("Playlist not found: {0}")]
+    PlaylistNotFound(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -331,6 +333,29 @@ impl Database {
                 value TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS playlists (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                cabin_id TEXT NOT NULL DEFAULT 'default',
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS playlist_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                album TEXT NOT NULL DEFAULT '',
+                duration_sec INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_playlist_cabin
+                ON playlists(cabin_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_playlist_items_pos
+                ON playlist_items(playlist_id, position ASC);
             "#,
         )?;
 
@@ -2518,6 +2543,218 @@ impl Database {
             }
         }
         Ok(())
+    }
+
+    // ==========================================
+    // Playlists (Compartilháveis via texto/JSON)
+    // ==========================================
+
+    pub fn create_playlist(
+        &self,
+        name: &str,
+        cabin_id: &str,
+        items: &[PlaylistItem],
+    ) -> Result<Playlist, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let pl_id = format!("pl_{}", &uuid::Uuid::new_v4().simple().to_string()[..12]);
+        let now = Utc::now().timestamp();
+
+        conn.execute(
+            "INSERT INTO playlists (id, name, cabin_id, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![pl_id, name, cabin_id, now],
+        )?;
+
+        let mut insert_item_stmt = conn.prepare(
+            "INSERT INTO playlist_items (playlist_id, position, title, artist, album, duration_sec) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )?;
+
+        for (idx, item) in items.iter().enumerate() {
+            insert_item_stmt.execute(params![
+                pl_id,
+                idx as i64,
+                item.title,
+                item.artist,
+                item.album.as_deref().unwrap_or(""),
+                item.duration_sec as i64,
+            ])?;
+        }
+
+        Ok(Playlist {
+            id: pl_id,
+            name: name.to_string(),
+            cabin_id: cabin_id.to_string(),
+            created_at: now,
+            items: items.to_vec(),
+        })
+    }
+
+    pub fn get_playlists_for_cabin(&self, cabin_id: &str) -> Result<Vec<Playlist>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, cabin_id, created_at FROM playlists WHERE cabin_id = ?1 ORDER BY created_at DESC",
+        )?;
+
+        let pl_rows = stmt.query_map(params![cabin_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+            ))
+        })?;
+
+        let mut playlists = Vec::new();
+        for pl_res in pl_rows {
+            let (id, name, c_id, created_at) = pl_res?;
+            let mut item_stmt = conn.prepare(
+                "SELECT title, artist, album, duration_sec FROM playlist_items WHERE playlist_id = ?1 ORDER BY position ASC",
+            )?;
+            let item_rows = item_stmt.query_map(params![id], |row| {
+                let alb: String = row.get(2)?;
+                let album = if alb.is_empty() { None } else { Some(alb) };
+                Ok(PlaylistItem {
+                    title: row.get(0)?,
+                    artist: row.get(1)?,
+                    album,
+                    duration_sec: row.get::<_, i64>(3)? as u64,
+                })
+            })?;
+
+            let mut items = Vec::new();
+            for it in item_rows {
+                items.push(it?);
+            }
+
+            playlists.push(Playlist {
+                id,
+                name,
+                cabin_id: c_id,
+                created_at,
+                items,
+            });
+        }
+
+        Ok(playlists)
+    }
+
+    pub fn get_playlist_by_id(&self, playlist_id: &str) -> Result<Option<Playlist>, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt =
+            conn.prepare("SELECT id, name, cabin_id, created_at FROM playlists WHERE id = ?1")?;
+
+        let mut rows = stmt.query(params![playlist_id])?;
+        if let Some(row) = rows.next()? {
+            let id: String = row.get(0)?;
+            let name: String = row.get(1)?;
+            let cabin_id: String = row.get(2)?;
+            let created_at: i64 = row.get(3)?;
+
+            let mut item_stmt = conn.prepare(
+                "SELECT title, artist, album, duration_sec FROM playlist_items WHERE playlist_id = ?1 ORDER BY position ASC",
+            )?;
+            let item_rows = item_stmt.query_map(params![id], |r| {
+                let alb: String = r.get(2)?;
+                let album = if alb.is_empty() { None } else { Some(alb) };
+                Ok(PlaylistItem {
+                    title: r.get(0)?,
+                    artist: r.get(1)?,
+                    album,
+                    duration_sec: r.get::<_, i64>(3)? as u64,
+                })
+            })?;
+
+            let mut items = Vec::new();
+            for it in item_rows {
+                items.push(it?);
+            }
+
+            Ok(Some(Playlist {
+                id,
+                name,
+                cabin_id,
+                created_at,
+                items,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn delete_playlist(&self, playlist_id: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute("DELETE FROM playlists WHERE id = ?1", params![playlist_id])?;
+        let _ = conn.execute(
+            "DELETE FROM playlist_items WHERE playlist_id = ?1",
+            params![playlist_id],
+        );
+        Ok(affected > 0)
+    }
+
+    pub fn save_current_queue_as_playlist(
+        &self,
+        name: &str,
+        cabin_id: &str,
+    ) -> Result<Playlist, DbError> {
+        let queue = self.get_queue_for_cabin(cabin_id)?;
+        let items: Vec<PlaylistItem> = queue
+            .into_iter()
+            .map(|(_entry, track)| PlaylistItem {
+                title: track.title,
+                artist: track.artist,
+                album: None,
+                duration_sec: track.duration_sec,
+            })
+            .collect();
+        self.create_playlist(name, cabin_id, &items)
+    }
+
+    pub fn load_playlist_to_queue(
+        &self,
+        playlist_id: &str,
+        cabin_id: &str,
+        requested_by: Option<&str>,
+    ) -> Result<usize, DbError> {
+        let pl = self
+            .get_playlist_by_id(playlist_id)?
+            .ok_or_else(|| DbError::PlaylistNotFound(playlist_id.to_string()))?;
+
+        let mut count = 0;
+        for item in &pl.items {
+            let existing_id: Option<String> = {
+                let conn = self.conn.lock().unwrap();
+                let mut stmt = conn.prepare(
+                    "SELECT id FROM tracks WHERE LOWER(title) = LOWER(?1) AND LOWER(artist) = LOWER(?2) LIMIT 1",
+                )?;
+                let mut rows = stmt.query(params![item.title, item.artist])?;
+                if let Some(row) = rows.next()? {
+                    Some(row.get(0)?)
+                } else {
+                    None
+                }
+            };
+
+            let track_id = if let Some(tid) = existing_id {
+                tid
+            } else {
+                let tid = format!("trk_{}", &uuid::Uuid::new_v4().simple().to_string()[..12]);
+                let record = TrackRecord {
+                    id: tid.clone(),
+                    title: item.title.clone(),
+                    artist: item.artist.clone(),
+                    duration_sec: item.duration_sec,
+                    cached_path: None,
+                    genres: None,
+                    last_played_at: None,
+                };
+                self.upsert_track(&record)?;
+                tid
+            };
+
+            self.enqueue_track_with_meta(&track_id, requested_by, cabin_id)?;
+            count += 1;
+        }
+
+        Ok(count)
     }
 }
 

@@ -242,3 +242,29 @@ pub struct ResolutionErrorDiagnostic {
     #[serde(rename = "sampleOutput")]
     pub sample_output: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PlaylistItem {
+    pub title: String,
+    pub artist: String,
+    #[serde(default)]
+    pub album: Option<String>,
+    #[serde(rename = "durationSec", default)]
+    pub duration_sec: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Playlist {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "cabinId", default = "default_cabin_id")]
+    pub cabin_id: String,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+    #[serde(default)]
+    pub items: Vec<PlaylistItem>,
+}
+
+fn default_cabin_id() -> String {
+    "default".to_string()
+}

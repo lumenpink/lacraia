@@ -1137,6 +1137,148 @@ pub async fn ws_handler(
     ws.on_upgrade(move |socket| ws::handle_socket(socket, state.hub, params))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreatePlaylistRequest {
+    pub name: String,
+    #[serde(rename = "cabinId", default = "default_cabin_id_str")]
+    pub cabin_id: String,
+    #[serde(default)]
+    pub items: Vec<lacraia_shared::PlaylistItem>,
+}
+
+pub fn default_cabin_id_str() -> String {
+    "default".to_string()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PlaylistsQuery {
+    pub cabin_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoadPlaylistRequest {
+    #[serde(rename = "cabinId", default = "default_cabin_id_str")]
+    pub cabin_id: String,
+    #[serde(rename = "requestedBy")]
+    pub requested_by: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SaveQueueRequest {
+    pub name: String,
+    #[serde(rename = "cabinId", default = "default_cabin_id_str")]
+    pub cabin_id: String,
+}
+
+pub async fn handle_list_playlists(
+    State(state): State<AppState>,
+    Query(params): Query<PlaylistsQuery>,
+) -> Result<Json<Vec<lacraia_shared::Playlist>>, (StatusCode, String)> {
+    let cabin_id = params.cabin_id.unwrap_or_else(|| "default".to_string());
+    match state.db.get_playlists_for_cabin(&cabin_id) {
+        Ok(lists) => Ok(Json(lists)),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to get playlists: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_create_playlist(
+    State(state): State<AppState>,
+    Json(payload): Json<CreatePlaylistRequest>,
+) -> Result<(StatusCode, Json<lacraia_shared::Playlist>), (StatusCode, String)> {
+    let name = payload.name.trim();
+    if name.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Nome da playlist não pode ser vazio".into(),
+        ));
+    }
+    match state
+        .db
+        .create_playlist(name, &payload.cabin_id, &payload.items)
+    {
+        Ok(created) => Ok((StatusCode::CREATED, Json(created))),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to create playlist: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_get_playlist(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<lacraia_shared::Playlist>, (StatusCode, String)> {
+    match state.db.get_playlist_by_id(&id) {
+        Ok(Some(pl)) => Ok(Json(pl)),
+        Ok(None) => Err((StatusCode::NOT_FOUND, "Playlist não encontrada".into())),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to get playlist: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_delete_playlist(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    match state.db.delete_playlist(&id) {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Err((StatusCode::NOT_FOUND, "Playlist não encontrada".into())),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to delete playlist: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_load_playlist(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    Json(payload): Json<LoadPlaylistRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let req_user = payload.requested_by.as_deref().unwrap_or("ZapPlaylist");
+    match state
+        .db
+        .load_playlist_to_queue(&id, &payload.cabin_id, Some(req_user))
+    {
+        Ok(count) => {
+            state.hub.broadcast_state_for_cabin(&payload.cabin_id).await;
+            Ok(Json(serde_json::json!({ "loaded": count })))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load playlist to queue: {}", e),
+        )),
+    }
+}
+
+pub async fn handle_save_queue_as_playlist(
+    State(state): State<AppState>,
+    Json(payload): Json<SaveQueueRequest>,
+) -> Result<(StatusCode, Json<lacraia_shared::Playlist>), (StatusCode, String)> {
+    let name = payload.name.trim();
+    if name.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Nome da playlist não pode ser vazio".into(),
+        ));
+    }
+    match state
+        .db
+        .save_current_queue_as_playlist(name, &payload.cabin_id)
+    {
+        Ok(pl) => Ok((StatusCode::CREATED, Json(pl))),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to save queue as playlist: {}", e),
+        )),
+    }
+}
+
 pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -1162,6 +1304,19 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
         )
         .route("/api/queue/clear", post(handle_queue_clear))
         .route("/api/history", get(handle_history))
+        .route(
+            "/api/playlists",
+            get(handle_list_playlists).post(handle_create_playlist),
+        )
+        .route(
+            "/api/playlists/:id",
+            get(handle_get_playlist).delete(handle_delete_playlist),
+        )
+        .route("/api/playlists/:id/load", post(handle_load_playlist))
+        .route(
+            "/api/playlists/save-queue",
+            post(handle_save_queue_as_playlist),
+        )
         .route("/api/cabins", get(handle_list_cabins))
         .route("/api/cabin/create", post(handle_cabin_create))
         .route("/api/cabin/rotate-key", post(handle_cabin_rotate_key))

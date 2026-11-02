@@ -1532,6 +1532,22 @@
           <div id="search-toast" class="search-toast" style="display: none;"></div>
         </div>
 
+        <!-- Playlist Actions Strip (Guardar / Copiar / Colar listas de músicas) -->
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+          <button class="btn" id="btn-open-playlists" style="font-size: 11px; padding: 5px 9px; border: 1px solid var(--veneno-eletrico); color: var(--veneno-eletrico); background: rgba(0, 255, 102, 0.08); font-weight: 800; cursor: pointer;">
+            📜 MINHAS LISTAS
+          </button>
+          <button class="btn" id="btn-save-queue-playlist" style="font-size: 11px; padding: 5px 9px; border: 1px solid var(--laranja-periferia, #ff8800); color: var(--laranja-periferia, #ff8800); background: rgba(255, 136, 0, 0.08); font-weight: 800; cursor: pointer;">
+            💾 GUARDAR LISTA
+          </button>
+          <button class="btn" id="btn-copy-queue-zap" style="font-size: 11px; padding: 5px 9px; border: 1px solid #25d366; color: #25d366; background: rgba(37, 211, 102, 0.08); font-weight: 800; cursor: pointer;">
+            📋 COPIAR PRO ZAP
+          </button>
+          <button class="btn" id="btn-open-paste-zap" style="font-size: 11px; padding: 5px 9px; border: 1px solid #00d4ff; color: #00d4ff; background: rgba(0, 212, 255, 0.08); font-weight: 800; cursor: pointer;">
+            📥 COLAR DO ZAP
+          </button>
+        </div>
+
         <!-- Lookahead Queue List -->
         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
           <div style="font-size: 11px; font-weight: 900; color: var(--chumbo);">
@@ -1863,6 +1879,40 @@
     </div>
   </div>
 
+  <!-- Modal: Minhas Listas de Músicas -->
+  <div class="modal-overlay" id="playlists-modal">
+    <div class="modal-card" style="max-width: 500px; width: 100%;">
+      <div class="modal-title">📜 MINHAS LISTAS DE MÚSICAS</div>
+      <div style="font-size: 12px; color: var(--papel-jornal-molhado); margin-bottom: 10px;">
+        Listas salvas na cabine da van (apenas títulos e artistas, leves e fáceis de compartilhar):
+      </div>
+      <div id="playlists-list-container" style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+        <div style="font-size: 11px; color: var(--chumbo); text-align: center; padding: 12px;">[ CARREGANDO LISTAS... ]</div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-main" id="btn-create-playlist-prompt" style="flex: 1;">➕ NOVA LISTA</button>
+        <button class="btn btn-active" id="btn-close-playlists" style="flex: 1;">FECHAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Colar Lista do Zap -->
+  <div class="modal-overlay" id="paste-zap-modal">
+    <div class="modal-card" style="max-width: 500px; width: 100%;">
+      <div class="modal-title">📥 COLAR LISTA DE MÚSICAS DO ZAP</div>
+      <div style="font-size: 12px; color: var(--papel-jornal-molhado); margin-bottom: 8px;">
+        Cole o texto do WhatsApp com as músicas (formato "Artista - Música" linha por linha ou formato de lista):
+      </div>
+      <input type="text" id="paste-list-name" placeholder="Nome da lista (ex: Pagode de Sexta)" style="margin-bottom: 8px; width: 100%; box-sizing: border-box; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 12px; border-radius: 2px;" />
+      <textarea id="paste-list-content" rows="8" placeholder="1. MC Serginho - Vai Lacraia&#10;2. Chico Buarque - Construção&#10;3. Daft Punk - One More Time" style="width: 100%; box-sizing: border-box; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px; margin-bottom: 10px;"></textarea>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-main" id="btn-import-and-play-zap" style="flex: 1; min-width: 130px;">▶ TOCAR NO SOM</button>
+        <button class="btn" id="btn-import-save-zap" style="flex: 1; min-width: 130px; border: 1px solid var(--veneno-eletrico); color: var(--veneno-eletrico); background: rgba(0, 255, 102, 0.08);">💾 SÓ GUARDAR LISTA</button>
+        <button class="btn btn-active" id="btn-close-paste-zap" style="width: 100%;">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Fullscreen Ejection Screen (When passenger is kicked) -->
   <div id="ejection-screen">
     <div class="ejection-glitch">🦂 👢 💥</div>
@@ -2131,6 +2181,20 @@
       const queueListContainer = document.getElementById("queue-list-container");
       const queueCountBadge = document.getElementById("queue-count-badge");
       const btnClearQueue = document.getElementById("btn-clear-queue");
+      const btnOpenPlaylists = document.getElementById("btn-open-playlists");
+      const btnSaveQueuePlaylist = document.getElementById("btn-save-queue-playlist");
+      const btnCopyQueueZap = document.getElementById("btn-copy-queue-zap");
+      const btnOpenPasteZap = document.getElementById("btn-open-paste-zap");
+      const playlistsModal = document.getElementById("playlists-modal");
+      const btnClosePlaylists = document.getElementById("btn-close-playlists");
+      const playlistsListContainer = document.getElementById("playlists-list-container");
+      const btnCreatePlaylistPrompt = document.getElementById("btn-create-playlist-prompt");
+      const pasteZapModal = document.getElementById("paste-zap-modal");
+      const btnClosePasteZap = document.getElementById("btn-close-paste-zap");
+      const pasteListName = document.getElementById("paste-list-name");
+      const pasteListContent = document.getElementById("paste-list-content");
+      const btnImportAndPlayZap = document.getElementById("btn-import-and-play-zap");
+      const btnImportSaveZap = document.getElementById("btn-import-save-zap");
       const btnEjectAll = document.getElementById("btn-eject-all");
       const btnOpenQr = document.getElementById("btn-open-qr");
       const btnCloseQr = document.getElementById("btn-close-qr");
@@ -3860,6 +3924,395 @@
           if (e.target === settingsModal) closeSettingsModal();
         });
       }
+
+      // ==========================================
+      // Playlists / Listas de Músicas Compartilháveis
+      // ==========================================
+
+      function parsePlaylistText(rawText) {
+        let name = "";
+        let items = [];
+        const text = (rawText || "").trim();
+        if (!text) return { name, items };
+
+        // 1. Tentar parsear como JSON estruturado
+        if (text.startsWith("{") || text.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) {
+              items = parsed.map(p => ({
+                title: p.title || p.titulo || p.name || "",
+                artist: p.artist || p.artista || "Tripulação",
+                album: p.album || "",
+                durationSec: p.durationSec || p.duration_sec || p.duracao || 210
+              })).filter(i => i.title);
+            } else if (typeof parsed === "object" && parsed !== null) {
+              name = parsed.name || parsed.nome || "";
+              const rawItems = parsed.items || parsed.musicas || parsed.tracks || [];
+              items = rawItems.map(p => ({
+                title: p.title || p.titulo || p.name || "",
+                artist: p.artist || p.artista || "Tripulação",
+                album: p.album || "",
+                durationSec: p.durationSec || p.duration_sec || p.duracao || 210
+              })).filter(i => i.title);
+            }
+            if (items.length > 0) {
+              return { name, items };
+            }
+          } catch (_) {}
+        }
+
+        // 2. Parsear linha por linha (texto comum do WhatsApp)
+        const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+        for (const line of lines) {
+          if (line.startsWith("📋") || line.toLowerCase().startsWith("lista:")) {
+            const parts = line.split(":");
+            if (parts.length > 1) {
+              name = parts.slice(1).join(":").trim();
+            }
+            continue;
+          }
+          if (line.startsWith("---") || line.startsWith("```")) continue;
+
+          // Se a linha for um fragmento JSON isolado
+          if (line.startsWith("{") && line.endsWith("}")) {
+            try {
+              const p = JSON.parse(line);
+              if (p.titulo || p.title) {
+                items.push({
+                  title: p.titulo || p.title,
+                  artist: p.artista || p.artist || "Tripulação",
+                  album: p.album || "",
+                  durationSec: p.duracao || p.durationSec || 210
+                });
+                continue;
+              }
+            } catch (_) {}
+          }
+
+          // Limpa prefixos de numeração tipo "1. ", "02 - ", "[3] "
+          let clean = line.replace(/^\d+[\.\)\-\]]\s*/, "").replace(/^\[\d+\]\s*/, "").trim();
+          if (!clean) continue;
+
+          // Separador " - ", " – " ou " : "
+          let artist = "Tripulação";
+          let title = clean;
+          const sepMatch = clean.match(/^(.*?)\s*[-–—:]\s*(.*)$/);
+          if (sepMatch) {
+            artist = sepMatch[1].trim();
+            title = sepMatch[2].trim();
+          }
+
+          // Remove duração no final tipo "(03:45)"
+          title = title.replace(/\s*\(\d+:\d+\)\s*$/, "").trim();
+
+          if (title) {
+            items.push({
+              title,
+              artist: artist || "Tripulação",
+              album: "",
+              durationSec: 210
+            });
+          }
+        }
+
+        return { name, items };
+      }
+
+      function formatPlaylistForZap(name, items) {
+        let zap = `📋 LISTA: ${name || 'Músicas da Van'}\n`;
+        (items || []).forEach((it, idx) => {
+          zap += `${idx + 1}. ${it.artist} - ${it.title}\n`;
+        });
+        zap += `\n---\n`;
+        const compact = {
+          nome: name || "Músicas da Van",
+          musicas: (items || []).map(i => ({
+            titulo: i.title,
+            artista: i.artist,
+            duracao: i.durationSec || i.duration_sec || 210
+          }))
+        };
+        zap += JSON.stringify(compact);
+        return zap;
+      }
+
+      function copyTextToClipboard(text, successMsg = "📋 COPIADO COM SUCESSO!") {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            showToast(successMsg);
+          }).catch(() => {
+            fallbackCopyText(text, successMsg);
+          });
+        } else {
+          fallbackCopyText(text, successMsg);
+        }
+      }
+
+      function fallbackCopyText(text, successMsg) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          showToast(successMsg);
+        } catch (_) {
+          showToast("⚠️ Não foi possível copiar automaticamente");
+        }
+        document.body.removeChild(ta);
+      }
+
+      async function openPlaylistsModal() {
+        if (!playlistsModal) return;
+        playlistsModal.classList.add("active");
+        await renderPlaylistsList();
+      }
+
+      function closePlaylistsModal() {
+        if (playlistsModal) playlistsModal.classList.remove("active");
+      }
+
+      async function renderPlaylistsList() {
+        if (!playlistsListContainer) return;
+        playlistsListContainer.innerHTML = `<div style="font-size: 11px; color: var(--chumbo); text-align: center; padding: 12px;">[ CARREGANDO LISTAS... ]</div>`;
+        try {
+          const res = await fetch(`${targetHttpUrl}/api/playlists?cabin_id=${encodeURIComponent(state.cabinId || 'default')}`);
+          if (!res.ok) throw new Error("Erro ao buscar listas");
+          const lists = await res.json();
+          playlistsListContainer.innerHTML = "";
+          if (!lists || lists.length === 0) {
+            playlistsListContainer.innerHTML = `<div style="font-size: 11px; color: var(--chumbo); text-align: center; padding: 12px;">[ NENHUMA LISTA SALVA AINDA ]</div>`;
+            return;
+          }
+
+          lists.forEach(pl => {
+            const row = document.createElement("div");
+            row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); padding: 8px 10px; gap: 8px;";
+
+            const info = document.createElement("div");
+            info.style.cssText = "display: flex; flex-direction: column; flex: 1; min-width: 0;";
+
+            const nameEl = document.createElement("span");
+            nameEl.style.cssText = "font-weight: bold; font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
+            nameEl.textContent = pl.name;
+
+            const countEl = document.createElement("span");
+            countEl.style.cssText = "font-size: 10px; color: var(--chumbo);";
+            const len = pl.items ? pl.items.length : 0;
+            countEl.textContent = `${len} ${len === 1 ? 'música' : 'músicas'}`;
+
+            info.appendChild(nameEl);
+            info.appendChild(countEl);
+
+            const acts = document.createElement("div");
+            acts.style.cssText = "display: flex; gap: 5px; align-items: center;";
+
+            // Tocar no som
+            const playBtn = document.createElement("button");
+            playBtn.className = "btn btn-main";
+            playBtn.style.cssText = "padding: 3px 8px; font-size: 11px;";
+            playBtn.textContent = "▶ TOCAR";
+            playBtn.title = "Carregar lista e tocar no som da van";
+            playBtn.onclick = () => loadPlaylistIntoSom(pl.id, pl.name);
+
+            // Copiar pro Zap
+            const zapBtn = document.createElement("button");
+            zapBtn.className = "btn";
+            zapBtn.style.cssText = "padding: 3px 8px; font-size: 11px; border: 1px solid #25d366; color: #25d366;";
+            zapBtn.textContent = "📋 ZAP";
+            zapBtn.title = "Copiar lista pro WhatsApp";
+            zapBtn.onclick = () => {
+              const text = formatPlaylistForZap(pl.name, pl.items);
+              copyTextToClipboard(text, `📋 LISTA "${pl.name.toUpperCase()}" COPIADA PRO ZAP!`);
+            };
+
+            // Excluir
+            const delBtn = document.createElement("button");
+            delBtn.className = "btn btn-danger";
+            delBtn.style.cssText = "padding: 3px 7px; font-size: 11px;";
+            delBtn.textContent = "🗑️";
+            delBtn.title = "Excluir lista";
+            delBtn.onclick = () => deletePlaylistById(pl.id, pl.name);
+
+            acts.appendChild(playBtn);
+            acts.appendChild(zapBtn);
+            acts.appendChild(delBtn);
+
+            row.appendChild(info);
+            row.appendChild(acts);
+            playlistsListContainer.appendChild(row);
+          });
+        } catch (e) {
+          playlistsListContainer.innerHTML = `<div style="font-size: 11px; color: var(--fucsia-furacao); text-align: center; padding: 12px;">Erro ao carregar listas.</div>`;
+        }
+      }
+
+      async function loadPlaylistIntoSom(playlistId, playlistName) {
+        try {
+          const res = await fetch(`${targetHttpUrl}/api/playlists/${encodeURIComponent(playlistId)}/load`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cabinId: state.cabinId || "default",
+              requestedBy: (state.role === "PILOTO" || state.role === "MASTER") ? "PILOTO" : (state.myPassengerName ? `@${state.myPassengerName}` : "CABINE")
+            })
+          });
+          if (res.ok) {
+            closePlaylistsModal();
+            showToast(`▶ LISTA "${(playlistName || '').toUpperCase()}" CARREGADA NO SOM!`);
+            if (!state.isPlaying) {
+              sendWsCommand({ action: "PLAY" });
+            }
+          } else {
+            showToast("⚠️ Erro ao carregar lista no som");
+          }
+        } catch (e) {
+          showToast("⚠️ Falha na conexão ao carregar lista");
+        }
+      }
+
+      async function deletePlaylistById(playlistId, playlistName) {
+        if (!confirm(`Excluir a lista "${playlistName}"?`)) return;
+        try {
+          const res = await fetch(`${targetHttpUrl}/api/playlists/${encodeURIComponent(playlistId)}`, {
+            method: "DELETE"
+          });
+          if (res.ok) {
+            showToast("🗑️ LISTA EXCLUÍDA!");
+            renderPlaylistsList();
+          }
+        } catch (_) {
+          showToast("⚠️ Erro ao excluir lista");
+        }
+      }
+
+      async function saveCurrentQueueAsPlaylist() {
+        const upcoming = state.queue || [];
+        if (upcoming.length === 0 && !state.currentTrack) {
+          showToast("⚠️ A fila de músicas está vazia!");
+          return;
+        }
+        const name = prompt("Nome da lista para guardar:", `Lista da Van ${new Date().toLocaleDateString('pt-BR')}`);
+        if (!name || !name.trim()) return;
+
+        try {
+          const res = await fetch(`${targetHttpUrl}/api/playlists/save-queue`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: name.trim(),
+              cabinId: state.cabinId || "default"
+            })
+          });
+          if (res.ok) {
+            showToast(`💾 LISTA "${name.toUpperCase()}" GUARDADA COM SUCESSO!`);
+          } else {
+            showToast("⚠️ Erro ao guardar lista");
+          }
+        } catch (_) {
+          showToast("⚠️ Falha ao salvar lista");
+        }
+      }
+
+      function copyActiveQueueToZap() {
+        const current = state.currentTrack;
+        const upcoming = state.queue || [];
+        const allItems = [];
+        if (current && current.title) {
+          allItems.push({ title: current.title, artist: current.artist, durationSec: Math.floor((current.durationMs || current.duration_ms || 210000) / 1000) });
+        }
+        upcoming.forEach(item => {
+          if (item && item.title) {
+            allItems.push({ title: item.title, artist: item.artist, durationSec: Math.floor((item.durationMs || item.duration_ms || 210000) / 1000) });
+          }
+        });
+
+        if (allItems.length === 0) {
+          showToast("⚠️ Nenhuma música na fila para copiar!");
+          return;
+        }
+
+        const zapText = formatPlaylistForZap(state.cabinName || "Músicas da Van", allItems);
+        copyTextToClipboard(zapText, "📋 FILA DE MÚSICAS COPIADA PRO ZAP!");
+      }
+
+      function openPasteZapModal() {
+        if (!pasteZapModal) return;
+        if (pasteListName) pasteListName.value = "";
+        if (pasteListContent) pasteListContent.value = "";
+        pasteZapModal.classList.add("active");
+        setTimeout(() => pasteListContent && pasteListContent.focus(), 100);
+      }
+
+      function closePasteZapModal() {
+        if (pasteZapModal) pasteZapModal.classList.remove("active");
+      }
+
+      async function importFromZap(andPlay) {
+        const raw = pasteListContent.value.trim();
+        if (!raw) {
+          showToast("⚠️ Cole o texto das músicas primeiro!");
+          return;
+        }
+        const parsed = parsePlaylistText(raw);
+        if (parsed.items.length === 0) {
+          showToast("⚠️ Nenhuma música identificada no texto colado!");
+          return;
+        }
+        const name = (pasteListName.value.trim()) || parsed.name || `Lista Importada ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+        try {
+          const res = await fetch(`${targetHttpUrl}/api/playlists`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name,
+              cabinId: state.cabinId || "default",
+              items: parsed.items
+            })
+          });
+          if (!res.ok) throw new Error("Erro ao salvar lista");
+          const created = await res.json();
+          closePasteZapModal();
+
+          if (andPlay) {
+            await loadPlaylistIntoSom(created.id, created.name);
+          } else {
+            showToast(`💾 LISTA "${name.toUpperCase()}" GUARDADA COM ${parsed.items.length} MÚSICAS!`);
+          }
+        } catch (e) {
+          showToast("⚠️ Erro ao importar lista");
+        }
+      }
+
+      if (btnOpenPlaylists) btnOpenPlaylists.addEventListener("click", openPlaylistsModal);
+      if (btnClosePlaylists) btnClosePlaylists.addEventListener("click", closePlaylistsModal);
+      if (playlistsModal) {
+        playlistsModal.addEventListener("click", (e) => {
+          if (e.target === playlistsModal) closePlaylistsModal();
+        });
+      }
+      if (btnCreatePlaylistPrompt) {
+        btnCreatePlaylistPrompt.addEventListener("click", () => {
+          closePlaylistsModal();
+          openPasteZapModal();
+        });
+      }
+
+      if (btnSaveQueuePlaylist) btnSaveQueuePlaylist.addEventListener("click", () => requirePilot(saveCurrentQueueAsPlaylist));
+      if (btnCopyQueueZap) btnCopyQueueZap.addEventListener("click", copyActiveQueueToZap);
+      if (btnOpenPasteZap) btnOpenPasteZap.addEventListener("click", openPasteZapModal);
+      if (btnClosePasteZap) btnClosePasteZap.addEventListener("click", closePasteZapModal);
+      if (pasteZapModal) {
+        pasteZapModal.addEventListener("click", (e) => {
+          if (e.target === pasteZapModal) closePasteZapModal();
+        });
+      }
+      if (btnImportAndPlayZap) btnImportAndPlayZap.addEventListener("click", () => requirePilot(() => importFromZap(true)));
+      if (btnImportSaveZap) btnImportSaveZap.addEventListener("click", () => importFromZap(false));
 
       // Sincronização e Auto-Join de Passageiro
       async function syncCabinInfo() {
