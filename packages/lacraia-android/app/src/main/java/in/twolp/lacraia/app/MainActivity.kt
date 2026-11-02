@@ -35,6 +35,8 @@ class MainActivity : AppCompatActivity() {
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 databaseEnabled = true
+                allowFileAccess = true
+                allowContentAccess = true
                 mediaPlaybackRequiresUserGesture = false
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                 cacheMode = WebSettings.LOAD_DEFAULT
@@ -44,6 +46,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             webChromeClient = WebChromeClient()
+            val localAssetUrl = "file:///android_asset/index.html"
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                     return false
@@ -52,6 +55,27 @@ class MainActivity : AppCompatActivity() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                     super.onPageStarted(view, url, favicon)
                     view?.evaluateJavascript("window.LACRAIA_NATIVE = true;", null)
+                }
+
+                override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                    super.onReceivedError(view, errorCode, description, failingUrl)
+                    if (failingUrl != localAssetUrl) {
+                        view?.loadUrl(localAssetUrl)
+                    }
+                }
+
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: android.webkit.WebResourceRequest?,
+                    error: android.webkit.WebResourceError?
+                ) {
+                    super.onReceivedError(view, request, error)
+                    if (request?.isForMainFrame == true) {
+                        val failing = request.url?.toString()
+                        if (failing != null && failing != localAssetUrl) {
+                            view?.loadUrl(localAssetUrl)
+                        }
+                    }
                 }
             }
         }
@@ -70,7 +94,8 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("lacraia_prefs", MODE_PRIVATE)
         val defaultEndpoint = "http://10.0.2.2:2011"
         val savedEndpoint = prefs.getString("server_endpoint", null)
-        val targetUrl = intent?.getStringExtra("TARGET_URL") ?: savedEndpoint ?: defaultEndpoint
+        val localAssetUrl = "file:///android_asset/index.html"
+        val targetUrl = intent?.getStringExtra("TARGET_URL") ?: savedEndpoint ?: localAssetUrl
 
         // Plug-and-play: carrega o Cockpit local de imediato sem popup bloqueante
         webView.loadUrl(targetUrl)

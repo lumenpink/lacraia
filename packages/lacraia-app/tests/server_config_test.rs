@@ -155,7 +155,8 @@ fn test_android_cockpit_offline_and_error_fallback() {
     let kt_content = std::fs::read_to_string(&kt_path).expect("ler MainActivity.kt");
 
     assert!(
-        kt_content.contains("android_asset") || kt_content.contains("file:///android_asset/index.html"),
+        kt_content.contains("android_asset")
+            || kt_content.contains("file:///android_asset/index.html"),
         "MainActivity.kt deve conter rota de fallback para o Cockpit embarcado em assets"
     );
     assert!(
@@ -167,12 +168,10 @@ fn test_android_cockpit_offline_and_error_fallback() {
         "MainActivity.kt deve habilitar allowFileAccess para os assets locais"
     );
 
-    let gradle_path = root
-        .join("packages/lacraia-android/app/build.gradle.kts");
+    let gradle_path = root.join("packages/lacraia-android/app/build.gradle.kts");
     let gradle_content = std::fs::read_to_string(&gradle_path).expect("ler build.gradle.kts");
     assert!(
         gradle_content.contains("assets.srcDirs") && gradle_content.contains("site/app"),
         "build.gradle.kts deve embarcar site/app nos assets da aplicação"
     );
 }
-
