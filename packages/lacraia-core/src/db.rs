@@ -1247,6 +1247,12 @@ impl Database {
         Ok(affected > 0)
     }
 
+    pub fn clear_queue_for_cabin(&self, cabin_id: &str) -> Result<usize, DbError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute("DELETE FROM queue WHERE cabin_id = ?1", params![cabin_id])?;
+        Ok(affected)
+    }
+
     pub fn get_queue(&self) -> Result<Vec<(QueueEntry, TrackRecord)>, DbError> {
         self.get_queue_for_cabin("default")
     }

@@ -6,7 +6,7 @@ use lacraia_core::{
     build_app, AppState, CompositeSimilarityEngine, Database, MediaResolver, PlaybackHub,
     QueueDaemon, TrackRecord,
 };
-use lacraia_shared::{CommandAction, WsMessage};
+use lacraia_shared::{CommandAction, Role, WsMessage};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -129,8 +129,8 @@ async fn test_hub_dispatch_queue_clear() {
     let q_before = db.get_queue_for_cabin("default").unwrap();
     assert_eq!(q_before.len(), 1);
 
-    // Dispatch QueueClear command
-    hub.dispatch_command_with_role(CommandAction::QueueClear, "default", None)
+    // Dispatch QueueClear command as Pilot
+    hub.dispatch_command_with_role(CommandAction::QueueClear, "default", Some(Role::Pilot))
         .await
         .unwrap();
 

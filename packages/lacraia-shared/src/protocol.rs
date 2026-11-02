@@ -154,6 +154,7 @@ pub enum CommandAction {
         passenger_id: String,
     },
     EjectAll,
+    QueueClear,
     ToggleNonStop,
     SetNonStop {
         enabled: bool,
@@ -278,6 +279,13 @@ mod tests {
                 }
             ),
             _ => panic!("Expected PlayNow"),
+        }
+
+        let json_clear = r#"{"type":"COMMAND","payload":{"action":"QUEUE_CLEAR"}}"#;
+        let msg_clear: WsMessage = serde_json::from_str(json_clear).unwrap();
+        match msg_clear {
+            WsMessage::Command(cmd) => assert_eq!(cmd.payload, CommandAction::QueueClear),
+            _ => panic!("Expected Command WsMessage"),
         }
 
         let json_radio = r#"{"type":"COMMAND","payload":{"action":"START_RADIO","trackId":"trk_radio","requestedBy":"PILOTO"}}"#;

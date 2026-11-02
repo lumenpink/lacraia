@@ -554,6 +554,15 @@ impl PlaybackHub {
                     return Err(format!("Failed to remove track from queue: {}", e));
                 }
             }
+            CommandAction::QueueClear => {
+                if let Err(e) = self.db.clear_queue_for_cabin(cabin_id) {
+                    return Err(format!("Failed to clear queue: {}", e));
+                }
+                if cabin_id == "default" {
+                    *self.current_track.lock().await = None;
+                    *self.playback_state.lock().await = PlaybackState::Stopped;
+                }
+            }
             CommandAction::LockCabin { locked } => {
                 let _ = self.db.set_cabin_locked(cabin_id, locked);
                 let passengers = self.db.get_active_passengers(cabin_id).unwrap_or_default();

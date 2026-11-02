@@ -1001,6 +1001,41 @@ pub async fn handle_queue_append(
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct ClearQueueRequest {
+    #[serde(rename = "cabinId", default)]
+    pub cabin_id: Option<String>,
+}
+
+pub async fn handle_queue_clear(
+    State(state): State<AppState>,
+    payload: Option<Json<ClearQueueRequest>>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let cabin_id = payload
+        .and_then(|Json(p)| p.cabin_id)
+        .unwrap_or_else(|| "default".to_string());
+
+    match state.db.clear_queue_for_cabin(&cabin_id) {
+        Ok(count) => {
+            if cabin_id == "default" {
+                *state.hub.current_track.lock().await = None;
+                *state.hub.playback_state.lock().await = lacraia_shared::PlaybackState::Stopped;
+            }
+            let update = state.hub.build_state_update_for_cabin(&cabin_id).await;
+            let _ = state.hub.tx.send(update);
+            Ok(Json(serde_json::json!({
+                "status": "ok",
+                "cleared": count,
+                "cabinId": cabin_id
+            })))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to clear queue: {}", e),
+        )),
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct HistoryQuery {
     pub cabin: Option<String>,
@@ -1119,7 +1154,13 @@ pub fn build_app(state: AppState, site_dir: Option<PathBuf>) -> Router {
         .route("/api/search", get(handle_search))
         .route("/api/radio", get(handle_radio))
         .route("/api/resolve", get(handle_resolve))
-        .route("/api/queue", get(handle_queue).post(handle_queue_append))
+        .route(
+            "/api/queue",
+            get(handle_queue)
+                .post(handle_queue_append)
+                .delete(handle_queue_clear),
+        )
+        .route("/api/queue/clear", post(handle_queue_clear))
         .route("/api/history", get(handle_history))
         .route("/api/cabins", get(handle_list_cabins))
         .route("/api/cabin/create", post(handle_cabin_create))

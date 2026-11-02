@@ -1429,9 +1429,9 @@
             <span class="cassette-icon">✹</span>
           </div>
           <div class="track-meta">
-            <div class="track-title" id="track-title">VAI LACRAIA</div>
-            <div class="track-artist" id="track-artist">MC SERGINHO</div>
-            <div class="track-requester" id="track-requester">[ PILOTO / SISTEMA ]</div>
+            <div class="track-title" id="track-title">--</div>
+            <div class="track-artist" id="track-artist">--</div>
+            <div class="track-requester" id="track-requester">[ AGUARDANDO MÚSICAS ]</div>
           </div>
         </div>
 
@@ -1453,7 +1453,7 @@
           </div>
           <div class="time-labels">
             <span id="time-current">00:00</span>
-            <span id="time-total">04:18</span>
+            <span id="time-total">00:00</span>
           </div>
         </div>
 
@@ -1470,10 +1470,13 @@
           </button>
         </div>
 
-        <!-- Non-Stop Autopilot Mode Toggle -->
-        <div style="display: flex; justify-content: center; margin-top: 8px;">
+        <!-- Non-Stop Autopilot Mode Toggle and Radio Trigger -->
+        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
           <button class="btn" id="btn-toggle-nonstop" data-active="true" title="Modo Contínuo Non-Stop (Autopilot Multi-Seed)" style="font-size: 11px; padding: 6px 14px; border: 1px solid var(--veneno-eletrico, #00ff66); background: rgba(0, 255, 102, 0.12); color: var(--veneno-eletrico, #00ff66); font-weight: 800; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
             <span id="nonstop-icon">🔁</span> <span id="nonstop-label">NON-STOP: ON</span>
+          </button>
+          <button class="btn" id="btn-start-radio-now" title="Puxar rádio a partir deste som" style="display: none; font-size: 11px; padding: 6px 14px; border: 1px solid var(--laranja-periferia, #ff8800); background: rgba(255, 136, 0, 0.15); color: var(--laranja-periferia, #ff8800); font-weight: 800; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
+            📻 PUXAR RÁDIO DESTE SOM
           </button>
         </div>
 
@@ -1502,16 +1505,21 @@
 
     <!-- DECK 02: Fila do Paredão & Jukebox (Novo Deck Central) -->
     <div class="cockpit-panel" id="deck-02">
-      <div class="panel-header">
+      <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
         <span>FILA DO PAREDÃO &amp; JUKEBOX <span class="tag">#02</span></span>
-        <span id="queue-count-badge">0 FAIXAS NA FILA</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="queue-count-badge">0 MÚSICAS NA FILA</span>
+          <button class="btn" id="btn-clear-queue" title="Zerar lista de músicas da cabine" style="font-size: 10px; padding: 3px 8px; border: 1px solid #ff4444; background: rgba(255, 68, 68, 0.15); color: #ff6666; font-weight: 800; border-radius: 3px; cursor: pointer;">
+            🗑️ ZERAR LISTA
+          </button>
+        </div>
       </div>
 
       <div class="panel-body">
         <!-- Passenger Jukebox Request & Interactive Autocomplete -->
         <div class="jukebox-search-wrapper" style="position: relative; min-width: 0; max-width: 100%;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-            <span style="font-size: 11px; font-weight: 900; color: var(--chumbo);">ENFILEIRAR CANTIGA (JUKEBOX)</span>
+            <span style="font-size: 11px; font-weight: 900; color: var(--chumbo);">ENFILEIRAR MÚSICA (JUKEBOX)</span>
             <span id="search-spinner" style="font-size: 10px; color: var(--veneno-eletrico); font-weight: bold; display: none;">BUSCANDO...</span>
           </div>
           <form id="enqueue-form" class="enqueue-box" autocomplete="off">
@@ -1527,7 +1535,7 @@
         <!-- Lookahead Queue List -->
         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
           <div style="font-size: 11px; font-weight: 900; color: var(--chumbo);">
-            PRÓXIMAS CANTIGAS
+            PRÓXIMAS MÚSICAS
           </div>
           <div class="queue-container" id="queue-list-container">
             <div style="font-size: 11px; color: var(--chumbo); padding: 12px; text-align: center;">
@@ -1556,10 +1564,10 @@
               <span class="mini-play-icon" id="mini-play-icon-03">▶</span>
             </button>
             <div class="mini-track-info mini-info-jump" title="Clique para ver no player principal">
-              <span class="mini-track-title" id="mini-title-03">VAI LACRAIA</span>
-              <span class="mini-track-artist" id="mini-artist-03">MC SERGINHO</span>
+              <span class="mini-track-title" id="mini-title-03">--</span>
+              <span class="mini-track-artist" id="mini-artist-03">--</span>
             </div>
-            <div class="mini-time-display" id="mini-time-03">00:00 / 04:18</div>
+            <div class="mini-time-display" id="mini-time-03">00:00 / 00:00</div>
             <button class="btn mini-next-btn mini-btn-skip" title="Próxima Faixa">
               <span>⏩</span>
             </button>
@@ -1600,7 +1608,7 @@
           </div>
           <div class="history-container" id="history-list-container">
             <div style="font-size: 10px; color: var(--chumbo); padding: 8px; text-align: center;">
-              [ NENHUMA CANTIGA TOCADA RECENTEMENTE ]
+              [ NENHUMA MÚSICA TOCADA RECENTEMENTE ]
             </div>
           </div>
         </div>
@@ -1636,8 +1644,8 @@
         <span id="sticky-play-icon">▶</span>
       </button>
       <div class="sticky-track-info" id="sticky-track-jump">
-        <span class="sticky-title" id="sticky-title">VAI LACRAIA</span>
-        <span class="sticky-artist" id="sticky-artist">MC SERGINHO</span>
+        <span class="sticky-title" id="sticky-title">--</span>
+        <span class="sticky-artist" id="sticky-artist">--</span>
       </div>
       <button class="btn sticky-next-btn" id="sticky-btn-next" title="Próxima Faixa">
         <span>⏩</span>
@@ -1650,7 +1658,7 @@
     <div class="modal-card">
       <div class="modal-title">🔑 ACESSO &amp; EMBARQUE DE PASSAGEIRO</div>
       <div style="font-size: 12px; color: var(--papel-jornal-molhado);">
-        Aponte a câmera do celular para entrar na cabine e solicitar cantigas no som:
+        Aponte a câmera do celular para entrar na cabine e solicitar músicas no som:
       </div>
       <div class="qr-render" id="qr-code-box">
         <canvas id="qr-canvas" width="180" height="180"></canvas>
@@ -1872,13 +1880,7 @@
   <script>
     (function() {
       // Configuration & Initial State
-      const DEMO_PLAYLIST = [
-        { id: "trk_1", title: "Vai Lacraia", artist: "MC Serginho", duration_ms: 240000, requested_by: "PILOTO", stream_url: "/cache/serginho_vai_lacraia.opus" },
-        { id: "trk_2", title: "Construção", artist: "Chico Buarque", duration_ms: 258000, requested_by: "PILOTO", stream_url: "/cache/chico_buarque_construcao.opus" },
-        { id: "trk_3", title: "One More Time", artist: "Daft Punk", duration_ms: 320000, requested_by: "@Mari", stream_url: "/cache/daft_punk_one_more_time.opus" },
-        { id: "trk_4", title: "Tempo Perdido", artist: "Legião Urbana", duration_ms: 300000, requested_by: "SISTEMA", stream_url: "/cache/legiao_urbana_tempo_perdido.opus" },
-        { id: "trk_5", title: "Autobahn", artist: "Kraftwerk", duration_ms: 1360000, requested_by: "PILOTO", stream_url: "/cache/joe_bartel_kraftwerk.opus" }
-      ];
+      const DEMO_PLAYLIST = [];
 
       // In-memory map: trackId → stream_url and artist+title → stream_url
       // Enriches queue items that arrive from DB without stream_url
@@ -1957,8 +1959,9 @@
         passengerKey: keyParam || localStorage.getItem("lacraia_passenger_key_" + cabinParam) || "",
         isPlaying: false,
         currentIndex: 0,
+        currentTrack: null,
         positionMs: 0,
-        durationMs: DEMO_PLAYLIST[0].duration_ms,
+        durationMs: 0,
         volume: 0.72, // 8 / 11
         isLocked: false,
         role: initialAuth.role,
@@ -2109,6 +2112,7 @@
       const btnPrev = document.getElementById("btn-prev");
       const btnNext = document.getElementById("btn-next");
       const btnToggleNonStop = document.getElementById("btn-toggle-nonstop");
+      const btnStartRadioNow = document.getElementById("btn-start-radio-now");
       const progressTrack = document.getElementById("progress-track");
       const progressFill = document.getElementById("progress-fill");
       const timeCurrent = document.getElementById("time-current");
@@ -2126,6 +2130,7 @@
       const crewCount = document.getElementById("crew-count");
       const queueListContainer = document.getElementById("queue-list-container");
       const queueCountBadge = document.getElementById("queue-count-badge");
+      const btnClearQueue = document.getElementById("btn-clear-queue");
       const btnEjectAll = document.getElementById("btn-eject-all");
       const btnOpenQr = document.getElementById("btn-open-qr");
       const btnCloseQr = document.getElementById("btn-close-qr");
@@ -2182,11 +2187,15 @@
 
       // UI Render Sync
       function renderState() {
-        const trk = state.currentTrack || DEMO_PLAYLIST[state.currentIndex];
+        const trk = state.currentTrack || (DEMO_PLAYLIST.length > 0 ? DEMO_PLAYLIST[state.currentIndex] : null);
         trackTitle.textContent = trk ? trk.title : "--";
         trackArtist.textContent = trk ? trk.artist : "--";
-        trackRequester.textContent = trk ? `[ ${trk.requested_by || trk.requestedBy || 'PILOTO'} ]` : "[ VAZIO ]";
-        state.durationMs = trk ? (trk.duration_ms || trk.durationMs || 210000) : 210000;
+        trackRequester.textContent = trk ? `[ ${trk.requested_by || trk.requestedBy || 'PILOTO'} ]` : "[ AGUARDANDO MÚSICAS ]";
+        state.durationMs = trk ? (trk.duration_ms || trk.durationMs || 0) : 0;
+
+        if (btnStartRadioNow) {
+          btnStartRadioNow.style.display = (trk && trk.title && trk.title !== "--") ? "inline-flex" : "none";
+        }
 
         timeCurrent.textContent = formatTime(state.positionMs);
         timeTotal.textContent = formatTime(state.durationMs);
@@ -2390,12 +2399,12 @@
             return !isPlayingState && !matchesCurrent;
           });
           const qLen = upcomingQueue.length;
-          queueCountBadge.textContent = `${qLen} ${qLen === 1 ? 'FAIXA NA FILA' : 'FAIXAS NA FILA'}`;
+          queueCountBadge.textContent = `${qLen} ${qLen === 1 ? 'MÚSICA NA FILA' : 'MÚSICAS NA FILA'}`;
           queueListContainer.innerHTML = "";
           if (qLen === 0) {
             const emptyDiv = document.createElement("div");
             emptyDiv.style.cssText = "font-size: 11px; color: var(--chumbo); padding: 14px; text-align: center;";
-            emptyDiv.textContent = "[ FILA LIVRE :: O GRAFO DE AFINIDADE ALIMENTARÁ A PRÓXIMA FAIXA ]";
+            emptyDiv.textContent = "[ NENHUMA MÚSICA NA FILA :: USE A BUSCA ACIMA PARA ADICIONAR ]";
             queueListContainer.appendChild(emptyDiv);
           } else {
             upcomingQueue.forEach((item, idx) => {
@@ -2441,7 +2450,18 @@
               cachePill.textContent = st === 'cached' ? '⚡ CACHED' : (st === 'playing' ? '▶ PLAYING' : '⏳ PENDING');
               row.appendChild(cachePill);
 
-              // Action buttons for Pilot/Master
+              // Action buttons for queue row
+              const radioBtn = document.createElement("button");
+              radioBtn.className = "btn";
+              radioBtn.style.cssText = "padding: 2px 7px; font-size: 11px; line-height: 1; margin-right: 4px; border: 1px solid var(--laranja-periferia, #ff8800); color: var(--laranja-periferia, #ff8800);";
+              radioBtn.textContent = "📻";
+              radioBtn.title = `Puxar rádio deste som (${item.title})`;
+              radioBtn.onclick = (e) => {
+                e.stopPropagation();
+                enqueueCandidate(item, "start_radio");
+              };
+              row.appendChild(radioBtn);
+
               if (isPilotOrMaster()) {
                 const playBtn = document.createElement("button");
                 playBtn.className = "btn btn-main";
@@ -2598,8 +2618,8 @@
         renderState();
         sendWsCommand({ action: state.isPlaying ? "PLAY" : "PAUSE" });
 
-        const trk = state.currentTrack || (state.queue && state.queue[0]) || DEMO_PLAYLIST[state.currentIndex];
-        if (state.isPlaying) {
+        const trk = state.currentTrack || (state.queue && state.queue[0]) || (DEMO_PLAYLIST.length > 0 ? DEMO_PLAYLIST[state.currentIndex] : null);
+        if (state.isPlaying && trk) {
           if (!audio.src || audio.src === "" || audio.src === window.location.href) {
             syncAudioEngineWithTrack(trk);
           } else {
@@ -2699,6 +2719,35 @@
         sendWsCommand({ action: "QUEUE_REMOVE", queueId: queueId });
       }
 
+      async function clearQueue() {
+        if (!confirm("Zerar toda a lista de músicas da cabine?")) return;
+        try {
+          const token = isPilotOrMaster() ? state.myToken : null;
+          const headers = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+          const res = await fetch(`/api/queue/clear?cabin_id=${encodeURIComponent(state.cabinId || 'default')}`, {
+            method: "POST",
+            headers
+          });
+          if (res.ok) {
+            sendWsCommand({ action: "QUEUE_CLEAR" });
+            state.queue = [];
+            state.currentTrack = null;
+            state.isPlaying = false;
+            state.positionMs = 0;
+            state.durationMs = 0;
+            if (audio) {
+              audio.pause();
+              audio.src = "";
+            }
+            renderState();
+            showToast("🗑️ LISTA DE MÚSICAS ZERADA!");
+          }
+        } catch (e) {
+          console.error("Erro ao zerar lista:", e);
+        }
+      }
+
       // Event Listeners
       btnPlayPause.addEventListener("click", () => requirePilot(togglePlayPause));
       btnNext.addEventListener("click", () => requirePilot(nextTrack));
@@ -2711,6 +2760,17 @@
           renderState();
           sendWsCommand({ action: "TOGGLE_NON_STOP" });
         });
+      }
+      if (btnStartRadioNow) {
+        btnStartRadioNow.addEventListener("click", () => {
+          const trk = state.currentTrack || (DEMO_PLAYLIST.length > 0 ? DEMO_PLAYLIST[state.currentIndex] : null);
+          if (trk && trk.title && trk.title !== "--") {
+            enqueueCandidate(trk, "start_radio");
+          }
+        });
+      }
+      if (btnClearQueue) {
+        btnClearQueue.addEventListener("click", () => requirePilot(clearQueue));
       }
 
       gainSlider.addEventListener("input", (e) => {
@@ -2864,7 +2924,7 @@
         if (!items || items.length === 0) {
           historyListContainer.innerHTML = `
             <div style="font-size: 10px; color: var(--chumbo); padding: 8px; text-align: center;">
-              [ NENHUMA CANTIGA TOCADA RECENTEMENTE ]
+              [ NENHUMA MÚSICA TOCADA RECENTEMENTE ]
             </div>
           `;
           return;
@@ -2894,6 +2954,25 @@
           infoDiv.appendChild(titleEl);
           infoDiv.appendChild(metaEl);
 
+          const actionsDiv = document.createElement("div");
+          actionsDiv.style.cssText = "display: flex; gap: 4px; align-items: center;";
+
+          const btnRadio = document.createElement("button");
+          btnRadio.className = "btn btn-action-icon";
+          btnRadio.style.border = "1px solid var(--laranja-periferia, #ff8800)";
+          btnRadio.style.color = "var(--laranja-periferia, #ff8800)";
+          btnRadio.title = `Puxar rádio deste som (${item.title || trackId})`;
+          btnRadio.innerHTML = "📻";
+          btnRadio.onclick = (e) => {
+            e.stopPropagation();
+            enqueueCandidate({
+              id: trackId,
+              title: item.title,
+              artist: item.artist,
+              durationSec: durSec
+            }, "start_radio");
+          };
+
           const btnReplay = document.createElement("button");
           btnReplay.className = "btn btn-action-icon";
           btnReplay.dataset.action = "replay";
@@ -2910,8 +2989,10 @@
             }, "enqueue");
           };
 
+          actionsDiv.appendChild(btnRadio);
+          actionsDiv.appendChild(btnReplay);
           row.appendChild(infoDiv);
-          row.appendChild(btnReplay);
+          row.appendChild(actionsDiv);
           historyListContainer.appendChild(row);
         });
       }
@@ -2981,7 +3062,7 @@
             })
           }).then(async r => {
             if (r.status === 429) {
-              showToast("⚠️ COTA ESGOTADA: Limite de 3 cantigas simultâneas!");
+              showToast("⚠️ COTA ESGOTADA: Limite de 3 músicas simultâneas!");
               return;
             }
             if (r.status === 403) {
@@ -3094,7 +3175,7 @@
           const emptyRow = document.createElement("div");
           emptyRow.className = "search-item";
           emptyRow.style.cursor = "default";
-          emptyRow.innerHTML = `<span style="font-size:11px; color:var(--chumbo);">Nenhuma cantiga encontrada no catálogo local</span>`;
+          emptyRow.innerHTML = `<span style="font-size:11px; color:var(--chumbo);">Nenhuma música encontrada no catálogo local</span>`;
           searchDropdown.appendChild(emptyRow);
           searchDropdown.style.display = "block";
           return;
@@ -3173,8 +3254,8 @@
           startRadioBtn.type = "button";
           startRadioBtn.className = "btn btn-action-icon";
           startRadioBtn.dataset.action = "start_radio";
-          startRadioBtn.title = "Iniciar Rádio a partir desta cantiga";
-          startRadioBtn.setAttribute("aria-label", "Iniciar Rádio a partir desta cantiga");
+          startRadioBtn.title = "Puxar rádio deste som";
+          startRadioBtn.setAttribute("aria-label", "Puxar rádio deste som");
           startRadioBtn.textContent = "📻";
           startRadioBtn.onclick = (e) => {
             e.stopPropagation();
@@ -4312,7 +4393,7 @@
           if (errText.includes("porteiro") || errText.includes("aprovado")) {
             showToast("⛔ AGUARDE: O motorista precisa liberar sua entrada (Modo Porteiro ativo)!");
           } else if (errText.includes("Cota") || errText.includes("quota")) {
-            showToast("⚠️ COTA ESGOTADA: Limite de 3 cantigas simultâneas!");
+            showToast("⚠️ COTA ESGOTADA: Limite de 3 músicas simultâneas!");
           } else {
             showToast("⚠️ " + errText);
           }
