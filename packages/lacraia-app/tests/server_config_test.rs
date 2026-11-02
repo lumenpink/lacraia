@@ -142,3 +142,37 @@ fn test_cockpit_native_app_detection_and_bancada_toggle() {
         "O modal CONFIG deve possuir opção para configurar servidor Homelab remoto"
     );
 }
+
+#[test]
+fn test_android_cockpit_offline_and_error_fallback() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let kt_path = root
+        .join("packages/lacraia-android/app/src/main/java/in/twolp/lacraia/app/MainActivity.kt");
+    let kt_content = std::fs::read_to_string(&kt_path).expect("ler MainActivity.kt");
+
+    assert!(
+        kt_content.contains("android_asset") || kt_content.contains("file:///android_asset/index.html"),
+        "MainActivity.kt deve conter rota de fallback para o Cockpit embarcado em assets"
+    );
+    assert!(
+        kt_content.contains("onReceivedError"),
+        "MainActivity.kt deve tratar onReceivedError no WebViewClient para evitar tela preta"
+    );
+    assert!(
+        kt_content.contains("allowFileAccess = true"),
+        "MainActivity.kt deve habilitar allowFileAccess para os assets locais"
+    );
+
+    let gradle_path = root
+        .join("packages/lacraia-android/app/build.gradle.kts");
+    let gradle_content = std::fs::read_to_string(&gradle_path).expect("ler build.gradle.kts");
+    assert!(
+        gradle_content.contains("assets.srcDirs") && gradle_content.contains("site/app"),
+        "build.gradle.kts deve embarcar site/app nos assets da aplicação"
+    );
+}
+
