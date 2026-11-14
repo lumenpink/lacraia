@@ -16,7 +16,7 @@ COPY packages/lacraia-shared ./packages/lacraia-shared
 COPY packages/lacraia-core ./packages/lacraia-core
 COPY packages/lacraia-app ./packages/lacraia-app
 
-# Compilar binário lacraia-core em modo release
+# Compilar binário lacraia em modo release
 RUN cargo build --release -p lacraia-core
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ RUN mkdir -p /app/data /app/cache /app/site && \
     chown -R lacraia:lacraia /app
 
 # Copiar binário compilado e assets do site/console
-COPY --from=builder /build/target/release/lacraia-core /usr/local/bin/lacraia-core
+COPY --from=builder /build/target/release/lacraia /usr/local/bin/lacraia
 COPY --chown=lacraia:lacraia site /app/site
 
 USER 1000:1000
@@ -64,4 +64,4 @@ ENV PORT=2011 \
 
 EXPOSE 2011
 
-ENTRYPOINT ["/usr/bin/tini", "--", "lacraia-core"]
+ENTRYPOINT ["/usr/bin/tini", "--", "lacraia"]

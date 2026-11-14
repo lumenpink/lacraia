@@ -14,28 +14,40 @@ fn get_repo_root() -> PathBuf {
 fn test_cargo_toml_declares_canonical_lacraia_binary() {
     let repo_root = get_repo_root();
     let core_cargo_path = repo_root.join("packages/lacraia-core/Cargo.toml");
-    let content = fs::read_to_string(&core_cargo_path).expect("Leitura de packages/lacraia-core/Cargo.toml");
+    let content =
+        fs::read_to_string(&core_cargo_path).expect("Leitura de packages/lacraia-core/Cargo.toml");
 
-    let cargo_toml: toml::Value = toml::from_str(&content).expect("Cargo.toml deve ser TOML válido");
-    let bins = cargo_toml.get("bin").and_then(|b| b.as_array()).expect("Deve haver declaração [[bin]]");
+    let cargo_toml: toml::Value =
+        toml::from_str(&content).expect("Cargo.toml deve ser TOML válido");
+    let bins = cargo_toml
+        .get("bin")
+        .and_then(|b| b.as_array())
+        .expect("Deve haver declaração [[bin]]");
 
     let has_lacraia_bin = bins.iter().any(|b| {
         b.get("name").and_then(|n| n.as_str()) == Some("lacraia")
             && b.get("path").and_then(|p| p.as_str()) == Some("src/main.rs")
     });
-    assert!(has_lacraia_bin, "packages/lacraia-core/Cargo.toml deve declarar [[bin]] name = 'lacraia'");
+    assert!(
+        has_lacraia_bin,
+        "packages/lacraia-core/Cargo.toml deve declarar [[bin]] name = 'lacraia'"
+    );
 
-    let has_legacy_bin = bins.iter().any(|b| {
-        b.get("name").and_then(|n| n.as_str()) == Some("lacraia-core")
-    });
-    assert!(!has_legacy_bin, "packages/lacraia-core/Cargo.toml NÃO deve manter [[bin]] name = 'lacraia-core'");
+    let has_legacy_bin = bins
+        .iter()
+        .any(|b| b.get("name").and_then(|n| n.as_str()) == Some("lacraia-core"));
+    assert!(
+        !has_legacy_bin,
+        "packages/lacraia-core/Cargo.toml NÃO deve manter [[bin]] name = 'lacraia-core'"
+    );
 }
 
 #[test]
 fn test_ci_workflow_packages_lacraia_binary() {
     let repo_root = get_repo_root();
     let ci_yaml_path = repo_root.join(".forgejo/workflows/ci.yml");
-    let ci_content = fs::read_to_string(&ci_yaml_path).expect("Leitura de .forgejo/workflows/ci.yml");
+    let ci_content =
+        fs::read_to_string(&ci_yaml_path).expect("Leitura de .forgejo/workflows/ci.yml");
 
     assert!(
         ci_content.contains("-C target/x86_64-unknown-linux-musl/release lacraia"),

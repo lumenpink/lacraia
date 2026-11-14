@@ -12,7 +12,7 @@ name = "lacraia_core"
 path = "src/lib.rs"
 
 [[bin]]
-name = "lacraia-core"
+name = "lacraia"
 path = "src/main.rs"
 
 [dependencies]

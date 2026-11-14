@@ -14,7 +14,7 @@ pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn print_help() {
     println!("La Craia — Automotive audio streaming engine & autonomous player\n");
     println!("USO:");
-    println!("  lacraia-core [COMANDO] [OPÇÕES]\n");
+    println!("  lacraia [COMANDO] [OPÇÕES]\n");
     println!("COMANDOS:");
     println!("  relay [--port <PORT>]        Inicia o micro-relay WebSocket ultraleve para 5G");
     println!("  tui                          Inicia o cockpit em modo texto no terminal (TUI)");
@@ -89,7 +89,7 @@ pub async fn cmd_check_update(channel_opt: Option<&str>) -> Result<(), Box<dyn s
             CURRENT_VERSION, resp
         );
         println!("Para atualizar agora, execute:");
-        println!("  lacraia-core update --channel {}", channel);
+        println!("  lacraia update --channel {}", channel);
     } else {
         println!(
             "\n✔ O La Craia já está atualizado na versão mais recente do canal {}.",
@@ -104,13 +104,13 @@ pub fn get_download_url_for_channel(channel: &str, pin: Option<&str>) -> String 
     if let Some(p) = pin {
         let clean = p.trim().trim_start_matches('v');
         format!(
-            "https://banca.2lp.in/downloads/lacraia/releases/v{}/lacraia-core",
+            "https://banca.2lp.in/downloads/lacraia/releases/v{}/lacraia",
             clean
         )
     } else if channel == "nightly" {
-        "https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia-core".to_string()
+        "https://banca.2lp.in/downloads/lacraia/nightly-latest/lacraia".to_string()
     } else {
-        "https://banca.2lp.in/downloads/lacraia/stable-latest/lacraia-core".to_string()
+        "https://banca.2lp.in/downloads/lacraia/stable-latest/lacraia".to_string()
     }
 }
 
@@ -316,7 +316,7 @@ pub async fn handle_cli_args(args: &[String]) -> Result<bool, Box<dyn std::error
             Ok(true)
         }
         "-V" | "--version" | "version" => {
-            println!("lacraia v{}", CURRENT_VERSION);
+            println!("lacraia {}", CURRENT_VERSION);
             Ok(true)
         }
         "check-update" => {

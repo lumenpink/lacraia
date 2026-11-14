@@ -120,25 +120,25 @@ jobs:
 
           if [ -d target/x86_64-unknown-linux-musl/release ]; then
             tar -czf "dist/packages/lacraia-${VERSION}-linux-amd64.tar.gz" \
-              -C target/x86_64-unknown-linux-musl/release lacraia-core \
+              -C target/x86_64-unknown-linux-musl/release lacraia \
               -C "$PWD" README.md LICENSE 2>/dev/null || \
             tar -czf "dist/packages/lacraia-${VERSION}-linux-amd64.tar.gz" \
-              -C target/x86_64-unknown-linux-musl/release lacraia-core
+              -C target/x86_64-unknown-linux-musl/release lacraia
           fi
 
           if [ -d target/aarch64-unknown-linux-musl/release ]; then
             tar -czf "dist/packages/lacraia-${VERSION}-linux-arm64.tar.gz" \
-              -C target/aarch64-unknown-linux-musl/release lacraia-core \
+              -C target/aarch64-unknown-linux-musl/release lacraia \
               -C "$PWD" README.md LICENSE 2>/dev/null || \
             tar -czf "dist/packages/lacraia-${VERSION}-linux-arm64.tar.gz" \
-              -C target/aarch64-unknown-linux-musl/release lacraia-core
+              -C target/aarch64-unknown-linux-musl/release lacraia
           fi
 
           if [ -d target/x86_64-pc-windows-gnu/release ]; then
             cd target/x86_64-pc-windows-gnu/release
             zip -j "$GITHUB_WORKSPACE/dist/packages/lacraia-${VERSION}-windows-amd64.zip" \
-              lacraia-core.exe "$GITHUB_WORKSPACE/README.md" "$GITHUB_WORKSPACE/LICENSE" 2>/dev/null || \
-            zip -j "$GITHUB_WORKSPACE/dist/packages/lacraia-${VERSION}-windows-amd64.zip" lacraia-core.exe
+              lacraia.exe "$GITHUB_WORKSPACE/README.md" "$GITHUB_WORKSPACE/LICENSE" 2>/dev/null || \
+            zip -j "$GITHUB_WORKSPACE/dist/packages/lacraia-${VERSION}-windows-amd64.zip" lacraia.exe
             cd "$GITHUB_WORKSPACE"
           fi
 
@@ -187,15 +187,15 @@ jobs:
           done
 
           echo "★ Publicando binários unificados em latest..."
-          if [ -f target/x86_64-unknown-linux-musl/release/lacraia-core ]; then
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia" target/x86_64-unknown-linux-musl/release/lacraia-core
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-amd64" target/x86_64-unknown-linux-musl/release/lacraia-core
+          if [ -f target/x86_64-unknown-linux-musl/release/lacraia ]; then
+            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia" target/x86_64-unknown-linux-musl/release/lacraia
+            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-amd64" target/x86_64-unknown-linux-musl/release/lacraia
           fi
-          if [ -f target/aarch64-unknown-linux-musl/release/lacraia-core ]; then
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-arm64" target/aarch64-unknown-linux-musl/release/lacraia-core
+          if [ -f target/aarch64-unknown-linux-musl/release/lacraia ]; then
+            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-arm64" target/aarch64-unknown-linux-musl/release/lacraia
           fi
-          if [ -f target/x86_64-pc-windows-gnu/release/lacraia-core.exe ]; then
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia.exe" target/x86_64-pc-windows-gnu/release/lacraia-core.exe
+          if [ -f target/x86_64-pc-windows-gnu/release/lacraia.exe ]; then
+            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia.exe" target/x86_64-pc-windows-gnu/release/lacraia.exe
           fi
 
       - name: "Update & Rotate Release Manifest in Banca Repo"

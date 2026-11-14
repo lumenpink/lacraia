@@ -143,6 +143,10 @@ fn test_cli_tui_flag_detection() {
         "--tui".to_string()
     ]));
     assert!(is_tui_requested(&[
+        "lacraia".to_string(),
+        "tui".to_string()
+    ]));
+    assert!(is_tui_requested(&[
         "lacraia-core".to_string(),
         "tui".to_string()
     ]));
