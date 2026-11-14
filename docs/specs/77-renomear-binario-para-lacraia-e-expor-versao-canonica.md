@@ -3,7 +3,7 @@
 - **Ticket:** [#77](https://gambi.2lp.in/lumen/lacraia/issues/77)
 - **Branch:** `feat/77-renomear-binario-para-lacraia-e-expor-versao-canonica-via-version`
 - **Norma:** GOST 1.5.0 (DD-TDD)
-- **Status:** Fase 3 (Especificação)
+- **Status:** Fase 9 (Concluído)
 - **Responsável:** Lumen Pink & Antigravity
 
 ---
