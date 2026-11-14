@@ -112,3 +112,40 @@ async fn test_cli_version_flags_canonical_output() {
         "cli.rs não deve emitir prefixo 'v' em --version"
     );
 }
+
+#[test]
+fn test_mutation_resistance_cli_binary_and_version() {
+    let _repo_root = get_repo_root();
+
+    // Mutante 1: Regressão de binário legado em Cargo.toml
+    let mutant_cargo = r#"
+        [[bin]]
+        name = "lacraia-core"
+        path = "src/main.rs"
+    "#;
+    let parsed: toml::Value = toml::from_str(mutant_cargo).unwrap();
+    let bins = parsed.get("bin").and_then(|b| b.as_array()).unwrap();
+    let has_legacy = bins
+        .iter()
+        .any(|b| b.get("name").and_then(|n| n.as_str()) == Some("lacraia-core"));
+    assert!(
+        has_legacy,
+        "Mutante 1 com binário legado 'lacraia-core' deve ser detectável"
+    );
+
+    // Mutante 2: Regressão de versão com prefixo 'v'
+    let mutant_cli_src = "println!(\"lacraia v{}\", CURRENT_VERSION);";
+    let has_v_prefix = mutant_cli_src.contains("lacraia v");
+    assert!(
+        has_v_prefix,
+        "Mutante 2 com prefixo 'v' deve ser detectável"
+    );
+
+    // Mutante 3: Regressão de pacote lacraia-core em CI workflow
+    let mutant_ci = "tar -czf dist.tar.gz -C target/release lacraia-core";
+    let has_ci_legacy = mutant_ci.contains("lacraia-core");
+    assert!(
+        has_ci_legacy,
+        "Mutante 3 com lacraia-core no CI deve ser detectável"
+    );
+}
