@@ -1778,37 +1778,37 @@
   <!-- Modal: Configurações de Fila & Cache (Issue #25 e #26) -->
   <div class="modal-overlay" id="settings-modal">
     <div class="modal-card">
-      <div class="modal-title">⚙️ CONFIGURAÇÕES DE CACHE &amp; FILA</div>
+      <div class="modal-title">⚙️ CONFIGURAÇÕES DE REPRODUÇÃO &amp; MEMÓRIA</div>
       <div style="font-size: 12px; color: var(--papel-jornal-molhado); margin-bottom: 12px;">
-        Ajuste o horizonte temporal de música antecipada e a cota física de armazenamento em disco:
+        Ajuste o tempo de música preparada e o limite de espaço em disco no aparelho:
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
         <!-- Conexão do Servidor: Local Embutido vs Homelab Remoto -->
         <div style="border-bottom: 1px solid var(--borda-chassi); padding-bottom: 10px;">
           <label style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            ORIGEM DO PAREDÃO (SERVIDOR DO APP):
+            ORIGEM DO PAREDÃO (ONDE RODA O SOM):
           </label>
           <div style="display:flex; gap:16px; margin-bottom:6px; font-size:11px;">
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
               <input type="radio" name="server-origin-mode" id="radio-server-local" value="local" checked style="accent-color:var(--veneno-eletrico);" />
-              <span>Autônomo Local (Embutido)</span>
+              <span>Neste Aparelho (Direto no Som)</span>
             </label>
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
               <input type="radio" name="server-origin-mode" id="radio-server-homelab" value="homelab" style="accent-color:var(--veneno-eletrico);" />
-              <span>Homelab Remoto</span>
+              <span>Servidor Externo / Homelab</span>
             </label>
           </div>
           <div id="homelab-config-box" style="display:none; margin-top:6px;">
             <input type="text" id="input-remote-server" placeholder="http://homelab.local:2011" style="width:100%; background:var(--asfalto-frio); border:1px solid var(--borda-chassi); color:#fff; padding:6px; font-family:var(--font-mono); font-size:11px; box-sizing:border-box;" />
-            <div style="font-size:10px; color:var(--chumbo); margin-top:2px;">Endereço HTTP/WS da sua central doméstica com cache massivo.</div>
+            <div style="font-size:10px; color:var(--chumbo); margin-top:2px;">Endereço de rede do seu servidor externo de música.</div>
           </div>
         </div>
 
         <!-- Fila do Autopilot -->
         <div>
           <label for="input-queue-size" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            FILA DO AUTOPILOT (HORIZONTE FUTURO):
+            PILOTO AUTOMÁTICO (TEMPO DE MÚSICA NA FILA):
           </label>
           <div style="display: flex; gap: 8px;">
             <input type="number" id="input-queue-size" min="5" max="1440" step="1" value="2" style="flex: 2; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 13px; border-radius: 2px;" />
@@ -1817,13 +1817,13 @@
               <option value="min">Minutos</option>
             </select>
           </div>
-          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Padrão: 2 horas (7.200s). Mínimo: 5m, Máximo: 24h.</div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Quanto tempo de música fica preparado com antecedência. Padrão: 2 horas.</div>
         </div>
 
         <!-- Buffer Lookahead em Cache -->
         <div>
           <label for="input-cache-size" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            LOOKAHEAD PRÉ-CACHE (CACHE LOCAL ANTECIPADO):
+            MÚSICAS PRÉ-BAIXADAS (DOWNLOAD ANTECIPADO):
           </label>
           <div style="display: flex; gap: 8px;">
             <input type="number" id="input-cache-size" min="5" max="1440" step="1" value="1" style="flex: 2; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 13px; border-radius: 2px;" />
@@ -1832,13 +1832,13 @@
               <option value="min">Minutos</option>
             </select>
           </div>
-          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Padrão: 1 hora (3.600s, ~57 MB a 128 kbps).</div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Tempo de música baixado antes para tocar sem pausas se a conexão oscilar. Padrão: 1 hora.</div>
         </div>
 
         <!-- Cota Total em Disco -->
         <div>
           <label for="input-disk-quota" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            COTA TOTAL DE DISCO (CACHE FÍSICO):
+            LIMITE DE ESPAÇO NO APARELHO (ARMAZENAMENTO):
           </label>
           <div style="display: flex; gap: 8px;">
             <input type="number" id="input-disk-quota" min="50" max="100000" step="10" value="1024" style="flex: 2; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 13px; border-radius: 2px;" />
@@ -1847,41 +1847,41 @@
               <option value="GB">GB</option>
             </select>
           </div>
-          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Padrão: 1024 MB (1 GB).</div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Espaço máximo em memória para guardar faixas offline. Padrão: 1024 MB (1 GB).</div>
         </div>
 
         <!-- Chave Master Local Embutida (Issue #46) -->
         <div>
           <label for="input-master-key" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            CHAVE MESTRA DA INSTALAÇÃO (ACESSO ADMINISTRATIVO):
+            CHAVE DE ADMINISTRAÇÃO DO APARELHO:
           </label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="input-master-key" readonly placeholder="Carregando chave..." style="flex: 3; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: var(--papel-mimeografo); padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
             <button id="btn-copy-master-key" type="button" class="btn btn-active" style="flex: 1; font-size: 11px;">📋 COPIAR</button>
           </div>
-          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Chave gerada localmente. O app gerencia a autorização automaticamente sem exigir senhas manuais.</div>
+          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Identificador gerado no aparelho. O app gerencia o acesso automaticamente sem exigir senhas manuais.</div>
         </div>
 
         <!-- Modo Van (Compartilhamento Coletivo e Cabines - Issue #45) -->
         <div style="border-top: 1px solid var(--borda-chassi); padding-top: 10px;">
           <label style="display:flex; align-items:center; justify-content:space-between; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; cursor:pointer;">
-            <span>🚐 MODO VAN (CABINES &amp; SESSÃO EM GRUPO):</span>
+            <span>🚐 MODO VAN (SESSÃO EM GRUPO &amp; CABINES):</span>
             <input type="checkbox" id="check-van-mode" style="cursor:pointer; width:16px; height:16px; accent-color:var(--veneno-eletrico);" />
           </label>
           <div style="font-size: 10px; color: var(--chumbo); margin-top: 4px;">
-            Desativado (Padrão Monousuário): Console individual focado na reprodução do paredão.<br>
-            Ativado (Modo Van): Exibe controles de cabine, lista de passageiros, QR Code e HUD de tripulação.
+            Desativado: Somente você controla o som direto no aparelho.<br>
+            Ativado: Abre cabines, lista de participantes e QR Code para a galera conectar e pedir faixas.
           </div>
         </div>
 
         <!-- Conectividade 5G / Micro-Relay WebSocket (Issue #66) -->
         <div style="border-top: 1px solid var(--borda-chassi); padding-top: 10px;">
           <label for="input-relay-url" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            MICRO-RELAY WEBSOCKET PARA CONECTIVIDADE 5G (opcional):
+            RETRANSMISSOR PARA REDE MÓVEL / 5G (OPCIONAL):
           </label>
           <input type="text" id="input-relay-url" placeholder="ex: wss://lacraia-relay.2lp.in/relay/ws" style="width: 100%; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
           <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">
-            Permite que passageiros no seu próprio 5G controlem o som da van atrás de CGNAT sem necessidade de Wi-Fi ou IP fixo.
+            Permite que outras pessoas peçam música usando os próprios dados móveis (4G/5G), sem precisar dividir o Wi-Fi.
           </div>
         </div>
       </div>
