@@ -26,7 +26,8 @@ fn test_musicbrainz_android_user_agent_and_network_security() {
     );
 
     // 3. Validar existência e regras do network_security_config.xml
-    let net_xml_path = root.join("packages/lacraia-android/app/src/main/res/xml/network_security_config.xml");
+    let net_xml_path =
+        root.join("packages/lacraia-android/app/src/main/res/xml/network_security_config.xml");
     assert!(
         net_xml_path.exists(),
         "network_security_config.xml deve existir em res/xml/"
@@ -62,7 +63,8 @@ fn test_musicbrainz_mutation_catchers() {
     assert_ne!(mutant_no_contact, kt_content);
 
     // Mutante 2: Remoção do domínio musicbrainz no network security config
-    let net_xml_path = root.join("packages/lacraia-android/app/src/main/res/xml/network_security_config.xml");
+    let net_xml_path =
+        root.join("packages/lacraia-android/app/src/main/res/xml/network_security_config.xml");
     let net_xml = std::fs::read_to_string(&net_xml_path).expect("ler network_security_config.xml");
     let mutant_no_domain = net_xml.replace("musicbrainz.org", "");
     assert_ne!(mutant_no_domain, net_xml);
