@@ -3431,10 +3431,32 @@
         }
       }
 
+      function resolvePublicPassengerBaseUrl() {
+        const storedRelay = (localStorage.getItem("lacraia_relay_url") || (inputRelayUrl ? inputRelayUrl.value.trim() : "")).trim() || "wss://lacraia-relay.2lp.in/relay/ws";
+        const isLocalHostOrNative = isNativeApp || window.location.protocol === "file:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "10.0.2.2";
+
+        if (storedRelay) {
+          try {
+            const parsed = new URL(storedRelay, "https://lacraia-relay.2lp.in");
+            const proto = (parsed.protocol === "ws:" || parsed.protocol === "http:") ? "http:" : "https:";
+            return `${proto}//${parsed.host}`;
+          } catch (_) {}
+        }
+        if (!isLocalHostOrNative && window.location.origin && window.location.origin !== "null") {
+          return window.location.origin;
+        }
+        return "https://lacraia-relay.2lp.in";
+      }
+
       function updateQrModalContent() {
-        const baseUrl = window.location.origin;
-        const vanParam = state.vanHash ? `van=${encodeURIComponent(state.vanHash)}` : `cabin=${encodeURIComponent(state.cabinId)}`;
-        let passengerUrl = `${baseUrl}/?${vanParam}`;
+        const relayBase = resolvePublicPassengerBaseUrl();
+        const storedRelay = (localStorage.getItem("lacraia_relay_url") || (inputRelayUrl ? inputRelayUrl.value.trim() : "")).trim() || "wss://lacraia-relay.2lp.in/relay/ws";
+        const vanHashId = state.vanHash || state.cabinId;
+        const vanParamStr = `van=${encodeURIComponent(vanHashId)}`;
+        let passengerUrl = `${relayBase}/?${vanParamStr}`;
+        if (storedRelay) {
+          passengerUrl += `&relay=${encodeURIComponent(storedRelay)}`;
+        }
         if (state.passengerKey) {
           passengerUrl += `&key=${encodeURIComponent(state.passengerKey)}`;
         }
@@ -3448,7 +3470,7 @@
         if (isPilotOrMaster()) {
           if (pilotDelegationBox) pilotDelegationBox.style.display = "block";
           const pilotToken = state.role === "MASTER" ? (localStorage.getItem("lacraia_pilot_token_" + state.cabinId) || state.myToken) : state.myToken;
-          const pilotUrl = `${baseUrl}/?cabin=${encodeURIComponent(state.cabinId)}&pilot_token=${encodeURIComponent(pilotToken || '')}`;
+          const pilotUrl = `${relayBase}/?cabin=${encodeURIComponent(state.cabinId)}&pilot_token=${encodeURIComponent(pilotToken || '')}`;
           if (pilotLinkText) pilotLinkText.textContent = pilotUrl;
           if (btnRotateKey) btnRotateKey.style.display = "block";
         } else {
@@ -4881,8 +4903,10 @@
       function connectWs() {
         try {
           let finalWsUrl;
-          const storedRelay = localStorage.getItem("lacraia_relay_url") || "wss://lacraia-relay.2lp.in/relay/ws";
-          const vanHashId = state.vanHash || vanParam;
+          const urlParams = new URLSearchParams(window.location.search);
+          const relayParam = urlParams.get("relay");
+          const storedRelay = relayParam || localStorage.getItem("lacraia_relay_url") || "wss://lacraia-relay.2lp.in/relay/ws";
+          const vanHashId = state.vanHash || vanParam || urlParams.get("van");
           if (storedRelay && vanHashId) {
             const rUrl = new URL(storedRelay, window.location.href);
             rUrl.searchParams.set("room", vanHashId);
