@@ -3227,7 +3227,11 @@
             try {
               const cleanQ = q.replace(/["\\]/g, "");
               const mbUrl = `https://musicbrainz.org/ws/2/recording?query=recording:%22${encodeURIComponent(cleanQ)}%22^3%20OR%20artist:%22${encodeURIComponent(cleanQ)}%22^2%20OR%20%22${encodeURIComponent(cleanQ)}%22&fmt=json&limit=6`;
-              const mbResp = await fetch(mbUrl);
+              const mbResp = await fetch(mbUrl, {
+                headers: {
+                  "Accept": "application/json"
+                }
+              });
               if (mbResp.ok) {
                 const mbData = await mbResp.json();
                 if (mbData.recordings && mbData.recordings.length > 0) {
@@ -3239,8 +3243,12 @@
                     cached: false
                   }));
                 }
+              } else {
+                console.warn(`[MusicBrainz] API retornou HTTP ${mbResp.status}`);
               }
-            } catch (_) {}
+            } catch (mbErr) {
+              console.warn("[MusicBrainz] Falha de rede ao consultar catálogo:", mbErr);
+            }
           }
 
           if (foundOnline.length > 0) {

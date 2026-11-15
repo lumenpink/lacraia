@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
                 cacheMode = WebSettings.LOAD_DEFAULT
                 useWideViewPort = true
                 loadWithOverviewMode = true
-                userAgentString = "${userAgentString} LacraiaApp/0.2.0"
+                userAgentString = "${userAgentString} LacraiaApp/0.2.0 ( contact@2lp.in )"
             }
 
             webChromeClient = WebChromeClient()

@@ -240,7 +240,7 @@ impl MetaBrainzProvider {
     pub fn new() -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(6))
-            .user_agent("LaCraia/0.1.0 ( https://lacraia.2lp.in )")
+            .user_agent("Lacraia/0.2.0 ( contact@2lp.in )")
             .build()
             .unwrap_or_default();
         Self { client }
