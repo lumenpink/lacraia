@@ -8,6 +8,7 @@
   - (daemon) isolar prefetch por cabine e hermetizar suite de testes (closes #62)
 
 ### Changed
+  - (config) simplificar textos tecnicos da janela de configuracao (closes #74)
   - (core) desacoplar operacao de servidor obrigatorio com cache local (closes #44)
   - (docker) tornar Cargo.lock opcional no Dockerfile multi-stage (closes #58)
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
