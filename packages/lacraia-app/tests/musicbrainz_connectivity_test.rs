@@ -36,4 +36,34 @@ fn test_musicbrainz_android_user_agent_and_network_security() {
         net_xml.contains("musicbrainz.org"),
         "network_security_config.xml deve permitir explicitamente o domínio musicbrainz.org"
     );
+
+    // 4. Validar User-Agent no core (MetaBrainzProvider)
+    let similarity_path = root.join("packages/lacraia-core/src/similarity.rs");
+    let sim_content = std::fs::read_to_string(&similarity_path).expect("ler similarity.rs");
+    assert!(
+        sim_content.contains("contact@2lp.in"),
+        "similarity.rs deve conter User-Agent canônico com contato para MusicBrainz"
+    );
+}
+
+#[test]
+fn test_musicbrainz_mutation_catchers() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+
+    // Mutante 1: Regressão sem contato no User-Agent do Android
+    let kt_path = root
+        .join("packages/lacraia-android/app/src/main/java/in/twolp/lacraia/app/MainActivity.kt");
+    let kt_content = std::fs::read_to_string(&kt_path).expect("ler MainActivity.kt");
+    let mutant_no_contact = kt_content.replace(" ( contact@2lp.in )", "");
+    assert_ne!(mutant_no_contact, kt_content);
+
+    // Mutante 2: Remoção do domínio musicbrainz no network security config
+    let net_xml_path = root.join("packages/lacraia-android/app/src/main/res/xml/network_security_config.xml");
+    let net_xml = std::fs::read_to_string(&net_xml_path).expect("ler network_security_config.xml");
+    let mutant_no_domain = net_xml.replace("musicbrainz.org", "");
+    assert_ne!(mutant_no_domain, net_xml);
 }
