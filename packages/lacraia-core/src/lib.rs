@@ -910,6 +910,25 @@ pub async fn handle_queue_append(
     let cabin_id = payload.cabin_id.unwrap_or_else(|| "default".to_string());
     let action_str = payload.action.as_deref().unwrap_or("QUEUE_APPEND");
 
+    // Autorização do bouncer: passageiros não aprovados não podem interagir com a fila
+    if let Some(ref user) = payload.requested_by {
+        match state.db.is_passenger_unapproved(&cabin_id, user) {
+            Ok(true) => {
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    "Passageiro não-aprovado pelo porteiro da cabine".into(),
+                ));
+            }
+            Err(e) => {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Erro ao verificar autorização do passageiro: {}", e),
+                ));
+            }
+            Ok(false) => {}
+        }
+    }
+
     // Restrição obrigatória do MusicBrainz (Issue #70)
     let is_mb = is_musicbrainz_validated(&payload.track_id);
     let is_registered = if !is_mb {

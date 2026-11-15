@@ -1002,6 +1002,26 @@ impl Database {
         Ok(results)
     }
 
+    pub fn is_passenger_unapproved(
+        &self,
+        cabin_id: &str,
+        requested_by: &str,
+    ) -> Result<bool, DbError> {
+        let clean_name = requested_by.trim().trim_start_matches('@');
+        if clean_name.is_empty() {
+            return Ok(false);
+        }
+        let conn = self.conn.lock().unwrap();
+        let is_unapproved: Option<bool> = conn
+            .query_row(
+                "SELECT is_approved == 0 FROM passengers WHERE cabin_id = ?1 AND (name = ?2 OR name = ?3) AND is_active = 1",
+                params![cabin_id, clean_name, requested_by],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(is_unapproved.unwrap_or(false))
+    }
+
     pub fn enqueue_track_with_quota(
         &self,
         track_id: &str,
@@ -1010,23 +1030,14 @@ impl Database {
         max_quota: usize,
     ) -> Result<i64, DbError> {
         if let Some(user) = requested_by {
+            if self.is_passenger_unapproved(cabin_id, user)? {
+                return Err(DbError::BouncerBlocked(
+                    "Passageiro não-aprovado pelo porteiro da cabine".into(),
+                ));
+            }
             let clean_name = user.trim().trim_start_matches('@');
             if !clean_name.is_empty() {
                 let conn = self.conn.lock().unwrap();
-                let is_unapproved: Option<bool> = conn
-                    .query_row(
-                        "SELECT is_approved == 0 FROM passengers WHERE cabin_id = ?1 AND (name = ?2 OR name = ?3) AND is_active = 1",
-                        params![cabin_id, clean_name, user],
-                        |row| row.get(0),
-                    )
-                    .optional()?;
-
-                if let Some(true) = is_unapproved {
-                    return Err(DbError::BouncerBlocked(
-                        "Passageiro não-aprovado pelo porteiro da cabine".into(),
-                    ));
-                }
-
                 let mut stmt = conn.prepare(
                     "SELECT COUNT(*) FROM queue WHERE cabin_id = ?1 AND requested_by = ?2 AND state IN ('pending', 'playing')",
                 )?;

@@ -284,7 +284,7 @@ async fn test_van_security_api_endpoints() {
 
     // 7. Passageiro tenta enfileirar faixa antes da aprovação -> 403 FORBIDDEN
     let enqueue_payload = serde_json::json!({
-        "trackId": "online:track123",
+        "trackId": "mb:5b719463-e578-43bb-a320-c75c8d002f23",
         "cabinId": "furacao-2000",
         "requestedBy": "Passageiro Suspeito"
     });
