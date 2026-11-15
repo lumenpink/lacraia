@@ -111,7 +111,13 @@ fn test_musicbrainz_validator_mutation_catchers() {
     assert!(!is_musicbrainz_validated("Artista - Música"));
 
     // Mutante 3: UUID v4 legítimo ou prefixado com mb: deve ser aceito
-    assert!(is_musicbrainz_validated("mb:5b719463-e578-43bb-a320-c75c8d002f23"));
-    assert!(is_musicbrainz_validated("musicbrainz:5b719463-e578-43bb-a320-c75c8d002f23"));
-    assert!(is_musicbrainz_validated("5b719463-e578-43bb-a320-c75c8d002f23"));
+    assert!(is_musicbrainz_validated(
+        "mb:5b719463-e578-43bb-a320-c75c8d002f23"
+    ));
+    assert!(is_musicbrainz_validated(
+        "musicbrainz:5b719463-e578-43bb-a320-c75c8d002f23"
+    ));
+    assert!(is_musicbrainz_validated(
+        "5b719463-e578-43bb-a320-c75c8d002f23"
+    ));
 }
