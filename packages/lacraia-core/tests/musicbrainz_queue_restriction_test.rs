@@ -3,7 +3,8 @@ use axum::{
     http::{header, Request, StatusCode},
 };
 use lacraia_core::{
-    build_app, AppState, CompositeSimilarityEngine, Database, MediaResolver, PlaybackHub,
+    build_app, is_musicbrainz_validated, AppState, CompositeSimilarityEngine, Database,
+    MediaResolver, PlaybackHub,
 };
 use lacraia_shared::WsMessage;
 use std::sync::Arc;
@@ -95,4 +96,22 @@ async fn test_accept_musicbrainz_validated_track_in_queue_append() {
         StatusCode::OK,
         "Faixas identificadas pelo MusicBrainz (mb:UUID) devem ser aceitas com sucesso"
     );
+}
+
+#[test]
+fn test_musicbrainz_validator_mutation_catchers() {
+    // Mutante 1: Strings vazias ou prefixo mb: vazio devem falhar
+    assert!(!is_musicbrainz_validated(""));
+    assert!(!is_musicbrainz_validated("   "));
+    assert!(!is_musicbrainz_validated("mb:"));
+    assert!(!is_musicbrainz_validated("musicbrainz:"));
+
+    // Mutante 2: Texto arbitrário sem prefixo e sem UUID deve falhar
+    assert!(!is_musicbrainz_validated("adhoc:1731631234"));
+    assert!(!is_musicbrainz_validated("Artista - Música"));
+
+    // Mutante 3: UUID v4 legítimo ou prefixado com mb: deve ser aceito
+    assert!(is_musicbrainz_validated("mb:5b719463-e578-43bb-a320-c75c8d002f23"));
+    assert!(is_musicbrainz_validated("musicbrainz:5b719463-e578-43bb-a320-c75c8d002f23"));
+    assert!(is_musicbrainz_validated("5b719463-e578-43bb-a320-c75c8d002f23"));
 }
