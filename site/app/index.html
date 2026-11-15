@@ -3118,6 +3118,17 @@
           }
         }
 
+        // Validação estrita do catálogo MusicBrainz (Issue #70)
+        const isMbValidated = candidate && candidate.id && (
+          candidate.id.startsWith("mb:") ||
+          candidate.id.startsWith("musicbrainz:") ||
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate.id)
+        );
+        if (!isMbValidated && !candidate.cached) {
+          showToast("⛔ APENAS FAIXAS VALIDADAS PELO MUSICBRAINZ PODEM ENTRAR NA FILA!");
+          return;
+        }
+
         // Cota de fila por passageiro (Anti-Flood - Issue #64)
         if (state.role !== "PILOTO" && state.role !== "MASTER") {
           const myPendingCount = (state.queue || []).filter(q => q.requestedBy === reqUser).length;
@@ -3267,15 +3278,6 @@
             cached: true
           }));
 
-          if (localMatches.length === 0) {
-            localMatches.push({
-              id: `adhoc:${Date.now()}`,
-              artist: "Tripulação",
-              title: q,
-              durationSec: 210,
-              cached: false
-            });
-          }
           renderSearchResults(localMatches, q);
         } finally {
           if (searchSpinner) searchSpinner.style.display = "none";
@@ -3291,7 +3293,7 @@
           const emptyRow = document.createElement("div");
           emptyRow.className = "search-item";
           emptyRow.style.cursor = "default";
-          emptyRow.innerHTML = `<span style="font-size:11px; color:var(--chumbo);">Nenhuma música encontrada no catálogo local</span>`;
+          emptyRow.innerHTML = `<span style="font-size:11px; color:var(--chumbo);">Nenhuma música encontrada no catálogo oficial do MusicBrainz</span>`;
           searchDropdown.appendChild(emptyRow);
           searchDropdown.style.display = "block";
           return;

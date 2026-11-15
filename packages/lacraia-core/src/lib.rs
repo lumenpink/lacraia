@@ -888,12 +888,50 @@ pub async fn handle_queue(
     }
 }
 
+pub fn is_musicbrainz_validated(track_id: &str) -> bool {
+    let clean = track_id.trim();
+    if clean.starts_with("mb:") {
+        let suffix = &clean[3..];
+        return !suffix.is_empty();
+    }
+    if clean.starts_with("musicbrainz:") {
+        let suffix = &clean[12..];
+        return !suffix.is_empty();
+    }
+    // Suporte a UUID canônico do MusicBrainz (36 caracteres hexadecimais com 4 hífens)
+    if clean.len() == 36 && uuid::Uuid::parse_str(clean).is_ok() {
+        return true;
+    }
+    false
+}
+
 pub async fn handle_queue_append(
     State(state): State<AppState>,
     Json(payload): Json<EnqueueRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let cabin_id = payload.cabin_id.unwrap_or_else(|| "default".to_string());
     let action_str = payload.action.as_deref().unwrap_or("QUEUE_APPEND");
+
+    // Restrição obrigatória do MusicBrainz (Issue #70)
+    let is_mb = is_musicbrainz_validated(&payload.track_id);
+    let is_registered = if !is_mb {
+        state
+            .db
+            .get_track(&payload.track_id)
+            .ok()
+            .flatten()
+            .map(|t| !t.title.is_empty() && !t.artist.is_empty() && is_musicbrainz_validated(&t.id))
+            .unwrap_or(false)
+    } else {
+        true
+    };
+
+    if !is_mb && !is_registered {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "MUSICBRAINZ_REQUIRED: Apenas faixas validadas pelo MusicBrainz podem ser adicionadas à fila".into(),
+        ));
+    }
     let result = match action_str {
         "QUEUE_NEXT" => state.db.enqueue_track_next_with_meta(
             &payload.track_id,
