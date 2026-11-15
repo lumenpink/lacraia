@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+  - (ui) corrigir carregamento do logotipo no apk android (closes #72)
   - (core) apontar qr code do modo van para microrelay com hash (closes #76)
   - (config) exibir campos do modo van apenas quando ativado (closes #73)
   - (ui) adicionar rolagem vertical na janela de configuracoes (closes #75)
