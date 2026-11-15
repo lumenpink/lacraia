@@ -28,3 +28,25 @@ fn test_apk_logo_inline_svg_rendering() {
         "O logotipo inline deve conter as definições de filtro glow-veneno e glow-fucsia"
     );
 }
+
+#[test]
+fn test_apk_logo_mutation_catchers() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let html_path = root.join("site/app/index.html");
+    let html = std::fs::read_to_string(&html_path).expect("ler site/app/index.html");
+
+    // Mutante 1: Regressão reintroduzindo src com caminho absoluto
+    let mutant_regressed = html.replace("<svg", "<img src=\"/assets/icon.svg\"");
+    assert!(
+        mutant_regressed.contains("src=\"/assets/icon.svg\""),
+        "Mutante detectado: reintrodução do caminho absoluto quebra APK"
+    );
+
+    // Mutante 2: Remoção dos filtros luminosos essenciais da marca
+    let mutant_no_filters = html.replace("glow-veneno", "");
+    assert_ne!(mutant_no_filters, html);
+}
