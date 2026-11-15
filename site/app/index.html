@@ -1850,18 +1850,6 @@
           <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Espaço máximo em memória para guardar faixas offline. Padrão: 1024 MB (1 GB).</div>
         </div>
 
-        <!-- Chave Master Local Embutida (Issue #46) -->
-        <div>
-          <label for="input-master-key" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            CHAVE DE ADMINISTRAÇÃO DO APARELHO:
-          </label>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="input-master-key" readonly placeholder="Carregando chave..." style="flex: 3; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: var(--papel-mimeografo); padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
-            <button id="btn-copy-master-key" type="button" class="btn btn-active" style="flex: 1; font-size: 11px;">📋 COPIAR</button>
-          </div>
-          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Identificador gerado no aparelho. O app gerencia o acesso automaticamente sem exigir senhas manuais.</div>
-        </div>
-
         <!-- Modo Van (Compartilhamento Coletivo e Cabines - Issue #45) -->
         <div style="border-top: 1px solid var(--borda-chassi); padding-top: 10px;">
           <label style="display:flex; align-items:center; justify-content:space-between; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; cursor:pointer;">
@@ -1872,16 +1860,31 @@
             Desativado: Somente você controla o som direto no aparelho.<br>
             Ativado: Abre cabines, lista de participantes e QR Code para a galera conectar e pedir faixas.
           </div>
-        </div>
 
-        <!-- Conectividade 5G / Micro-Relay WebSocket (Issue #66) -->
-        <div style="border-top: 1px solid var(--borda-chassi); padding-top: 10px;">
-          <label for="input-relay-url" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
-            RETRANSMISSOR PARA REDE MÓVEL / 5G (OPCIONAL):
-          </label>
-          <input type="text" id="input-relay-url" placeholder="ex: wss://lacraia-relay.2lp.in/relay/ws" style="width: 100%; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
-          <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">
-            Permite que outras pessoas peçam música usando os próprios dados móveis (4G/5G), sem precisar dividir o Wi-Fi.
+          <!-- Campos Específicos do Modo Van (Issue #73) -->
+          <div id="van-mode-settings-box" style="display:none; flex-direction:column; gap:12px; margin-top:12px; padding-top:10px; border-top:1px dashed var(--borda-chassi);">
+            <!-- Chave Master Local Embutida (Issue #46) -->
+            <div>
+              <label for="input-master-key" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+                CHAVE DE ADMINISTRAÇÃO DO APARELHO:
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="input-master-key" readonly placeholder="Carregando chave..." style="flex: 3; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: var(--papel-mimeografo); padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
+                <button id="btn-copy-master-key" type="button" class="btn btn-active" style="flex: 1; font-size: 11px;">📋 COPIAR</button>
+              </div>
+              <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">Identificador gerado no aparelho. O app gerencia o acesso automaticamente sem exigir senhas manuais.</div>
+            </div>
+
+            <!-- Conectividade 5G / Micro-Relay WebSocket (Issue #66) -->
+            <div>
+              <label for="input-relay-url" style="display:block; font-size:11px; color:var(--veneno-eletrico); font-weight:bold; margin-bottom:4px;">
+                RETRANSMISSOR PARA REDE MÓVEL / 5G (OPCIONAL):
+              </label>
+              <input type="text" id="input-relay-url" placeholder="ex: wss://lacraia-relay.2lp.in/relay/ws" style="width: 100%; background: var(--asfalto-frio); border: 1px solid var(--borda-chassi); color: #fff; padding: 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 2px;" />
+              <div style="font-size: 10px; color: var(--chumbo); margin-top: 2px;">
+                Permite que outras pessoas peçam música usando os próprios dados móveis (4G/5G), sem precisar dividir o Wi-Fi.
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -3825,6 +3828,8 @@
         if (tabBtnDeck03) tabBtnDeck03.style.display = displayVal;
         const deck03 = document.getElementById("deck-03");
         if (deck03) deck03.style.display = displayVal;
+        const vanSettingsBox = document.getElementById("van-mode-settings-box");
+        if (vanSettingsBox) vanSettingsBox.style.display = enabled ? "flex" : "none";
       }
       window.applyVanMode = applyVanMode;
 
