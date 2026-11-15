@@ -890,12 +890,10 @@ pub async fn handle_queue(
 
 pub fn is_musicbrainz_validated(track_id: &str) -> bool {
     let clean = track_id.trim();
-    if clean.starts_with("mb:") {
-        let suffix = &clean[3..];
+    if let Some(suffix) = clean.strip_prefix("mb:") {
         return !suffix.is_empty();
     }
-    if clean.starts_with("musicbrainz:") {
-        let suffix = &clean[12..];
+    if let Some(suffix) = clean.strip_prefix("musicbrainz:") {
         return !suffix.is_empty();
     }
     // Suporte a UUID canônico do MusicBrainz (36 caracteres hexadecimais com 4 hífens)
