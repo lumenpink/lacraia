@@ -18,6 +18,7 @@
   - (ci) remover campo permissions incompativel com forgejo actions (closes #56)
 
 ### Features
+  - (core) restringir adicao a fila exclusivamente a faixas do musicbrainz (closes #70)
   - (cli) renomear binario para lacraia e expor versao canonica via --version (closes #77)
   - (core,relay) micro-relay websocket para 5g e busca direta (closes #66)
   - (core,app) seguranca de proximidade com hash fixo e pin (closes #65)
