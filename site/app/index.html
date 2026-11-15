@@ -1013,11 +1013,27 @@
       box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
       max-width: 440px;
       width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--fucsia-furacao) var(--asfalto-frio);
       padding: 20px;
       display: flex;
       flex-direction: column;
       gap: 16px;
       text-align: center;
+    }
+
+    .modal-card::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .modal-card::-webkit-scrollbar-track {
+      background: var(--asfalto-frio);
+    }
+
+    .modal-card::-webkit-scrollbar-thumb {
+      background: var(--fucsia-furacao);
     }
 
     .modal-title {
