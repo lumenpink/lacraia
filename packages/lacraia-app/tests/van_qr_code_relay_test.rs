@@ -47,6 +47,9 @@ fn test_qr_code_relay_mutation_catchers() {
     assert_ne!(mutant_regressed, html);
 
     // Mutante 2: Falha ao propagar relay na query string
-    let mutant_no_relay_param = html.replace("passengerUrl += `&relay=${encodeURIComponent(storedRelay)}`;", "");
+    let mutant_no_relay_param = html.replace(
+        "passengerUrl += `&relay=${encodeURIComponent(storedRelay)}`;",
+        "",
+    );
     assert_ne!(mutant_no_relay_param, html);
 }
