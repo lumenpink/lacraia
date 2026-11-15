@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+  - (ui) adicionar rolagem vertical na janela de configuracoes (closes #75)
   - (app) unificar cockpit como rota raiz exclusiva sem subcaminho /app
   - (daemon) isolar prefetch por cabine e hermetizar suite de testes (closes #62)
 
