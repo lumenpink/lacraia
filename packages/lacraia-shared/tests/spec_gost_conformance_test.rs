@@ -6,18 +6,23 @@ fn test_spec_gost_2_0_conformance() {
         .parent()
         .unwrap();
 
-    // 1. Validar GOSTVER
-    let gostver = std::fs::read_to_string(root.join("GOSTVER")).expect("ler GOSTVER");
+    // 1. Validar que GOSTVER legado foi purgado definitivamente
     assert!(
-        gostver.contains("GOST_VERSION=\"2.0.0\""),
-        "GOSTVER deve apontar para GOST_VERSION=\"2.0.0\""
-    );
-    assert!(
-        gostver.contains("GOST_PROFILE_URL=\"https://lilya.2lp.in/profile.md\""),
-        "GOSTVER deve apontar para o perfil lilya"
+        !root.join("GOSTVER").exists(),
+        "GOSTVER legado deve ser purgado definitivamente"
     );
 
-    // 2. Validar SPEC.md
+    // 2. Validar livro compilado .gost/GOST.md e catalogo declarativo
+    assert!(
+        root.join(".gost/GOST.md").exists(),
+        ".gost/GOST.md deve existir"
+    );
+    assert!(
+        root.join(".gost/rules.toml").exists(),
+        ".gost/rules.toml deve existir"
+    );
+
+    // 3. Validar SPEC.md
     let spec = std::fs::read_to_string(root.join("SPEC.md")).expect("ler SPEC.md");
     let spec_lower = spec.to_lowercase();
 

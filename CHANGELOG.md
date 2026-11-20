@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+  - (test) alinhar teste de conformidade de especificacao com norma GOST v3 (closes #80)
   - (core) restaurar conectividade com musicbrainz no apk android (closes #71)
   - (ui) corrigir carregamento do logotipo no apk android (closes #72)
   - (core) apontar qr code do modo van para microrelay com hash (closes #76)
