@@ -1,5 +1,5 @@
 # Especificação Normativa — Ticket #53
-## Continuous Deployment Soberano no Nó Central (obizero) e Descomissionamento do Watchtower
+## Continuous Deployment Autônomo no Nó Central (obizero) e Descomissionamento do Watchtower
 
 **Norma de Referência:** GOST v1.5.0 (Perfil Lumen — Seção 9)  
 **Status:** Aprovado para Implementação  
@@ -11,7 +11,7 @@
 
 Esta especificação define o pipeline de entrega contínua (Continuous Deployment - CD) da aplicação containerizada **La Craia (`lacraia`)** no nó central de execução (`obizero`), substituindo em definitivo o mecanismo legado baseado no Watchtower:
 
-1. **Construção Local Soberana:** A imagem Docker `lumenpink/lacraia:latest` é gerada diretamente no Docker daemon do nó `obizero` através do socket montado no runner do Forgejo.
+1. **Construção Local Autônoma:** A imagem Docker `lumenpink/lacraia:latest` é gerada diretamente no Docker daemon do nó `obizero` através do socket montado no runner do Forgejo.
 2. **Descomissionamento Compulsório do Watchtower:**
    - Remoção de qualquer gatilho ou webhook HTTP do Watchtower no `.forgejo/workflows/ci.yml`.
    - Veto absoluto ao rótulo `com.centurylinklabs.watchtower.enable`.

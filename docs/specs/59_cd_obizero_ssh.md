@@ -1,11 +1,11 @@
-# Especificação Técnica: Deploy Soberano no Obizero via SSH
+# Especificação Técnica: Deploy Autônomo no Obizero via SSH
 
 **Ticket Associado:** #59  
 **Branch:** `feat/59-cd-obizero-ssh`  
 **Norma:** GOST 1.5.0
 
 ## 1. Objetivo
-Executar o Continuous Deployment soberano da Lacraia no nó `obizero` através de sessão SSH remota a partir do runner, eliminando qualquer dependência de bind-mount local do diretório de stacks (`/home/lumen/stacks/lacraia`) dentro do container do runner.
+Executar o Continuous Deployment autônomo da Lacraia no nó `obizero` através de sessão SSH remota a partir do runner, eliminando qualquer dependência de bind-mount local do diretório de stacks (`/home/lumen/stacks/lacraia`) dentro do container do runner.
 
 ## 2. Requisitos Técnicos
 1. No arquivo `.forgejo/workflows/ci.yml`, substituir os passos diretos de deploy e healthcheck locais por um passo único via SSH (`Sovereign CD on obizero via SSH`).
@@ -20,7 +20,7 @@ Executar o Continuous Deployment soberano da Lacraia no nó `obizero` através d
    - Sondagem ativa de estabilidade (`docker inspect --format='{{.State.Status}}' lacraia`) durante 15s.
    - Rollback automático para `OLD_IMAGE_ID` caso o container não estabilize.
    - Purga de camadas órfãs (`docker image prune -f`).
-4. Atualizar o script de auditoria `tests/audit_cd_workflow.sh` para validar a presença da invocação SSH e o ciclo completo de CD soberano.
+4. Atualizar o script de auditoria `tests/audit_cd_workflow.sh` para validar a presença da invocação SSH e o ciclo completo de CD autônomo.
 
 ## 3. Critérios de Aceitação
 - Execução verde do script `tests/audit_cd_workflow.sh`.

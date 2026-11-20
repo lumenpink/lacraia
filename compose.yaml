@@ -1,6 +1,6 @@
 # ==============================================================================
 # 🦂 La Craia — Especificação Canônica Docker Compose (compose.yaml)
-# Conformidade com GOST (Seção 13.6.7) e Perfil Kollontai (Seção 12.4 & 14)
+# Conformidade com GOST e Perfil Kollontai
 # ==============================================================================
 
 services:
@@ -10,6 +10,7 @@ services:
       dockerfile: Dockerfile
     image: gambi.2lp.in/lumen/lacraia:latest
     container_name: lacraia
+    user: "1000:1000"
     restart: unless-stopped
     ports:
       - "${PORT:-2011}:2011"
@@ -25,5 +26,9 @@ services:
     volumes:
       - ./data:/app/data
       - ./cache:/app/cache
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:2011/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

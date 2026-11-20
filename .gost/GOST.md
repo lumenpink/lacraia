@@ -1,398 +1,114 @@
-# ☭ ГОСТ / GOSPLAN — Especificação Canônica Consolidada
+# ☭ Normas e Diretrizes Compiladas do Repositório
 
-> **Aviso de Integridade Gosplan:**
-> Este documento foi montado automaticamente pelo CCCP (`cccp profile assemble`).
+> **Aviso de Integridade:**
+> Este documento foi montado automaticamente pelo CCCP (`cccp sync` / `assemble`).
 > A precedência é estrita de baixo para cima: cada camada subsequente sobrepõe as definições anteriores.
 
 ### 🌳 Árvore de Herança e Precedência Resolvida:
-1. Camada 1: `https://gost.2lp.in/SPEC.md`
-2. Camada 2: `https://kollontai.2lp.in/profile.md`
-3. Camada 3: `https://lilya.2lp.in/profile.md`
+1. Camada 1: `https://kollontai.2lp.in/2.1.0/RULES.md`
+2. Camada 2: `https://lilya.2lp.in/2.1.0/RULES.md`
 
 ---
 
 <!-- ===================================================================== -->
-<!-- CAMADA 1: https://gost.2lp.in/SPEC.md -->
+<!-- CAMADA 1: https://kollontai.2lp.in/2.1.0/RULES.md -->
 <!-- ===================================================================== -->
 
-# GOST — Padrão Técnico para Repositórios Abertos
-**Versão da Norma:** `2.0.0`  
-**Status:** Oficial / Padrão Canônico  
-**Referência:** ГОСТ (Государственный Стандарт / General Open Source Standard)
-
 ---
-
-## 1. Escopo e Propósito
-
-Esta especificação define os requisitos estruturais, metodológicos, de governança e de documentação para criação, manutenção e ciclo de vida de repositórios de software aberto.
-
-O objetivo do GOST é eliminar atritos no surgimento de novos projetos, garantir rastreabilidade histórica completa, assegurar a máxima liberdade do código e impor rigor de engenharia orientado à documentação e testes.
-
-As palavras-chave **DEVE** (*MUST*), **NÃO DEVE** (*MUST NOT*), **DEVERIA** (*SHOULD*), **NÃO DEVERIA** (*SHOULD NOT*) e **PODE** (*MAY*) neste documento devem ser interpretadas conforme descrito na [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
-
+standard: "kollontai"
+tier: "tactical"
+version: "2.1.0"
+locale: "pt-br"
+authority: "Standards Committee"
+published_at: "2026-11-08"
+inherits_from:
+  standard: "gosplan"
+  tier: "strategic"
+  version: "1.0.0"
+  base_url: "https://gosplan.2lp.in/1.0.0/"
 ---
-
-## 2. Filosofia e Licenciamento
-
-Todo projeto em conformidade com o GOST **DEVE** declarar sua licença de forma explícita na raiz do repositório através de um arquivo `LICENSE`. A especificação técnica detalhada, perfis e matriz normativa encontram-se em [specs/legal/licenses.md](./specs/legal/licenses.md).
-
-### 2.1 Princípio da Menor Permissividade como Padrão Raiz
-* **Regra da Raiz:** O arquivo `LICENSE` na raiz **DEVE** ser a licença padrão e geral de todo o repositório.
-* Em repositórios com múltiplos tipos de artefatos (como monorepos ou aplicações híbridas), o arquivo `LICENSE` **DEVE** conter a licença menos permissiva (mais restritiva) adotada (ex: `GPL-3.0`).
-* Quaisquer licenças mais permissivas (ex: `Apache-2.0` para sub-bibliotecas ou `CC-BY-SA-4.0` para mídias) funcionam como exceções modulares declaradas.
-
-### 2.2 Tipologia por Perfil de Repositório
-1. **Aplicações Completas / Monorepos Híbridos:** Adotam `GPL-3.0` (ou `AGPL-3.0` para serviços web) na raiz (`LICENSE`).
-2. **Utilitários, Ferramentas Autônomas e Microapps:** Adotam `Apache-2.0` na raiz (`LICENSE`) diretamente, sem necessidade de arquivos satélites supérfluos.
-3. **Bibliotecas, Protocolos e SDKs:** Adotam `Apache-2.0` na raiz (`LICENSE`) para máxima interoperabilidade.
-4. **Especificações e Normas:** Adotam `CC-BY-SA-4.0` para os textos normativos na raiz (`LICENSE`), com esquemas e templates em `CC0-1.0` e marcas protegidas via satélite.
-
-### 2.3 Arquivos Satélites Padronizados
-Quando houver artefatos que exijam tratamentos jurídicos específicos, os seguintes arquivos canônicos **DEVEM** ser utilizados:
-* `LICENSE-MEDIA`: Creative Commons Atribuição-CompartilhaIgual 4.0 Internacional (`CC-BY-SA-4.0`) para mídias, áudios, vídeos, fontes e ilustrações.
-* `LICENSE-LOGO`: Creative Commons Atribuição-SemDerivações 4.0 Internacional (`CC-BY-ND-4.0`) para marcas, insígnias, ícones oficiais e logotipos.
-* `LICENSE-APACHE`: Apache License 2.0 (`Apache-2.0`) para módulos, sub-crates ou bibliotecas desacopladas contidas em monorepos de aplicações.
-
-### 2.4 Mapeamento Obrigatório no `README.md`
-A presença de qualquer arquivo satélite (`LICENSE-MEDIA`, `LICENSE-LOGO` ou `LICENSE-APACHE`) **OBRIGA** a inclusão de uma seção explícita de mapeamento de diretórios e arquivos cobertos por cada licença no `README.md`.
-
-### 2.5 Princípio Anti-Boilerplate
-Cada repositório implementa exclusivamente as licenças condizentes com seu perfil real. É vedado copiar blocos genéricos de licenciamento e arquivos satélites vazios para projetos simples.
-
----
-
-## 3. Anatomia Mínima da Raiz e Metadados
-
-Todo repositório GOST **DEVE** conter em sua raiz a seguinte estrutura mínima independente da stack ou linguagem utilizada:
-
-```text
-.
-├── GOSTVER                     # Declaração canônica de versão da norma e perfil
-├── .gost/
-│   └── metadata.json           # Manifesto SSOT de metadados do projeto (Regra GOST-26)
-├── LICENSE                     # Termo legal de licenciamento padrão (Seção 2)
-├── LICENSE-MEDIA               # (Opcional) Licença CC-BY-SA para mídias e assets
-├── LICENSE-LOGO                # (Opcional) Licença CC-BY-ND para marcas e logos
-├── LICENSE-APACHE              # (Opcional) Licença Apache-2.0 para bibliotecas internas
-├── VERSION                     # Versão semântica em texto plano (Seção 4)
-├── CHANGELOG.md                # Registro cronológico de mudanças (Seção 4)
-├── README.md                   # Apresentação executiva e portal enxuto (Seção 9)
-├── .gitignore                  # Higiene do repositório e arquivos ignorados
-├── .editorconfig               # Configuração canônica de formatação para editores
-├── site/                       # Portal estático de documentação pública (Seção 9)
-│   ├── index.html              # Ponto de entrada da documentação
-│   └── _headers                # Cabeçalhos HTTP de segurança (ou wrangler.jsonc)
-└── .forgejo/workflows/ci.yml   # Esteira hermética de CI/CD em arquivo único (Seção 10)
-```
-
-### 3.1 Proibição de Poluição na Raiz
-É terminantemente proibida a presença de arquivos avulsos de linters (`.prettierrc`, `.prettierrc.json`, `.eslintrc`, `.eslintrc.js`) ou arquivos de orquestração legados (`compose.yml`, `docker-compose.yml`, `docker-compose.yaml`). Arquivos de configuração devem residir em subdiretórios apropriados ou aderir estritamente aos nomes canônicos (`compose.yaml`).
-
-### 3.2 Manifesto Canônico de Metadados (`.gost/metadata.json` — Regra `GOST-26`)
-O arquivo `.gost/metadata.json` é a autoridade central (SSOT) para identidade, vitrine e catálogos:
-* `slug`: Identificador único minúsculo em kebab-case ($\le 24$ caracteres, `^[a-z0-9-]+$`).
-* `title`: Nome próprio legível do aplicativo ou biblioteca ($\le 25$ caracteres).
-* `site_type`: Tipo de vitrine pública (`"doc"` para documentação/CLI ou `"app"` para aplicação web interativa).
-* `tagline`: Subtítulo resumido em uma frase clara ($\le 60$ caracteres), respeitando `len(title + " — " + tagline) <= 65`.
-* `summary`: Resumo executivo objetivo ($50$ a $140$ caracteres), consumido em meta tags Open Graph e feeds.
-* `abstract`: Resumo expandido ($150$ a $500$ caracteres) utilizado no lead do `README.md` e hero do site.
-* `tags`: Lista contendo entre 3 e 8 tags em kebab-case ($\le 20$ caracteres cada).
-* `icon`: Ícone representativo ou caractere visual.
-* `theme`: Objeto com `bg_color` e `accent_color` em formato hexadecimal.
-* **Filtro Anti-Jargão:** As descrições em prosa **NÃO DEVEM** conter termos técnicos vazios ou autorreferenciais (`"soberano"`, `"soberana"`, `"hexagonal"`, `"ssot"`, `"rust puro"`, `"em rust"`, `"em php"`, `"wasm"`).
-
----
-
-## 4. Versionamento Semântico e Histórico
-
-### 4.1 Arquivo `VERSION` e Conformidade SemVer 2.0.0
-* O repositório **DEVE** manter um arquivo `VERSION` na raiz contendo exclusivamente a versão atual do projeto em formato de texto puro UTF-8, finalizado por quebra de linha.
-* O formato de versionamento **DEVE** aderir estritamente ao [Semantic Versioning 2.0.0](https://semver.org/) (`MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`).
-* **Exibição Dual Padronizada:**
-  - *Versão Short:* `v{MAJOR}.{MINOR}.{PATCH}` (truncada antes do `-` ou `+`) para cabeçalhos, banners e títulos.
-  - *Versão Long:* String integral idêntica ao arquivo `VERSION` para rodapés e CLI `--version`.
-* **Sincronia Multi-Arquivo Mandatória:** A versão base declarada em `VERSION` deve coincidir rigorosamente com a versão declarada no topo do `CHANGELOG.md`, no arquivo `site/index.html` e nos manifestos de pacotes correspondentes (`Cargo.toml`, `package.json`, `composer.json`, `DESCRIPTION`).
-
-### 4.2 Arquivo `CHANGELOG.md`
-* O repositório **DEVE** manter um histórico de modificações legível por humanos e baseado no padrão [Keep a Changelog](https://keepachangelog.com/).
-* As seções de cada versão **DEVEM** categorizar alterações em: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security` ou subdivisões semânticas convencionais.
-
----
-
-## 5. Ciclo DD-TDD, Branches e o Protocolo de 9 Fases
-
-O fluxo de trabalho em repositórios GOST **DEVE** seguir o ciclo rigoroso de **Documentation-Driven & Test-Driven Development (DD-TDD)** em 9 fases sequenciais e indivisíveis, governado pela regra de rastreabilidade estrita de tickets e isolamento em branches.
-
-### 5.1 Cláusulas Pétreas do Ciclo
-
-1. **Inviolabilidade das 9 Fases e Inferência Automática:** Todas as 9 etapas **DEVEM** ser seguidas em ordem sequencial estrita. O desenvolvedor não informa a fase manualmente; o Maestro de Governança deduz a fase (`ph3` a `ph9`) a partir do estado do histórico e dos arquivos alterados no commit.
-2. **Zero Código sem Ticket e Documentação Prévia:** Nenhuma alteração em código de produção é permitida sem ticket aberto e especificação prévia de contrato/documentação.
-3. **Isolamento Estrito da Fase de Documentação (Fase 3):** Na Fase 3, é terminantemente proibido alterar qualquer linha de código executável em `src/`, `lib/`, `bin/` ou `tests/`. Apenas especificações textuais, contratos e esquemas são aceitos.
-4. **Rastreabilidade Estrita de Commits e Marcadores de Fase:**
-   - Commits intermediários **DEVEM** seguir o padrão: `<tipo>: <resumo> (ref #<id> - ph<N>)` (onde `N` varia de 3 a 8).
-   - O commit final de encerramento da Fase 9 **DEVE** seguir o padrão: `<tipo>: <resumo> (closes #<id> - ph9)`.
-5. **Laudo Textual de Resolução Obrigatório na Fase 9:** O commit de fechamento da Fase 9 (`closes #<id> - ph9`) **DEVE** conter corpo textual ($\ge 80$ caracteres) com os cabeçalhos formais:
-   - `[Resumo]:` Síntese objetiva do escopo tratado.
-   - `[Solução]:` Descrição das modificações arquiteturais e técnicas efetuadas.
-   - `[Validação]:` Relação dos testes determinísticos e gates executados para comprovação.  
-   *No momento do merge, o Maestro extrai automaticamente esse laudo e o registra como comentário de fechamento no issue tracker.*
-6. **Fast-Tracks Declarados:**
-   - `docs`: Isenção formal das Fases 4 a 7 (exige estritamente as Fases 1, 2, 3, 8 e 9).
-   - `chore`: Isenção formal das Fases 4 e 7 para manutenções de infraestrutura (exige estritamente as Fases 1, 2, 3, 5, 8 e 9).
-7. **Proibição Absoluta de Commit Direto na `main`:** É estritamente proibido commitar diretamente na branch base `main`. Todo trabalho reside em branch de ticket isolada.
-
-### 5.2 Estratégia de Branches e Governança Local-First
-* **Branches de Trabalho:** Devem seguir o padrão `^(feat|fix|docs|refactor|test|chore)/([0-9]+)-([a-z0-9-]+)$`.
-* **Governança Local-First:** As branches de trabalho existem exclusivamente no ambiente local. O envio de branches de trabalho para a forja remota é proibido, exceto se autorizado via flag explícita (`--multidev`).
-* **Branches Persistentes Autorizadas:** Além da `main` (e `pages`), são autorizadas no remote `origin`:
-  - Branches de manutenção de versão maior: `v<MAJOR>` ou `release/v<MAJOR>.x`.
-  - Branches de épicos multi-ticket: `epic/<slug>`.
-* **Protocolo de Gênese (Ticket #1):** Novos repositórios são inicializados pelo Maestro (`init`), abrindo a Issue #1 (`chore`), gerando a anatomia básica, emitindo o Laudo de Gênese no commit inaugural da `main` e disparando a publicação inicial.
-
-### 5.3 As 9 Fases Canônicas do Ciclo DD-TDD
-
-| Fase | Nome | Obrigatoriedade | Padrão do Commit |
-| :---: | :--- | :---: | :--- |
-| **1** | **Ticket / Issue** | ✅ **OBRIGATÓRIO** | *(Abertura no tracker — sem commit)* |
-| **2** | **New Branch** | ✅ **OBRIGATÓRIO** | *(Criação da branch — sem commit)* |
-| **3** | **Doc / Spec Contract** | ✅ **OBRIGATÓRIO** | `docs: specify <comportamento> (ref #<id> - ph3)` |
-| **4** | **Red: Failing Test** | 🔴 **OBRIGATÓRIO** *(exceto fast-track)* | `test: add failing test for <requisito> (ref #<id> - ph4)` |
-| **5** | **Green: Implement** | ✅ **OBRIGATÓRIO** | `feat: implement <funcionalidade> (ref #<id> - ph5)` ou `fix: resolve <bug> (ref #<id> - ph5)` |
-| **6** | **Refactor to Excellence** | 🟡 **CONDICIONAL** | `refactor: optimize and polish <escopo> (ref #<id> - ph6)` |
-| **7** | **Mutation Test & Fortify** | 🟡 **CONDICIONAL** *(ordem estrita)* | `test: eliminate surviving mutants in <escopo> (ref #<id> - ph7)` *(testes primeiro)*;<br>`refactor: eliminate dead code in <escopo> (ref #<id> - ph7)` *(código depois)* |
-| **8** | **Fast Local Hygiene** | ✅ **OBRIGATÓRIO** | `fix: lint and formatting hygiene (ref #<id> - ph8)` *(se houver ajustes)* |
-| **9** | **Finish Docs & Close** | ✅ **OBRIGATÓRIO** | `<tipo>: finalize <escopo> (closes #<id> - ph9)` *(com Laudo no corpo)* |
-
----
-
-## 6. O Maestro de Governança
-
-### 6.1 Política de Ponto Único de Entrada (*Single Entrypoint*)
-O gerenciamento do ciclo de vida, git, tickets e conformidade deve ser operado exclusivamente através do Maestro de Governança CLI. É terminantemente proibido o uso de comandos manuais do Git (`git commit`, `git merge`, `git push`, `git pull`, `git tag`) ou ferramentas ad-hoc de terceiros (`tea`, `gh`, `glab`).
-
-### 6.2 Contrato Universal de Subcomandos do Maestro
-Qualquer implementação do Maestro de Governança compatível com a GOST deve expor a seguinte interface determinística:
-* `init`: Inicializa repositório, estrutura e protocolo de gênese.
-* `ticket`: Consulta, abertura, triagem e fechamento de tickets.
-* `divan`: Assistente interativo de triagem e planejamento.
-* `start <id>`: Cria e faz checkout da branch de trabalho padronizada.
-* `status`: Audita a conformidade atual do repositório, branch e hooks.
-* `commit`: Valida e cria commits com inserção determinística de tags de ticket e fase (`ph3` a `ph8`).
-* `mutate`: Executa testes de mutação restritos ao diff local.
-* `hygiene`: Executa os formatadores determinísticos e linters rápidos (Fase 8).
-* `close`: Registra o laudo e gera o commit canônico de encerramento (`closes #<id> - ph9`).
-* `merge`: Realiza o merge validando o laudo e a tag de fechamento.
-* `push`: Executa pré-checagens e realiza o envio para o remote autorizado.
-* `release`: Conduz o processo de tag semântica e auditoria pré-release.
-* `gost sync/check`: Sincroniza e audita a conformidade das regras técnicas.
-
-### 6.3 Protocolo de Comandos para Agentes de IA
-Agentes autônomos de IA devem seguir o vocabulário de comandos operacionais determinísticos:
-* `DCPD`: Despacho completo com planejamento e documentação prévia.
-* `DCP`: Despacho padrão de implementação e correção.
-* `PLAN`: Elaboração e detalhamento de plano de ação sem escrita de código.
-* `TDD`: Execução estrita do ciclo Red-Green-Refactor.
-* `AUDIT`: Auditoria estática de conformidade e integridade.
-* `FIX`: Correção de bugs pontuais com teste de regressão comprovado.
-* `RELEASE`: Preparação e condução de versão estável.
-
----
-
-## 7. Estratégia de Testes e Cobertura
-
-### 7.1 Taxonomia de Testes
-1. **Testes Unitários:** Isolamento absoluto, sem dependência de I/O externo, execução em milissegundos.
-2. **Testes Funcionais:** Validação de regras de negócio e transformações de dados.
-3. **Testes de Integração:** Validação entre subsistemas internos e adaptadores concretos.
-4. **Testes Ponta a Ponta (E2E):** Simulação de interação real de usuários em navegadores headless via Playwright quando aplicável.
-
-### 7.2 Delegação de Cobertura para a Esteira
-* **Piso Mínimo Inviolável:** A cobertura global de testes automatizados **DEVE** ser de no mínimo **`90%`**, com meta de **`100%`** no domínio.
-* **Aferição na Esteira Remota:** A verificação estrita de cobertura com quebra de build é critério bloqueante delegado soberanamente à esteira remota hermética (`ci.yml`), liberando o fluxo de desenvolvimento local de overhead excessivo.
-
-### 7.3 Mutação Restrita ao Diff
-Na Fase 7 local, as ferramentas de teste de mutação devem operar restritas ao diff de alterações (`--in-diff` ou `--git-diff-lines`), deixando baterias globais de mutação para esteiras de auditoria periódica.
-
----
-
-## 8. Análise Estática e Tolerância Zero a Avisos (*Zero Warnings*)
-
-### 8.1 Tolerância Zero a Warnings
-Linters e analisadores estáticos devem operar com severidade máxima (ex: `-D warnings`). Avisos são tratados como erros fatais e bloqueiam a integração. É proibida a permanência de tokens de depuração (`dbg!`, `debugger;`, `var_dump`, `dd()`, `print_r`) em código final.
-
-### 8.2 Formatação Determinística e `.editorconfig`
-Todo projeto deve adotar um formatador oficial determinístico verificado com flags `--check`. O arquivo `.editorconfig` é obrigatório na raiz e padroniza UTF-8, LF, newline final e remoção de espaços em branco.
-
----
-
-## 9. Vitrine Pública, SSOT e Banners
-
-### 9.1 Topologia de Vitrine (`site_type`)
-* **`site_type: doc`:** O diretório `./site/` serve documentação técnica, tutoriais e especificações.
-* **`site_type: app`:** O diretório `./site/` hospeda a aplicação gráfica/interativa, reservando o subdiretório `./site/doc/` para manuais e documentação de apoio.
-
-### 9.2 SSOT em Markdown e README Enxuto
-* **SSOT:** Documentações, manuais e guias residem estritamente em Markdown. É proibido duplicar textos extensos manualmente em HTML.
-* **README Enxuto:** O arquivo `README.md` na raiz deve ter um teto rígido de **50 linhas**, servindo como portal rápido para a vitrine oficial.
-
-### 9.3 Banner Open Graph Minimalista
-* **Resolução:** `1200 × 630 px` com Safe Zone centralizada 4:3 (`720–840px` $\times$ `500px`).
-* **Conteúdo Visual:** Apenas o ícone/logo sobre as cores do tema e o texto `{title} — {tagline}` ($\le 65$ caracteres). Veto a badges de linguagem ou links impressos diretamente na imagem.
-* **Sincronia de Meta Tags:** `<meta property="og:title">` deve equivaler a `{title} — {tagline}`, e `<meta property="og:description">` ao `{summary}` ($\le 140$ caracteres).
-
-### 9.4 Rodapé Canônico em Duas Linhas
-Aplicações e documentações estáticas devem exibir rodapé em duas linhas:
-* **Linha 1 — Afirmação Identitária:** Definida e parametrizada conforme o perfil adotado.
-* **Linha 2 — Metadados de Soberania e Licença:** `{Nome do App} v{Versão} • [{Licença}](LICENSE)`.
-
-### 9.5 Cabeçalhos HTTP de Segurança
-A vitrine estática deve declarar cabeçalhos `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` e `Referrer-Policy: strict-origin-when-cross-origin` em `site/_headers` ou `wrangler.jsonc`.
-
----
-
-## 10. Esteira Hermética de CI/CD
-
-### 10.1 Arquivo Único e Hermeticidade
-O pipeline de automação reside estritamente em `.forgejo/workflows/ci.yml`. É proibida a existência da pasta `.github/workflows/`. São proibidos comandos de download ou instalação em runtime (`apt-get`, `apk add`, `pip install`, `npm i -g`, `cargo install`, `wget`, `curl`). Todas as ferramentas necessárias devem estar pré-instaladas na imagem base local do runner.
-
-### 10.2 Filas Canônicas e Dependência Estrita
-* Filas padronizadas: `test` (Quality Gate), `build`/`release` e `deploy`.
-* A fila `test` é obrigatória; todas as filas posteriores devem declarar expressamente `needs: [test]`.
-* Builds de release e empacotamento ocorrem exclusivamente na esteira; é proibido compilar releases pesadas na máquina local.
-
-### 10.3 Zero Binários no Histórico Git (Regra `GOST-24`)
-É expressamente proibido versionar artefatos compilados, arquivos ELF, pacotes ou tarballs (`.exe`, `.dll`, `.so`, `.tar.gz`, `.zip`, `.deb`, `.rpm`, `.apk`) no repositório Git.
-
----
-
-## 11. Internacionalização (Intl)
-
-### 11.1 Paridade Matemática de Chaves nas 10 Línguas
-Projetos internacionalizados devem manter paridade estrita de chaves nos 10 idiomas canônicos: `en`, `pt`, `es`, `fr`, `de`, `it`, `ru`, `zh`, `ja` e `ar`.
-
-### 11.2 Suporte RTL e Propriedades Lógicas
-O idioma árabe (`ar`) requer ativação do atributo `dir="rtl"`. Interfaces devem empregar propriedades lógicas em CSS (`margin-inline`, `padding-inline`), banindo propriedades físicas horizontais estáticas.
-
----
-
-## 12. Arquitetura de Domínio, DDD e SOLID (Regra `GOST-27`)
-
-### 12.1 Pureza de Domínio (Zero I/O no Core)
-O diretório e módulos de domínio/core (`src/domain/`, `lib/core.sh`, `internal/domain/`, etc.) **NÃO DEVEM** conter operações ou importações diretas de I/O (rede, filesystem, banco de dados, variáveis de ambiente ou chamadas a processos de sistema).
-
-### 12.2 Inversão de Dependência e In-Memory Fakes
-* O Core comunica-se com o mundo externo exclusivamente através de abstrações (Portas).
-* Mocks dinâmicos pesados são rejeitados em favor de adaptadores em memória leves (*In-Memory Fakes*) baseados em tipos nativos da linguagem.
-* Fakes e adaptadores reais compartilham a mesma suíte de testes de contrato (LSP).
-
-### 12.3 Validação na Borda e Primitivos Confiáveis
-A entrada de dados é validada e sanitizada nas bordas do sistema (*Parse, Don't Validate*). O Core opera com tipos confiáveis e enums nativos da linguagem para modelar estados finitos.
-
----
-
-## 13. Aderência a Padrões de Sistema e Operação (XDG, 12-Factor & OCI)
-
-### 13.1 Diretórios do Sistema (XDG Base Directory)
-Aplicações devem respeitar `$XDG_CONFIG_HOME`, `$XDG_DATA_HOME`, `$XDG_STATE_HOME`, `$XDG_CACHE_HOME` e `$XDG_RUNTIME_DIR`. É terminantemente proibido criar arquivos e pastas ocultas soltas na home do usuário (`~/.app`). Devem oferecer suporte a `NO_COLOR`.
-
-### 13.2 Contêineres OCI e Compose
-* Manifestos de orquestração devem adotar o nome canônico `compose.yaml`.
-* Dockerfiles devem implementar build multi-stage, execução sob usuário não-root, healthchecks e banimento de tags `:latest`. É proibido o uso de Watchtower.
-
----
-
-## 14. Perfis de Implementação e Política de Waivers
-
-### 14.1 Herança em Cascata de Perfis
-Perfis especializados (`profile.md`) especializam e complementam a norma central em ordem hierárquica de precedência através da diretiva `extends`.
-
-### 14.2 Mecanismo de Waivers Auditados
-Exceções temporárias a regras técnicas devem ser formalizadas com auditoria rastreável:
-* **Arquivo `custom_rules.json`:** Declara regras ignoradas exigindo `rule_id`, `reason` ($\ge 20$ caracteres) e ID do ticket associado.
-* **Diretiva Inline:** `gost-ignore: <RULE_ID> (ticket #<id> - <motivo>)`.
-* Agentes autônomos de IA são terminantemente proibidos de criar ou editar diretivas de waiver.
-
----
-
-## 15. Governança de Fronteira e Quarentena de Branches (`inbox/*`)
-
-### 15.1 Topologia de Remotes Git
-O remote `origin` na forja primária é o único destino autorizado para operações de push. Espelhos remotos públicos operam exclusivamente como mirrors de consulta e devem ser configurados com `pushurl = no_push`.
-
-### 15.2 Quarentena de Contribuições Externas
-Contribuições externas e Pull Requests vindos de espelhos são recebidos sob isolamento no namespace `refs/heads/inbox/*`, sujeitos a esteiras não-confiáveis offline antes de qualquer integração.
-
----
-
-<!-- ===================================================================== -->
-<!-- CAMADA 2: https://kollontai.2lp.in/profile.md -->
-<!-- ===================================================================== -->
 
 # Perfil de Implementação GOST: Kollontai
 
-```yaml
----
-id: kollontai
-name: "Perfil de Implementação Kollontai"
-extends: "https://gost.2lp.in/SPEC.md"
-target_gost: "2.0.0"
-status: "Ativo / Produção"
----
-```
-
 > **Sobre este Perfil:**  
-> O perfil **Kollontai** (em homenagem à revolucionária soviética, feminista e diplomata Alexandra Kollontai) define o ferramental concreto de engenharia, a implementação oficial do Maestro de Governança (**`cccp`**), a matriz de versões de compiladores, o protocolo de auto-atualização de binários e a arquitetura de distribuição para projetos aderentes ao padrão **GOST**.  
-> Ele é agnóstico a domínios pessoais e identidades individuais, servindo como perfil base para coletivos, laboratórios ou perfis autorais derivados (como o perfil `lumen`).
+> O perfil **Kollontai** (em homenagem à revolucionária soviética, feminista e diplomata Alexandra Kollontai) define o ferramental tático de engenharia, os contratos de interface do ecossistema de governança, a matriz de versões de compiladores, o protocolo de auto-atualização de binários e a arquitetura de distribuição para projetos aderentes ao padrão **GOST**.  
+> Ele é agnóstico a domínios pessoais e identidades individuais, servindo como perfil base para coletivos, laboratórios ou perfis autorais derivados (como o perfil Lilya).
 
 ---
 
-## 1. O Maestro Concreto: `cccp` e `.cccprc`
+## 1. Contratos e Interfaces do Ecossistema Tático de Governança
 
-No perfil Kollontai, a autoridade de governança definida na Seção 6 da norma GOST é materializada pelo binário **`cccp`** (integrado ao sistema de triagem **`divan`**).
+No perfil Kollontai, a governança definida na norma GOST é decomposta em cinco interfaces táticas funcionais e universais:
 
-### 1.1 Arquivo de Configuração `.cccprc`
-Todo repositório sob o perfil Kollontai **DEVE** declarar na raiz (ou herdar via configuração global em `$XDG_CONFIG_HOME/cccp/config.env`) os parâmetros operacionais do Maestro:
+### 1.1 Contrato da Ferramenta de Ciclo de Vida Local (Maestro Local)
+Responsável exclusivo pela orquestração do ciclo de vida local do repositório, execução das 9 fases DD-TDD, interceptação de convenções de commit, higiene de código e integração segura de branches.
 
-```ini
-# Idioma primário para triagem de tickets (divan), Laudo da Fase 9 e fallback de i18n
-agent_var_lang = portuguese
-
-# Diretivas de Forja Primária (Sobrescritas pelo perfil filho ou pelo repositório)
-primary_forge_type = forgejo
-primary_owner = <owner>
-primary_repo = <slug>
-
-# Espelhos Passivos e Ingestão de Fronteira (Separados por vírgula: codeberg,github)
-mirrors = codeberg,github
-mirror_owner = <mirror_owner>
-```
-
-### 1.2 Mapeamento de Comandos do Maestro (`cccp`)
-É estritamente proibido invocar comandos brutos de mutação do Git ou CLIs de terceiros (`tea`, `gh`, `glab`). O ciclo de vida completo opera via `cccp`:
-
-| Subcomando `cccp` | Fase / Escopo | Ação Determinística Executada pelo Maestro |
+#### Contrato de Comandos do Maestro Local:
+| Comando / Ação | Fase / Escopo | Contrato Funcional |
 | :--- | :---: | :--- |
-| `cccp init --slug <s> ...` | **Dia Zero** | Cria repo local (`main`), provisiona forja primária e espelhos (`pushurl = no_push`), abre o Ticket `#1` (`chore`), gera anatomia GOST + `.gost/metadata.json`, comita `(closes #1 - ph9)` com Laudo de Gênese, fecha o Ticket `#1` e faz o primeiro push. |
-| `cccp ticket create` | **Fase 1** | Cria a issue na forja primária (com tipo, contexto e critérios de aceite) e sincroniza o cache local em `.git/cccp/tickets/<id>.json`. |
-| `cccp divan` | **Fase 1** | Sessão assistida de triagem, quebra de épicos e refinamento de tickets. |
-| `cccp start <id> [--base <b>]` | **Fase 2** | Lê os metadados do ticket `#<id>`, atualiza a branch base (`main`, `vN` ou `epic/*`) e faz checkout automático para `<tipo>/<id>-<slug>`. |
-| `cccp status` | **Fases 1–9** | Inspeciona o histórico da branch ativa e exibe o ticket atual, a fase alcançada (`ph3`..`ph9`) e o próximo passo obrigatório. |
-| `cccp commit "<resumo>"` | **Fases 3–8** | Deduz o `<id>` e a fase atual (`ph3`..`ph8`), valida as travas da fase (bloqueia código em `ph3`; exige falha de teste em `ph4`; exige sucesso em `ph5`; impõe ordem `test` $\to$ `refactor` em `ph7`) e formata `<tipo>: <resumo> (ref #<id> - ph<N>)`. |
-| `cccp mutate` | **Fase 7** | Executa a ferramenta de teste de mutação da linguagem ativa restrita ao diff da branch (`git diff <base>..HEAD`). |
-| `cccp hygiene` / `cccp fix` | **Fase 8** | Executa instantaneamente o linter estático (`-D warnings`) e o verificador/aplicador de formatação determinística das linguagens declaradas no `GOSTVER`. |
-| `cccp close "<resumo>"` | **Fase 9** | Exige o corpo estruturado com o **Laudo Textual de Resolução** (`[Resumo]:`, `[Solução]:`, `[Validação]:`), valida a atualização de `CHANGELOG.md`/`site/` e grava o commit final `(closes #<id> - ph9)`. |
-| `cccp merge` | **Pós-Fase 9** | Verifica o cumprimento das fases e do Fast Hygiene, integra a branch na base (`main`, `vN` ou `epic/*`), posta o Laudo do commit `ph9` como comentário oficial no ticket encerrando-o na forja e remove a branch local. |
-| `cccp epic start|finish <slug>` | **Épicos** | Cria ou finaliza branches persistentes de integração (`epic/<slug>`) para reescritas multi-ticket. |
-| `cccp push [--multidev]` | **Publicação** | Bloqueia push de branches efêmeras de ticket (salvo `--multidev`) e envia branches persistentes (`main`, `vN`, `epic/*`) para o `origin`. |
-| `cccp release <patch|minor|major>` | **Release** | Executa auditoria pré-tag em container (`act`), consolida o `CHANGELOG.md`, atualiza o `VERSION`, assina a tag Git e publica. |
-| `cccp gost sync | check` | **Governança** | Resolve a cascata de perfis (`extends`), propaga o `.gost/metadata.json` e executa as auditorias determinísticas do `rules.json`. |
-| `cccp inbox list | review | accept` | **Fronteira** | Gerencia contribuições externas isoladas no namespace de quarentena `refs/heads/inbox/*`. |
+| `start <id> [--base <b>]` | **Fase 2** | Lê os metadados do ticket `#<id>`, atualiza a base (`main`, `vN` ou `epic/*`) e cria/alterna para a branch de trabalho `<tipo>/<id>-<slug>`. |
+| `status` | **Fases 1–9** | Inspeciona o histórico da branch ativa, audita a fase alcançada (`ph3`..`ph9`) e indica o próximo passo obrigatório. |
+| `commit "<resumo>"` | **Fases 3–8** | Deduz o ticket e a fase atual (`ph3`..`ph8`), valida as travas da fase e grava o commit convencional com `<tipo>: <resumo> (ref #<id> - ph<N>)`. |
+| `mutate` | **Fase 7** | Executa a ferramenta de teste de mutação da linguagem restrita ao diff da branch. |
+| `hygiene` / `fix` | **Fase 8** | Executa formatadores determinísticos e linters estáticos com tolerância zero a avisos (`-D warnings`). |
+| `close "<resumo>"` | **Fase 9** | Exige o corpo com o **Laudo Textual de Resolução** (`[Resumo]:`, `[Solução]:`, `[Validação]:`) e grava o commit canônico de fechamento `(closes #<id> - ph9)`. |
+| `merge` | **Pós-Fase 9** | Valida a presença da tag canônica `(closes #<id>)` e integra localmente a branch de trabalho na base (`main`), eliminando a branch local efêmera. |
+| `push [--multidev]` | **Publicação** | Bloqueia push de branches efêmeras de ticket e envia branches persistentes (`main`, `vN`, `epic/*`) ao remote autorizado. |
+| `release <patch|minor|major>` | **Release** | Executa auditoria pré-tag, consolida `CHANGELOG.md`, atualiza `VERSION` e sela a tag semântica. |
+
+### 1.2 Contrato da Ferramenta de Governança de Forja e Abastecimento
+Responsável pela interface com forjas remotas (API), ciclo de vida de issues/tickets, triagem assistida e catalogação multi-repositório.
+
+#### Contrato de Comandos de Forja e Abastecimento:
+| Comando / Ação | Finalidade | Contrato Funcional |
+| :--- | :--- | :--- |
+| `init` / `new` | **Dia Zero** | Inicializa repositório local e remoto na forja primária, gera anatomia inicial e registra no catálogo. |
+| `ticket create` | **Abertura** | Cria issue na forja com tipo semântico, contexto e critérios de aceite. |
+| `ticket list` | **Consulta** | Lista issues ativas com filtros por estado, marco ou responsável. |
+| `ticket comment` | **Comentário** | Insere anotações ou laudos de progresso na issue remota. |
+| `ticket close` | **Encerramento** | Fecha formalmente a issue na forja com mensagem conclusiva. |
+| `divan` / `triage` | **Triagem Assistida** | Sessão interativa assistida por modelo de inteligência para refinamento e planejamento. |
+| `catalog scan` / `list` | **Inventário** | Varre workspaces e cataloga repositórios e seus metadados (`.gost/metadata.json`). |
+| `batch push` | **Operação em Lote** | Executa envio de atualizações sincronizadas através dos repositórios do catálogo. |
+
+### 1.3 Contrato do Validador Normativo de Conformidade
+Responsável pela avaliação de regras declarativas (`rules.toml`) e emissão de laudos padronizados de conformidade.
+
+#### Contrato de Comandos do Validador:
+| Comando / Ação | Contrato Funcional |
+| :--- | :--- |
+| `check [--strict] [--lang <l>] [--scope <s>] [--json]` | Avalia regras declaradas com filtros de escopo (`project`, `post-build`, etc.) e emite laudos em texto ou JSON. Retorna código 0 em aprovação e código 1 em falha (ou avisos em modo estrito). |
+| `test` | Valida sintaxe e integridade das regras declarativas do catálogo local. |
+| `eval <expressão>` | Executa script ou expressão isolada com acesso aos primitivos de runtime normativos. |
+
+### 1.4 Contrato da Ferramenta de Entrega Contínua e Despacho de Artefatos (CD)
+Responsável pelo pipeline de entrega contínua após a aprovação da integração contínua (CI), garantindo que nenhum binário de produção seja compilado ou empacotado em estações de trabalho não-reprodutíveis.
+
+#### Contrato Funcional de Entrega Contínua:
+| Operação / Capacidade | Finalidade | Contrato Funcional |
+| :--- | :--- | :--- |
+| `ingest` | **Ingestão de Staging** | Consome binários e pacotes compilados na esteira hermética de CI da forja e valida suas assinaturas e hashes criptográficos SHA-256. |
+| `dispatch` | **Despacho Externo** | Publica os artefatos nos storages autorizados de distribuição e atualiza os canais de entrega semântica (`stable`, `dev`). |
+| `purge` | **Higiene de Staging** | Remove imediatamente da forja primária os pacotes temporários de staging recém-despachados, prevenindo saturação de disco. |
+| `deploy-stack` | **Deploy de Servidores** | Aciona remotamente a atualização de serviços conteinerizados via SSH na rede privada com verificação de healthcheck e rollback automático. |
+| `cascade` | **Propagação em Cascata** | Propaga atualizações de versão a montante (*upstream*) para os manifestos de dependência dos módulos a jusante (*downstream*). |
+
+### 1.5 Contrato do Controlador de Fronteira e Sincronia de Espelhos
+Responsável pela proteção e telemetria nas fronteiras públicas do ecossistema, isolando contribuições não-confiáveis e gerando paridade entre espelhos.
+
+#### Contrato Funcional de Fronteira:
+| Operação / Capacidade | Finalidade | Contrato Funcional |
+| :--- | :--- | :--- |
+| `sync-infra` | **Sincronia de Espelhos** | Configura espelhos de envio passivo (`pushurl = no_push`), garantindo paridade de metadados, descrição e tópicos. |
+| `reconcile` | **Reconciliação Anti-Drift** | Executa conciliação periódica de eventos de forja e webhooks perdidos através de buffers de lookback. |
+| `inbox-quarantine` | **Quarentena de PRs** | Isola Pull Requests externos de espelhos públicos no namespace de quarentena `refs/heads/inbox/*` antes de qualquer execução de CI. |
+| `inbox-clean` | **Higiene de Fronteira** | Remove branches locais `inbox/*` associadas a Pull Requests já encerrados ou rejeitados. |
 
 ---
 
 ## 2. Topologia de Forjas, Espelhos e Fronteira
 
-### 2.1 Soberania da Forja Primária e Espelhamento Passivo
+### 2.1 Autoridade da Forja Primária e Espelhamento Passivo
 1. **Unidirecionalidade Local (`Zero Dual Push`):** O ambiente local mantém o remote `origin` apontando exclusivamente para a forja primária definida no perfil final. A replicação de código para espelhos externos (Codeberg, GitHub) é responsabilidade exclusiva do *Push Mirror* automático da forja primária (`sync_on_commit: true`).
 2. **Sinalização de Espelhos e Paridade de Metadados:**
    - O comando `cccp gost sync` mantém `description` (extraído de `summary`), `website` e `topics` (extraídos de `tags` no `.gost/metadata.json`) idênticos entre a forja primária e os espelhos.
@@ -438,9 +154,9 @@ Para aplicações gráficas multiplataforma em Rust (Web WASM, Desktop via Tao/W
 
 ---
 
-## 4. Protocolo de Auto-Atualização Soberana (XDG) e Manifesto de Distribuição
+## 4. Protocolo de Auto-Atualização (XDG) e Manifesto de Distribuição
 
-Todas as ferramentas de linha de comando (CLI) e aplicações desktop distribuídas sob o perfil Kollontai **DEVEM** implementar o protocolo de auto-atualização conectado ao catálogo de distribuição soberano (a **Banca**) e interoperável com a **Jornaleira**.
+Todas as ferramentas de linha de comando (CLI) e aplicações desktop distribuídas sob o perfil Kollontai **DEVEM** implementar o protocolo de auto-atualização conectado ao catálogo de distribuição central (a **Banca**) e interoperável com a **Jornaleira**.
 
 ### 4.1 Caminhos XDG e Formato de Configuração (`config.env`)
 Para manter conformidade com a regra anti-bloat da norma GOST (Seção 13.2), a configuração e o cache de estado residem estritamente em caminhos XDG:
@@ -499,18 +215,37 @@ Todo binário distribuído **DEVE** responder aos subcomandos:
 * `<slug> config show | set-channel <c> | pin [<ver>] | unpin | set-auto-check <bool> | set-auto-update <bool>`  
   Exibe ou altera de forma persistente as opções em `${XDG_CONFIG_HOME}/<slug>/config.env`.
 
-#### **Garantia de Persistência do Canal Nightly:**
-* A preferência declarada em `UPDATE_CHANNEL` (em `config.env`) define a assinatura duradoura de atualizações do usuário.
+#### **Garantia de Persistência do Canal Dev / Nightly:**
+* A preferência declarada em `UPDATE_CHANNEL` (em `config.env`) define a assinatura duradoura de atualizações do usuário (`stable` ou `dev`/`nightly`).
 * O comando pontual `<slug> update --stable` (ou `--channel stable`) instala a compilação estável requisitada naquele momento, **mas NUNCA altera o valor de `UPDATE_CHANNEL`** no arquivo `config.env`.
 * A reconfiguração persistente do canal exige comando explícito (`<slug> config set-channel stable` ou flag `--save-channel`).
-* Enquanto `UPDATE_CHANNEL="nightly"`, o verificador continuará consultando e alertando sobre novas compilações do canal `nightly` assim que publicadas na Banca, mesmo que o executável local em execução seja momentaneamente uma versão estável.
+* Enquanto `UPDATE_CHANNEL="dev"` (ou `"nightly"`), o verificador continuará consultando e alertando sobre novas compilações do canal `dev` assim que publicadas na Banca, mesmo que o executável local em execução seja momentaneamente uma versão estável.
 
-### 4.4 Topologia do Catálogo de Distribuição (Banca) e Retenção Estrita
-A esteira de CI publica os binários estáticos e mantém o armazenamento enxuto sob a seguinte estrutura canônica por aplicativo (`<slug>`):
-* `<banca_url>/downloads/<slug>/install.sh`: Instalador POSIX puro (`#!/bin/sh`), verifica hash SHA-256 e instala em `~/.local/bin` (ou `/usr/local/bin` se root).
-* `<banca_url>/downloads/<slug>/<channel>-latest` e `<channel>-latest.version`: Ponteiros atômicos para a versão ativa de cada canal (`stable` e `nightly`).
-* `<banca_url>/downloads/<slug>/index.json`: Manifesto estruturado contendo metadados extraídos do `.gost/metadata.json` (`slug`, `title`, `tagline`, `summary`, `tags`), canais, URLs imutáveis, tamanho em bytes, data ISO-8601 e hashes `sha256`.
-* **Política de Retenção e Expurgo Automático:** A publicação na esteira retém estritamente as **5 versões `stable`** mais recentes e as **10 compilações `nightly`** mais recentes, expurgando artefatos antigos automaticamente.
+### 4.4 Topologia de Armazenamento e Distribuição Desacoplada
+A esteira de publicação opera sob o modelo **Produtor–Curador Desacoplado**:
+* **Produtor (Repositório do Software):** Compila o código na esteira, calcula os hashes de integridade (SHA-256), envia os artefatos diretamente para o storage de distribuição, atualiza a cópia de alias e despacha um evento de notificação via API (`repository_dispatch`).
+* **Curador (Repositório Central da Banca):** Ouve os eventos via esteira (`repository_dispatch`), executa auditoria estrita de existência e integridade dos arquivos novos e do histórico ativo, gerencia a retenção no storage conforme o perfil operacional (Lilya), atualiza o catálogo (`catalog.json`) e realiza o deploy.
+* **Topologia do Storage (Bucket Único Particionado):**
+  Todos os artefatos são mantidos sob o prefixo `banca-artifacts/{app}/{channel}/`:
+  - `{app}-{versao}-{target}.{ext}` e respectivo `.sha256`
+  - Cópias físicas de alias sobrescritas: `{app}-latest-{target}.{ext}` (em `stable`) ou `{app}-dev-latest-{target}.{ext}` (em `dev`), juntamente com seus arquivos `.sha256`.
+
+### 4.5 Nomenclatura de Canais e Aliases Canônicos
+A publicação e o consumo de artefatos de distribuição respeitam os canais canônicos:
+1. **Canal Estável (`stable`):**
+   - Rótulo na interface: *Versão Recomendada*.
+   - Sufixo / padrão de versão: SemVer 2.0 (`x.y.z`).
+   - Alias canônico: `*-latest.*` (ex.: `{app}-latest-{target}.{ext}`).
+   - Possui **exclusividade absoluta** sobre o alias primário `latest` e versões desprovidas de sufixo.
+2. **Canal de Desenvolvimento (`dev`):**
+   - Rótulo na interface: *Versão Experimental*.
+   - Sufixo / padrão de versão: `x.y.z-dev.{n}+{YYYYMMDD}.{commit}`.
+   - **Semântica Canônica de `{n}` (Commit Count):** O contador `{n}` representa estritamente o número de commits desde a última tag estável (`git rev-list vX.Y.Z..HEAD --count`), mensurando a distância relativa do incremento em relação à versão estável base. É expressamente proibido utilizar a contagem acumulada absoluta de commits do repositório (`git rev-list --count HEAD`), prevenindo contaminações e saltos artificiais de numeração no SemVer. Quando o `HEAD` coincidir com a tag estável, `{n}` é `0`. Se o repositório não possuir tags estáveis anteriores (estado inaugural/gênese), `{n}` recai sobre a contagem a partir da gênese sobre a base `0.0.0-dev.{n}`.
+   - Alias canônico: `*-dev-latest.*` (ex.: `{app}-dev-latest-{target}.{ext}`).
+3. **Consumo de Versões Canônicas Recomendado:**
+   - Em manifestos de build (`Cargo.toml`, etc.), a fixação em versões canônicas exatas (`=`) é formalmente **recomendada** (*SHOULD* / *DEVERIA*) para garantir reprodutibilidade hermética em cascata.
+4. **Tolerância Zero a Links Quebrados:**
+   - Se qualquer artefato declarado (novo ou histórico ativo) falhar na verificação de rede ou apresentar divergência de checksum, a publicação do catálogo é abortada imediatamente.
 
 ---
 
@@ -562,7 +297,40 @@ jobs:
 ```
 
 * **Isolamento da Quarentena (`inbox/*`):** Para branches `refs/heads/inbox/*`, apenas o job `test` é executado em modo desprivilegiado (sem acesso a secrets de deploy ou chaves da Banca).
-* **Publicação Stateless em Branch `pages`:** O espelhamento estático para forjas secundárias utiliza worktree órfã (`git worktree add --orphan -b pages`) com commit único (`docs(site): deploy snapshot [skip ci]`) e `git push --force`, impedindo inflação do histórico Git.
+
+### 5.1 Contrato de Notificação via API (`repository_dispatch`)
+O repositório produtor do software notifica a esteira central da Banca via chamada HTTP:
+`POST /api/v1/repos/{owner}/banca/dispatches` com `event_type: "release-published"`.
+
+#### Schema do Payload (`client_payload`):
+```json
+{
+  "event_type": "release-published",
+  "client_payload": {
+    "app": "slug",
+    "channel": "stable",
+    "version": "x.y.z",
+    "commit": "hash",
+    "repo_slug": "owner/slug",
+    "run_id": "1842",
+    "assets": [
+      {
+        "filename": "app-0.1.0-linux-x86_64.tar.gz",
+        "alias": "app-latest-linux-x86_64.tar.gz",
+        "type": "archive",
+        "format": "tar.gz",
+        "target": "linux-x86_64",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}
+```
+
+### 5.2 Idempotência na Publicação e Pre-Delete de Aliases Mutáveis
+Para forjas de pacotes que rejeitam sobrescrita direta de arquivos com o mesmo nome sob uma versão (como os Generic Packages do Forgejo, gerando erros `HTTP 409 Conflict`), a esteira de CI/CD **DEVE** garantir idempotência:
+* Antes de executar o envio (`PUT`) para aliases mutáveis (`latest-dev`, `${BASE_VERSION}-dev`, `latest`), a esteira deve executar uma limpeza prévia com deleção idempotente (`curl -s -X DELETE ... || true`).
+* Essa prática previne falhas espúrias de publicação e assegura que a forja atualize o ponteiro do alias sem interrupções.
 
 ---
 
@@ -586,7 +354,7 @@ A página raiz atua como roteador leve para os 10 subdiretórios de idioma (`en`
 </script>
 ```
 
-### 6.2 Geração Automatizada do Banner Minimalista (`cccp site banner`)
+### 6.2 Geração Determinística do Banner Minimalista
 O banner `site/assets/og_preview.png` (`1200 × 630 px`, Safe Zone 4:3 de `720px–840px` × `500px`) é gerado deterministicamente a partir do `.gost/metadata.json`:
 * Renderiza o fundo com `theme.bg_color` e detalhes de contraste com `theme.accent_color`.
 * Posiciona o `icon` oficial e imprime exclusivamente a chamada curta **`{title} — {tagline}`** ($\le 65$ caracteres), sem textos secundários.
@@ -605,7 +373,7 @@ O perfil Kollontai estabelece o contrato de renderização do rodapé nas 10 lí
 
 ## 7. Catálogo Local de Descoberta (`~/src/catalog.json`)
 
-Todo repositório inicializado ou sincronizado pelo `cccp` registra seus metadados extraídos do `.gost/metadata.json` no índice central da estação de trabalho (`~/src/catalog.json`):
+Todo repositório inicializado ou sincronizado pelo ferramental de governança registra seus metadados extraídos do `.gost/metadata.json` no índice central da estação de trabalho (`~/src/catalog.json`):
 
 ```json
 {
@@ -623,31 +391,109 @@ Todo repositório inicializado ou sincronizado pelo `cccp` registra seus metadad
 
 ---
 
+## 8. Padrões Táticos de Conteinerização Obrigatória de Serviços
+
+Em cumprimento à diretriz estratégica do GOSPLAN, todo serviço de backend, microsserviço ou daemon distribuído no perfil Kollontai DEVE atender aos seguintes padrões de conteinerização:
+
+### 8.1 Anatomia de Imagem (`Dockerfile` / `Containerfile`)
+1. **Multi-Stage Hermético:** O estágio de build compila o software hermeticamente; o estágio final copia apenas o binário compilado e artefatos estritamente necessários para uma imagem base minimalista (`alpine` ou `scratch`).
+2. **Execução Desprivilegiada Mandatória:** O container DEVE executar sob usuário não-root explicitamente (`user: "1000:1000"`). É proibida a execução contínua como `root`.
+3. **Imutabilidade e Efemeridade:** O sistema de arquivos do container é considerado volátil, delegando persistência a volumes nomeados ou bind-mounts explicitados no compose.
+
+### 8.2 Orquestração Declarativa Local (`compose.yaml`)
+1. **Extensão Canônica:** A declaração de orquestração utiliza estritamente o nome `compose.yaml` (sendo expressamente banido o uso da extensão obsoleta `.yml`).
+2. **Política de Reinício e Healthcheck:** Todo serviço em produção declara `restart: unless-stopped` e uma probe ativa de integridade (`healthcheck` com `interval`, `timeout` e `retries`).
+3. **Isolamento de Rede:** Serviços internos operam em redes privadas OCI (`networks: default: internal: true` ou isoladas). Portas só devem ser expostas se o serviço for explicitamente um ponto de ingresso público.
+
+---
+
+## 9. Padrão Tático de Sanidade Pós-Compilação (*Smoke Tests*)
+
+Todo artefato executável gerado no perfil Kollontai está sujeito a validação no escopo canônico `post-build`:
+
+1. **Execução Dinâmica Rápida:** O binário gerado é executado com argumentos de inspeção inofensivos em tempo limite estrito ($\le 3$ segundos).
+2. **Prevenção de Falhas Críticas:** O teste detecta e bloqueia falhas de segmentação (`SIGSEGV` / sinal 11), *panics* imediatos de runtime ou ausência de dependências dinâmicas compartilhadas (*shared libraries* faltantes no ambiente).
+3. **Isolamento e Limpeza:** A execução não deve deixar processos zumbis ou arquivos temporários não tratados no host.
+
+
+---
+
+## 10. Decretos Regulamentadores de Engenharia (KOLLONTAI-001 a KOLLONTAI-018)
+
+O catálogo tático do perfil Kollontai estabelece parâmetros objetivos de engenharia e conformidade técnica para todos os projetos subordinados:
+
+| ID | Nome Canônico | Escopo | Descrição Sumária |
+| :--- | :--- | :--- | :--- |
+| **KOLLONTAI-001** | `README-MAX-LINES` | `project` | Teto rigoroso de 50 linhas para o arquivo `README.md`. |
+| **KOLLONTAI-002** | `BANNER-DIMENSIONS-AND-RATIO` | `project` | Banner institucional exatamente em 1200x630 (proporção 1.91:1) com safe zone. |
+| **KOLLONTAI-003** | `DDD-DOMAIN-PURITY` | `project` | Pureza de domínio: `src/domain/` com zero I/O, rede ou dependências de frameworks. |
+| **KOLLONTAI-004** | `STATIC-ANALYSIS-ZERO-WARNINGS` | `ci` | Linters e análise estática executando com zero advertências (`-D warnings` ou `--strict`). |
+| **KOLLONTAI-005** | `FORMAT-CHECK-DETERMINISTIC` | `ci` | Verificação determinística de formatação de código (`fmt --check`) na esteira. |
+| **KOLLONTAI-006** | `SITE-SECURITY-HEADERS` | `project` | Cabeçalhos de segurança HTTP em `site/_headers` (anti-sniffing e anti-framing). |
+| **KOLLONTAI-007** | `COMPOSE-NON-ROOT-USER` | `project` | Usuário desprivilegiado `user: "1000:1000"` obrigatório em manifestos compose. |
+| **KOLLONTAI-008** | `COMPOSE-HEALTHCHECK-REQUIRED` | `project` | Sonda de integridade ativa (`healthcheck:`) obrigatória em manifestos compose. |
+| **KOLLONTAI-009** | `DOCKERFILE-NON-ROOT-USER` | `project` | Usuário desprivilegiado `USER 1000:1000` obrigatório em Dockerfiles. |
+| **KOLLONTAI-010** | `API-CONTRACT-OPENAPI` | `project` | Contratos de API em `docs/openapi.yaml` ou `docs/external/` em padrão OpenAPI 3.x. |
+| **KOLLONTAI-011** | `FORBIDDEN-TERMS` | `docs` | Tabela curada de termos proibidos (sem etiqueta imperialista na norma). |
+| **KOLLONTAI-012** | `SMOKE-TEST-SANITY-POST-BUILD` | `post-build` | Smoke test pós-compilação atestando ausência de SIGSEGV (139) e panics. |
+| **KOLLONTAI-013** | `INTL-KEY-PARITY` | `project` | Paridade genérica de chaves entre dicionários das línguas listadas em `LANGUAGES`. |
+| **KOLLONTAI-014** | `RTL-LOGICAL-PROPERTIES-AUDIT` | `project` | Auditoria de propriedades lógicas CSS e atributo `dir="rtl"` para idiomas RTL. |
+| **KOLLONTAI-015** | `I18N-SITE-FALLBACK-ENGLISH` | `project` | Roteador cliente do site adota inglês (`en`) como fallback na ausência do idioma do visitante. |
+| **KOLLONTAI-016** | `FORBIDDEN-PATH-DEPENDENCIES` | `project` | Proibição de dependências locais via caminho (path = "...") em manifestos de pacotes. |
+| **KOLLONTAI-017** | `LICENSING-MATRIX-COMPLIANCE` | `project` | Conformidade da matriz de licenciamento (GPL-3.0 padrão em software e satélites modulares). |
+| **KOLLONTAI-018** | `GIT-HOOKS-MAESTRO-PARITY` | `project` | Hooks essenciais do Git instalados e ativamente gerenciados pelo maestro `cccp`. |
+
+---
+
 <!-- ===================================================================== -->
-<!-- CAMADA 3: https://lilya.2lp.in/profile.md -->
+<!-- CAMADA 2: https://lilya.2lp.in/2.1.0/RULES.md -->
 <!-- ===================================================================== -->
+
+---
+standard: "lilya"
+tier: "operational"
+version: "2.1.0"
+locale: "pt-br"
+authority: "Standards Committee"
+published_at: "2026-11-08"
+inherits_from:
+  standard: "kollontai"
+  tier: "tactical"
+  version: "2.1.0"
+  base_url: "https://kollontai.2lp.in/2.1.0/"
+---
 
 # Perfil de Implementação GOST: Lilya
 
-```yaml
----
-id: lilya
-name: "Perfil de Implementação Lilya"
-extends: "https://kollontai.2lp.in/profile.md"
-target_gost: "2.0.0"
-maintainer: "Lumen Pink <hi@lumen.pink>"
-canonical_url: "https://lilya.2lp.in/profile.md"
-status: "Ativo / Produção"
----
-```
-
 > **Sobre este Perfil:**  
-> O perfil **Lilya** (anteriormente denominado *Lumen*) é a especialização autoral, pessoal e de infraestrutura soberana do padrão **[GOST](https://gost.2lp.in)**.  
-> Ele estende diretamente o perfil base **[Kollontai](https://kollontai.2lp.in)** (`extends: https://kollontai.2lp.in/profile.md`), herdando a autoridade do Maestro **`cccp`**, a matriz de toolchains homologadas e os protocolos de distribuição, aplicando precedência estrita (*deep override*) para a forja soberana em `gambi.2lp.in`, publicação na borda (`*.2lp.in`), catálogo de binários (`banca.2lp.in`), afirmação identitária transfeminista no rodapé e entrega contínua nos servidores `obizero`, `obione` e `obitwo`.
+> O perfil **Lilya** é a especialização autoral, pessoal e de infraestrutura do padrão **[GOST](https://gost.2lp.in)**.  
+> Ele estende diretamente o perfil base **[Kollontai](https://kollontai.2lp.in)** (`extends: https://kollontai.2lp.in/profile.md`), herdando a autoridade do Maestro **`cccp`**, a matriz de toolchains homologadas e os protocolos de distribuição, aplicando precedência estrita (*deep override*) para a forja canônica em `gambi.2lp.in`, publicação na borda (`*.2lp.in`), catálogo de binários (`banca.2lp.in`), afirmação identitária transfeminista no rodapé e entrega contínua nos servidores `obizero`, `obione` e `obitwo`.
 
 ---
 
-## 1. Identidade, Forja Soberana (`gambi.2lp.in`) e Espelhos
+## 1. Amarração Operacional de Binários Concretos da Fábrica Tulipa
+
+Em estrito alinhamento com a separação em camadas estabelecida pelo **GOST** (estratégico) e formalizada nos contratos abstratos de engenharia do **Kollontai** (tático), o perfil **Lilya** amarra operacionalmente os binários executáveis concretos da infraestrutura:
+
+| Papel Normativo Abstrato | Contrato Tático (Kollontai) | Binário Concreto Homologado (Lilya) | Repositório / Endpoint Canônico |
+| :--- | :--- | :--- | :--- |
+| **Maestro Local** | Ciclo DD-TDD, Branches, Commits, Fast-Hygiene, Merge e Push | **`cccp`** | `https://git.2lp.in/lumen/cccp` (`cccp.2lp.in`) |
+| **Autoridade de Forja e Abastecimento** | Tickets remotos, Triagem assistida (IA), Scaffolding e Catálogo Multi-repo | **`gossnab`** | `https://git.2lp.in/lumen/gossnab` (`gossnab.2lp.in/api/v1`) |
+| **Motor de Avaliação Normativa** | Auditoria de regras `rules.toml`, Laudos JSON/Texto e Avaliação sintática | **`lunokhod`** (`lk`) | `https://git.2lp.in/lumen/lunokhod` (`lunokhod.2lp.in`) |
+| **Agente de Entrega e Orquestração Contínua (CD)** | Despacho de artefatos, Purga de staging, Deploy de stacks e Cascata | **`kombinat`** | `https://git.2lp.in/lumen/kombinat` (`kombinat.2lp.in`) |
+| **Controlador de Fronteira e Sincronia** | Quarentena de PRs, Sincronia de espelhos e Ingestão de webhooks | **`kontur`** (`kt`) | `https://git.2lp.in/lumen/kontur` (`kontur.2lp.in`) |
+
+### 1.1 Tabela Operacional de Comandos Concretos
+A rotina de desenvolvimento na Fábrica Tulipa opera através das seguintes chamadas homologadas:
+* **Ciclo de Vida Local:** `cccp start <id>`, `cccp commit "<resumo>"`, `cccp mutate`, `cccp hygiene`, `cccp close "<resumo>"`, `cccp merge`, `cccp push`, `cccp release`.
+* **Forjas, Tickets e Catálogo:** `gossnab ticket <create|list|comment|close|sync>`, `gossnab divan` (triagem assistida via Gemini ou Ollama), `gossnab new <slug>`, `gossnab catalog scan/list`, `gossnab batch push`.
+* **Auditoria Normativa:** `lunokhod check --strict --lang pt-br [--scope <scope>] [--json]`, `lunokhod test`, `lunokhod eval "<expr>"`.
+* **Entrega Contínua e Deploy:** `kombinat` (daemon de CD / container em `stacks/kombinat/compose.yaml`).
+* **Telemetria e Fronteira:** `kt daemon`, `kt infra sync`, `kt reconcile`, `kt queue status/flush`, `kt inbox clean`.
+
+---
+
+## 2. Identidade, Forja Canônica (`gambi.2lp.in`) e Espelhos
 
 ### 1.1 Parâmetros Canônicos do Maestro (`.cccprc`)
 No perfil Lilya, o Maestro `cccp` opera com os seguintes parâmetros canônicos de infraestrutura:
@@ -655,7 +501,7 @@ No perfil Lilya, o Maestro `cccp` opera com os seguintes parâmetros canônicos 
 ```ini
 agent_var_lang = portuguese
 
-# Forja Primária Soberana (Forgejo em gambi.2lp.in)
+# Forja Primária Canônica (Forgejo em gambi.2lp.in)
 primary_forge_type = forgejo
 primary_forge_domain = gambi.2lp.in
 primary_owner = lumen
@@ -668,7 +514,7 @@ mirror_owner = lumenpink
 ```
 
 ### 1.2 Topologia de Repositórios e Push Mirrors Duplos
-1. **Forja Primária Soberana:** Hospedada em `https://gambi.2lp.in/lumen/<slug>` (acesso SSH via porta 22 padrão em `git@gambi.2lp.in:lumen/<slug>.git`).
+1. **Forja Primária Canônica:** Hospedada em `https://gambi.2lp.in/lumen/<slug>` (acesso SSH via porta 22 padrão em `git@gambi.2lp.in:lumen/<slug>.git`).
 2. **Push Mirrors Automatizados (`sync_on_commit: true`):** A instância `gambi.2lp.in` replica imediatamente todo push recebido na branch `main` (e tags/branches persistentes) para dois espelhos externos de vitrine e preservação:
    - **Espelho FOSS:** Codeberg (`https://codeberg.org/lumenpink/<slug>`)
    - **Espelho Comunitário:** GitHub (`https://github.com/lumenpink/<slug>`)
@@ -685,7 +531,7 @@ Na auditoria da regra `GOST-10-CI-HERMETIC-SINGLE-FILE`, a esteira `.forgejo/wor
 
 ---
 
-## 2. Rodapé Canônico em Duas Linhas (Afirmação Identitária & Soberania)
+## 3. Rodapé Canônico em Duas Linhas (Afirmação Identitária & Autonomia)
 
 O perfil Lilya preenche o template estrutural de rodapé herdado do perfil Kollontai com a afirmação identitária transfeminista sul-americana nas 10 línguas oficiais da norma GOST.
 
@@ -707,7 +553,7 @@ Todo aplicativo com interface gráfica, TUI/CLI com rodapé formatado, vitrine p
 
 ### 2.3 Matriz Oficial de Tradução do Rodapé (10 Línguas)
 
-| ISO | Linha 1 (Afirmação Identitária Transfeminista) | Linha 2 (Metadados de Soberania e Licença) |
+| ISO | Linha 1 (Afirmação Identitária Transfeminista) | Linha 2 (Metadados de Autonomia e Licença) |
 |:---:|---|---|
 | **`pt`** | Orgulhosamente produzido por uma [travesti latina](https://travesti.2lp.in/pt/) 🏳️‍⚧️ :) | {title} v{ver} • por [Lumen Pink](https://lumen.pink) • Brasil 🇧🇷 • [{lic}](LICENSE) |
 | **`en`** | Proudly produced by a [Latin American travesti](https://travesti.2lp.in/en/) 🏳️‍⚧️ :) | {title} v{ver} • by [Lumen Pink](https://lumen.pink) • Brazil 🇧🇷 • [{lic}](LICENSE) |
@@ -722,7 +568,7 @@ Todo aplicativo com interface gráfica, TUI/CLI com rodapé formatado, vitrine p
 
 ---
 
-## 3. Publicação Web na Borda (`*.2lp.in`) e Empacotamento Dioxus
+## 4. Publicação Web na Borda (`*.2lp.in`) e Empacotamento Dioxus
 
 ### 3.1 Hospedagem Estática via Cloudflare Workers (`wrangler.jsonc`)
 Toda vitrine pública (`./site`) é publicada sob o domínio `<slug>.2lp.in` através de `wrangler.jsonc` na raiz:
@@ -762,25 +608,91 @@ icon = ["site/assets/icon.png"]
 
 ---
 
-## 4. Distribuição de Binários na Banca (`banca.2lp.in`)
+## 5. Distribuição e Catálogo da Banca (`banca.2lp.in` e Cloudflare R2)
 
-A autoridade central de distribuição de executáveis e pacotes definida na Seção 4 do perfil Kollontai reside em **`https://banca.2lp.in`** (servida via Cloudflare R2):
+A autoridade central de distribuição de executáveis e pacotes definida na Seção 4 do perfil Kollontai opera sob o modelo **Produtor–Curador Desacoplado** servido via Cloudflare R2 e publicado na borda:
 
-* **Vitrine Interativa:** `https://banca.2lp.in/downloads/#<slug>` (design brutalista/cyberpunk em Vanilla HTML/CSS/JS, sem frameworks pesados, com cópia rápida de comando `curl` e tabela de hashes SHA-256).
-* **Comando Universal de Instalação:**
+* **Topologia Física de Storage (Cloudflare R2):**
+  Todos os artefatos são mantidos sob o prefixo:
+  ```text
+  banca-artifacts/{app}/{channel}/
+  ```
+  - Artefatos versionados e hashes: `{app}-{versao}-{target}.{ext}` e `.sha256`.
+  - Cópias físicas de aliases sobrescritas: `{app}-latest-{target}.{ext}` (em `stable`) ou `{app}-dev-latest-{target}.{ext}` (em `dev`), juntamente com seus arquivos `.sha256`.
+* **Cotas Operacionais e Política de Retenção Estrita:**
+  - **Canal `stable` (Versão Recomendada):** Retém estritamente as **5 versões mais recentes** (`x.y.z`), com alias canônico `*-latest.*`.
+  - **Canal `dev` (Versão Experimental):** Retém estritamente as **10 versões mais recentes** (`x.y.z-dev.{n}+{YYYYMMDD}.{commit}`), com alias canônico `*-dev-latest.*`.
+  - Artefatos e hashes `.sha256` excedentes que ultrapassarem essas cotas são permanentemente purgados do bucket R2 pela esteira da Banca.
+* **Transição para o Gossnab e Banimento de Manifestos Estáticos:**
+  - **Banimento de `catalog.json` e `kombinat.toml` em Repositórios:** É expressamente banido manter arquivos estáticos de manifesto como `catalog.json` ou `kombinat.toml` dentro de repositórios de código.
+  - **SSOT Centralizado Vivo (`gossnab`):** O serviço vivo **`gossnab`** (`https://gossnab.2lp.in/api/v1`) é a Fonte Única da Verdade para metadados de release, canais, inventário de artefatos e versionamento do ecossistema.
+  - Durante o período de transição, a Banca gera e sincroniza views de compatibilidade retroativa em `https://banca.2lp.in/downloads/<slug>/index.json` consumindo a API viva do Gossnab.
+* **Comando Universal de Instalação e Vitrine:**
+  - Vitrine: `https://banca.2lp.in/downloads/#<slug>` (design brutalista/cyberpunk em Vanilla HTML/CSS/JS com cópia rápida de comando `curl` e tabela de hashes SHA-256).
   ```sh
   curl -sSf https://banca.2lp.in/downloads/<slug>/install.sh | sh
   ```
-* **Endpoint de Auto-Update:** Os binários CLI consultam `https://banca.2lp.in/downloads/<slug>/<channel>-latest.version` e `index.json` para o protocolo XDG de atualização (`<slug> check-update` / `<slug> update`).
-* **Retenção de Artefatos:** Política estrita de retenção de 5 estáveis e 10 compilações noturnas no Cloudflare R2.
+* **Protocolo de Auto-Update XDG:** Os binários CLI consultam diretamente a API viva do Gossnab (`https://gossnab.2lp.in/api/v1/apps/<slug>/update`) para o protocolo de auto-atualização (`<slug> check-update` / `<slug> update`), com fallback para `index.json`.
+* **Tolerância Zero a Links Quebrados:** Se qualquer artefato declarado (novo ou histórico ativo nas cotas 5/10) falhar na verificação de rede ou divergência de checksum SHA-256, o deploy na Cloudflare é abortado imediatamente e um ticket automático é aberto na forja do projeto de origem (`POST /api/v1/repos/{repo_slug}/issues`).
 
 ---
 
-## 5. Entrega Contínua de Servidores (CD em `obizero`, `obione` e `obitwo`)
+## 6. Segregação Arquitetural: Gambi (CI) vs. Kombinat (CD)
 
-Para serviços conteinerizados autohospedados, o perfil Lilya opera com **Continuous Deployment (CD) Determinístico** disparado diretamente pela fila `deploy` da esteira em `gambi.2lp.in`, com banimento total do Watchtower.
+Para eliminar atritos operacionais e garantir desacoplamento total entre integração contínua e entrega contínua, o perfil Lilya estabelece fronteiras estritas de responsabilidade:
 
-### 5.1 Padrão de Orquestração e Healthcheck Obrigatório
+### 6.1 O Papel da Gambi: Integração Contínua (CI)
+* **Escopo:** Compilação, execução de testes unitários e de integração, verificação de linters/formatação e empacotamento.
+* **Publicação Efêmera de Staging:** A esteira de CI em `gambi.2lp.in` publica artefatos compilados exclusivamente no Generic Package Registry da própria forja via `PUT /api/packages/{owner}/generic/{package_name}/{version}/{filename}`.
+* **Isolamento de Produção:** A CI da Gambi **NÃO** efetua conexões SSH em servidores de produção nem realiza uploads diretos para storages externos (Cloudflare R2 / Banca / Pratilera).
+
+### 6.2 O Papel do Kombinat: Entrega Contínua (CD) e Propagação em Cascata
+* **Ingestão e Despacho de Binários:** O Kombinat consome os artefatos efêmeros de staging da Gambi, valida assinaturas e hashes SHA-256, e realiza a publicação externa definitiva na Banca (Cloudflare R2) e Pratilera.
+* **Purga Imediata de Staging:** Imediatamente após a confirmação do despacho com sucesso, o Kombinat remove os artefatos efêmeros do registro da Gambi emitindo `DELETE /api/packages/{owner}/generic/{package_name}/{version}/{filename}`, mantendo a forja limpa e sem acúmulo de storage.
+* **Propagação Automatizada em Cascata:** Ao detectar uma nova versão canônica de desenvolvimento publicada a montante (upstream), o Kombinat orquestra a propagação dos bumps exatos nos manifestos de compilação dos módulos a jusante (downstream). A fixação em versões canônicas exatas é recomendada, sem impor qualquer trava mandatória contra o uso prático de aliases.
+* **Eliminação de Tags Mutáveis em Build Determinístico:**
+  - É expressamente proibida a utilização de tags mutáveis (como `:latest`, `latest` flutuante ou referências dinâmicas não rastreadas) em scripts de compilação, dependências internas e imagens de base em pipelines de build determinístico.
+  - Todo build reprodutível e determinístico deve ancorar-se em tags SemVer imutáveis (`x.y.z` ou `x.y.z-dev.{n}+{YYYYMMDD}.{commit}`). Aliases de conveniência (`*-latest.*`) são reservados unicamente para links de consumo e vitrine externa da Banca / R2, nunca para acoplamento interno de compilação.
+* **Contrato Universal de FFI / C-ABI de Versão:**
+  - Toda crate Rust do ecossistema deve exportar a constante `pub const VERSION: &str = env!("CARGO_PKG_VERSION");` em sua raiz pública de biblioteca (`src/lib.rs`).
+  - Para projetos que compilam bibliotecas estáticas vinculadas via C-ABI (`crate-type = ["staticlib"]`), é mandatório expor o símbolo FFI externamente visível `#[no_mangle] pub extern "C" fn <crate_name>_version() -> *const std::os::raw::c_char` para introspecção determinística de linkagem estática.
+* **Inspeção Canônica de Ecossistema no CLI:**
+  - Binários de ponta com interface de comando devem implementar `--version --all` para listar a árvore completa de versões dos submódulos e bibliotecas estáticas C-ABI embutidas.
+  - Devem também implementar `--version --json` para emitir a árvore de dependências e diagnóstico do ecossistema em formato estruturado legível por máquina para o Kombinat.
+* **Entrega Contínua de Servidores (CD):** O Kombinat assume a responsabilidade de acionar as atualizações dos serviços conteinerizados via SSH nos servidores (`obizero`, `obione`, `obitwo`), disparando `docker compose pull && docker compose up -d` e restart de containers.
+
+### 6.3 Webhooks Multi-Forja e Loop de Reconciliação no Gossnab
+* **Ingestão Multi-Forja:** Repositórios registrados no Gossnab possuem webhooks ativos apontando para o Gossnab (suportando Forgejo/Gambi, GitHub e SourceHut).
+* **Loop de Reconciliação Anti-Drift:** Para mitigar falhas ou perdas de entrega de webhooks sem retentativa nativa, o Gossnab executa uma rotina periódica de conciliação a cada $N$ minutos, utilizando cabeçalhos condicionais HTTP (`ETag` e `If-Modified-Since`) para evitar requisições redundantes e rate limits.
+
+### 6.4 Registries Autônomos Integrados: Container Registry OCI e Cargo Registry (`git.2lp.in`)
+Para garantir independência de upstream, imunidade a cotas e rate limits externos (Docker Hub, GHCR, crates.io) e latência de loopback no nó central, a forja autônoma disponibiliza registries integrados:
+
+#### 1. Container Registry OCI / Docker
+* **Endpoint Canônico:** `git.2lp.in/<owner>/<image>:<tag>` (com alias `gambi.2lp.in/<owner>/<image>:<tag>`).
+* **Autenticação:** Autenticação padrão via `docker login git.2lp.in` utilizando Personal Access Token (PAT) com escopo de leitura/escrita em pacotes.
+* **Persistência de Armazenamento:** Os pacotes e camadas de contêiner são montados no storage persistente em `/media/hd1/forgejo/data/packages`, preservando o SSD do nó central contra desgaste e saturação de espaço em disco.
+* **Política de Tags:** Tags SemVer estritas para builds estáveis (`x.y.z`) e builds de desenvolvimento (`x.y.z-dev.{n}+{YYYYMMDD}.{commit}`).
+
+#### 2. Cargo Registry (Rust)
+* **Registro de Crates do Ecossistema:** Registro autônomo hospedado em `git.2lp.in` para distribuição e consumo de bibliotecas e crates compartilhadas entre os projetos do ecossistema.
+* **Configuração Canônica em `.cargo/config.toml`:**
+  ```toml
+  [registries.gambi]
+  index = "sparse+https://git.2lp.in/api/packages/lumen/cargo/"
+
+  [registry]
+  default = "gambi"
+  ```
+* **Publicação:** `cargo publish --registry gambi` autenticado via token canônico da forja.
+
+---
+
+## 7. Entrega Contínua de Servidores (CD em `obizero`, `obione` e `obitwo`)
+
+Para serviços conteinerizados autohospedados, o perfil Lilya opera com **Continuous Deployment (CD) Determinístico** orquestrado pelo **Kombinat CD** (eliminando etapas de SSH e deploy direto da esteira de CI), com banimento total do Watchtower.
+
+### 7.1 Padrão de Orquestração e Healthcheck Obrigatório
 Todos os serviços residem em `~/stacks/<slug>/compose.yaml` (estritamente com extensão `.yaml`, sendo banida a extensão `.yml`) e declaram probe ativa de saúde:
 
 ```yaml
@@ -797,7 +709,7 @@ services:
       start_period: 10s
 ```
 
-### 5.2 Topologia de Deploy por Nó de Infraestrutura
+### 7.2 Topologia de Deploy por Nó de Infraestrutura
 
 #### 1. Nó Central de Execução (`obizero` — Deploy Local via Socket)
 * O `forgejo-runner` executa no host `obizero` com o socket Docker montado.
@@ -819,9 +731,15 @@ services:
      docker image prune -f"
   ```
 
+### 7.3 Mandato de Conteinerização Universal em Stacks e Topologia de Rede
+1. **Banimento de Daemons no Host:** É estritamente proibido rodar serviços, APIs ou daemons de backend diretamente instalados no sistema operacional hospedeiro dos servidores (`obizero`, `obione`, `obitwo`). Todo serviço roda isolado via `~/stacks/<slug>/compose.yaml`.
+2. **Topologia de Segurança e Ingress:**
+   - **Ponto Único de Ingress Público:** Apenas o Gossnab possui porta pública exposta (via Cloudflare Tunnel / Gateway reverso) para recepção de webhooks das forjas externas e atendimento à Banca.
+   - **Isolamento do Kombinat:** O Kombinat opera estritamente confinado na rede privada interna, sem portas abertas para a internet pública, interagindo como cliente ativo unidirecional para tarefas de orquestração, build, assinatura, publicação externa e deploy via SSH.
+
 ---
 
-## 6. Sobreposição de Regras de Conformidade (`lilya_rules.json`)
+## 8. Sobreposição de Regras de Conformidade (`lilya_rules.json`)
 
 Quando o `cccp sync` compila as regras para um repositório sob o perfil Lilya, as seguintes parametrizações específicas sobrepõem (*deep merge*) o `rules.json` base da GOST:
 
@@ -856,3 +774,163 @@ Quando o `cccp sync` compila as regras para um repositório sob o perfil Lilya, 
 
 ---
 
+## 9. Conformidade Operacional de Interfaces CLI (*Post-Build*)
+
+Todo utilitário CLI ou ferramenta de linha de comando voltada a desenvolvedores e usuárias finais, quando submetido à validação no escopo canônico `post-build`, DEVE:
+1. **Flag de Ajuda Informativa (`--help`):** Responder com código 0 e texto estruturado de instruções mínimas de operação.
+2. **Fidelidade Canônica de Versão (`--version`):** Responder com código 0 e texto contendo a versão exata do manifesto `VERSION` ou `Cargo.toml`.
+3. **Ciclo de Vida e Atualização:** Quando aplicável ao canal de distribuição, manter subcomando canônico de verificação ou atualização (`update` / `self-update`) integrado aos canais da Banca.
+
+
+---
+
+## 10. Portarias Operacionais da Fábrica Tulipa (LILYA-001 a LILYA-009)
+
+O perfil Lilya consolida as regras operacionais idiossincráticas da fábrica de software Tulipa, subordinadas aos decretos da Kollontai e às diretrizes do GOSPLAN:
+
+| ID | Nome Canônico | Escopo | Descrição Sumária |
+| :--- | :--- | :--- | :--- |
+| **LILYA-001** | `VERSION-NO-V-PREFIX` | `project` | Proíbe estritamente o uso do prefixo 'v' no arquivo canônico `VERSION`. |
+| **LILYA-002** | `TRANSFEMINIST-IDENTITY-REQUIRED` | `project` | Exige a afirmação de identidade transfeminista (`travesti`, `lumen.pink`) na documentação ou site. |
+| **LILYA-003** | `PRIMARY-FORGE-GAMBI-CANONICAL` | `project` | Declaração mandatória da forja canônica Tulipa `gambi.2lp.in` em `.cccprc`. |
+| **LILYA-004** | `CCCPRC-FILE-REQUIRED` | `project` | Presença e configuração obrigatória do arquivo `.cccprc` na raiz do repositório. |
+| **LILYA-005** | `STATIC-MANIFESTS-PROHIBITED` | `project` | Proibição estrita de manifestos estáticos `catalog.json` e `kombinat.toml`. |
+| **LILYA-006** | `STRICT-COMPOSE-YAML-EXTENSION` | `project` | Proibição de `.yml` e `docker-compose.yml`, exigindo estritamente `compose.yaml`. |
+| **LILYA-007** | `METADATA-MANIFEST-SCHEMA` | `project` | Validação de schema do manifesto canônico de metadados Gossnab `.gost/metadata.json`. |
+| **LILYA-008** | `CLI-HELP-INFORMATIVE-POST-BUILD` | `post-build` | Validação pós-compilação de texto informativo e estruturado via flag `--help`. |
+| **LILYA-009** | `CLI-VERSION-METADATA-PARITY-POST-BUILD` | `post-build` | Validação pós-compilação de paridade exata da saída de `--version` com o arquivo `VERSION`. |
+
+---
+
+
+
+<!-- ===================================================================== -->
+<!-- ESPECIFICAÇÃO TÁTICA DA STACK: RUST -->
+<!-- ===================================================================== -->
+
+# GOST Language Specification: Rust
+**Identificador da Stack:** `rust`  
+**Padrão Base:** GOST `2.0.0`
+
+---
+
+## 1. Visão Geral e Filosofia
+Esta especificação define os requisitos de engenharia, ferramentas e padrões para desenvolvimento em **Rust** (edição 2024 canônica, compilador `rustc >= 1.99.0`) no ecossistema GOST.
+
+---
+
+## 2. Ferramental Mandatório de Testes & Qualidade
+
+| Requisito GOST | Ferramenta Padrão | Comando de Validação no CI |
+|---|---|---|
+| **Test Runner** | **Cargo Test** | `cargo test --all-targets --all-features` |
+| **Cobertura (≥ 90%)** | **cargo-llvm-cov** / **tarpaulin** | `cargo llvm-cov --fail-under-lines 90` |
+| **Testes de Mutação** | **cargo-mutants** | `cargo mutants --in-diff --no-shuffle` |
+| **Linter (Zero Warnings)** | **Clippy** | `cargo clippy --all-targets --all-features -- -D warnings` |
+| **Formatação Determinística** | **rustfmt** | `cargo fmt -- --check` |
+| **Auditoria de Segurança** | **cargo-audit** | `cargo audit` |
+
+---
+
+## 3. Gestão de Dependências (Twelve-Factor)
+1. **Lockfile Obrigatório:** O arquivo `Cargo.lock` **DEVE** estar commitado na raiz.
+2. **Dependências Mínimas:** Evitar crates pesadas quando a biblioteca padrão for suficiente. Feature flags ativadas apenas sob necessidade estrita.
+3. **Compilação Hermética:** Builds de produção usam `--locked` para garantir que nenhuma dependência transitória flutue:
+   ```bash
+   cargo build --release --locked
+   ```
+
+---
+
+## 4. Arquitetura de Domínio & SOLID Pragmático (Regra GOST-27)
+1. **Pureza de Domínio (Zero I/O no Core):** O diretório `src/domain/` é estritamente puro. É terminantemente proibido importar módulos de sistema ou I/O dentro do Core: `std::fs`, `std::net`, `std::process`, `std::env`, `tokio::fs`, `tokio::net`, `reqwest`, `rusqlite`, `sqlx` ou `clap`.
+2. **Estrutura de Pastas Canônica:**
+   ```text
+   src/
+   ├── domain/             # Modelos e regras de negócio puras (sem I/O)
+   │   ├── mod.rs
+   │   ├── entity.rs       # Invariantes e structs de dados
+   │   ├── status.rs       # Enums nativos para máquinas de estado
+   │   └── ports.rs        # Traits de I/O (Output Ports)
+   ├── application/        # Use cases e orquestração
+   │   ├── mod.rs
+   │   └── use_cases.rs
+   ├── adapters/           # Adaptadores de I/O
+   │   ├── mod.rs
+   │   ├── in_memory.rs    # Fake em memória com HashMap (testes herméticos)
+   │   ├── sqlite.rs       # Persistência concreta
+   │   └── cli.rs          # Parser de linha de comando (clap)
+   └── main.rs             # Composition Root (bootstrap e injeção)
+   ```
+3. **In-Memory Fakes:** Testes unitários instanciam structs que implementam os traits de domínio armazenando dados em `HashMap` ou `RwLock<Vec<T>>` na memória, rodando em microssegundos sem dependência de SQLite ou sockets. Fakes e adaptadores reais compartilham os mesmos testes de contrato (LSP).
+4. **Parse, Don't Validate:** Validação de entradas externas na borda (parsers `clap` ou DTOs `serde`). O Core opera com primitivos confiáveis ou structs transparentes.
+5. **Estados com Enums Nativos:**
+   ```rust
+   pub enum TaskState {
+       Pending,
+       Running { started_at: u64 },
+       Finished { exit_code: i32 },
+       Failed { error: String },
+   }
+   ```
+
+---
+
+## 5. Padrões de Sistema e Containers OCI
+1. **Conformidade XDG:**
+   Resolução de diretórios respeita variáveis de ambiente com fallback para `$HOME`:
+   ```rust
+   pub fn config_dir(app: &str) -> std::path::PathBuf {
+       std::env::var("XDG_CONFIG_HOME")
+           .map(std::path::PathBuf::from)
+           .unwrap_or_else(|_| {
+               let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+               std::path::PathBuf::from(home).join(".config")
+           })
+           .join(app)
+   }
+   ```
+2. **Dockerfile Canônico (Multi-stage + Scratch Estático musl com CA-Certs):**
+   ```dockerfile
+   FROM rust:1.99-alpine AS builder
+   RUN apk add --no-cache musl-dev ca-certificates
+   WORKDIR /build
+   COPY Cargo.toml Cargo.lock ./
+   COPY src ./src
+   RUN cargo build --release --target x86_64-unknown-linux-musl --locked
+
+   FROM scratch
+   USER 1000:1000
+   COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+   COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/app /usr/local/bin/app
+   ENTRYPOINT ["/usr/local/bin/app"]
+   ```
+3. **Streams:** Saída pura de dados via `println!()`, logs e mensagens diagnósticas via `eprintln!()` ou crate `tracing`/`env_logger` configurada para `stderr`.
+
+---
+
+## 6. Otimização de Binário de Release & Linking Estático
+
+### 1. Perfil de Release Canônico (`[profile.release]`)
+Para assegurar a máxima redução de tamanho binário, eliminação de símbolos mortos e prevenção de overhead de desbobinamento de pilha (*stack unwinding*), projetos Rust no ecossistema GOST devem declarar o perfil canônico em seus manifests `Cargo.toml`:
+
+```toml
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+```
+
+### 2. Linking Estático musl (`crt-static`)
+Para garantir independência total do carregador dinâmico (`ld-linux`) e máxima portabilidade em ambientes Linux glibc e musl, a compilação contra alvos `x86_64-unknown-linux-musl` e `aarch64-unknown-linux-musl` deve habilitar o flag `crt-static`:
+
+```toml
+# .cargo/config.toml
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=+crt-static"]
+```

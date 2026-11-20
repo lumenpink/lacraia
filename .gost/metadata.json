@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "slug": "lacraia",
+  "title": "La Craia",
+  "site_type": "app",
+  "tagline": "Serviço e tocador de áudio e streaming minimalista",
+  "summary": "Servidor de streaming, biblioteca e tocador de áudio de alta performance em Rust puro.",
+  "abstract": "A La Craia é um ecossistema completo para gestão de acervo de mídia e streaming contínuo via HTTP Byte-Range, fornecendo interfaces nativas de terminal, API JSON e web.",
+  "tags": [
+    "lacraia",
+    "audio",
+    "streaming",
+    "music",
+    "rust",
+    "cli"
+  ],
+  "icon": "🦞",
+  "theme": {
+    "bg_color": "#181825",
+    "accent_color": "#f38ba8"
+  }
+}

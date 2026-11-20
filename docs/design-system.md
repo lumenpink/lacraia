@@ -159,7 +159,7 @@ A tela principal do software organiza-se como um chassi modular aparafusado:
 ## 8. Implementações de Referência
 
 * **Portal de Documentação (`site/index.html`):**  
-  Implementação viva de referência dos tokens CSS, chassi de ferro com pintura bate-pedra, leds de telemetria, divisórias de fita isolante zebrada, os 4 callouts temáticos e o botão com efeito tátil mecânico `[ CLACK! ]`. Organizado em 6 cadernos metaméricos (iniciando pelo manifesto de soberania acústica em Caderno 01 e finalizando no Manual de Identidade Visual em Caderno 06).
+  Implementação viva de referência dos tokens CSS, chassi de ferro com pintura bate-pedra, leds de telemetria, divisórias de fita isolante zebrada, os 4 callouts temáticos e o botão com efeito tátil mecânico `[ CLACK! ]`. Organizado em 6 cadernos metaméricos (iniciando pelo manifesto de autonomia acústica em Caderno 01 e finalizando no Manual de Identidade Visual em Caderno 06).
 * **Favicon e Identidade Vetorial do Exoesqueleto (`site/favicon.svg` e `site/assets/icon.svg`):**  
   Ícone geométrico puro da cabeça sensorial da lacraia combinando placa cefálica com chanfro brutalista em `--fucsia-furacao` e `--ferro-painel`, ocelos em `--veneno-eletrico`, forcípulas peçonhentas e antenas curvas estilizadas. Empregado como favicon SVG universal e exibido no painel de comando (`top-panel`) do chassi e no cabeçalho do console do paredão (`site/app/index.html`).
 * **Cinemática Biomecânica das Antenas Sensoriais (Ticket #24):**  

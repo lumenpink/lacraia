@@ -264,7 +264,7 @@ This sprint focuses on continuous flow, soundwall console controls, smart cachin
 * **Package:** `packages/lacraia-core`, `site/app/index.html`, `docs/architecture.md`, `docs/roadmap.md`
 * **Goal:** Implementar o controle de acesso de três níveis (Master, Piloto, Passageiro) com rotação dinâmica de senhas e autenticação por cabine.
 * **Acceptance Criteria:**
-  - **Autenticação Master (`LACRAIA_MASTER_KEY`):** Chave mestra imutável via variável de ambiente concedendo soberania administrativa sobre qualquer cabine do sistema.
+  - **Autenticação Master (`LACRAIA_MASTER_KEY`):** Chave mestra imutável via variável de ambiente concedendo autonomia administrativa sobre qualquer cabine do sistema.
   - **Chaves de Embarque Rotativas de Passageiros:** Geração e rotação instantânea de PINs alfanuméricos de 6 caracteres via `/api/cabin/rotate-key` invalidando passageiros anteriores.
   - **Persistência Segura em SQLite:** Tabelas `cabins` e `passengers` armazenando tokens e metadados de acesso.
   - **Ejeção Atômica de Tripulantes:** Comandos de ejeção individual e coletiva com encerramento de sessão em tempo real via WebSocket.

@@ -9,7 +9,7 @@
 
 ### 1. Escopo e Objetivos
 
-Esta especificação define a arquitetura técnica, interfaces de linha de comando, modelo de configuração e esteira de distribuição soberana para o **La Craia (`lacraia`)**, em estrita conformidade com as diretivas do Perfil Lumen da norma GOST:
+Esta especificação define a arquitetura técnica, interfaces de linha de comando, modelo de configuração e esteira de distribuição autônoma para o **La Craia (`lacraia`)**, em estrita conformidade com as diretivas do Perfil Lumen da norma GOST:
 
 1. **Protocolo OpenDesktop (XDG Base Directory):**
    - Configuração de usuário persistida em `$XDG_CONFIG_HOME/lacraia/config.toml` (fallback canônico: `~/.config/lacraia/config.toml`).
@@ -34,8 +34,8 @@ Esta especificação define a arquitetura técnica, interfaces de linha de coman
    - `lacraia config set-channel <stable|nightly>`
    - `lacraia config set-auto-check <true|false>`
    - `lacraia config set-auto-update <true|false>`
-5. **Distribuição Soberana na Banca (`banca.2lp.in`):**
-   - Binários compilados no runner soberano e publicados via Cloudflare R2 sob o prefixo `https://banca.2lp.in/downloads/lacraia/`.
+5. **Distribuição Autônoma na Banca (`banca.2lp.in`):**
+   - Binários compilados no runner autônomo e publicados via Cloudflare R2 sob o prefixo `https://banca.2lp.in/downloads/lacraia/`.
    - Política de retenção: 5 versões estáveis mais recentes (`stable-latest`) e 10 nightlies mais recentes (`nightly-latest`).
    - Manifesto atômico `index.json`, além dos arquivos pontuais `version` e `nightly-version`.
    - Veto absoluto a binários pesados nas Releases do Codeberg.

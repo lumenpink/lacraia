@@ -36,7 +36,7 @@ jobs:
           fi
 
       - name: "Format Check"
-        run: cargo fmt -- --check
+        run: cargo fmt --check
 
       - name: "Clippy Check (Zero Warnings)"
         run: cargo clippy --workspace -- -D warnings
@@ -411,7 +411,7 @@ jobs:
         run: |
           SSH_HOST="${OBIZERO_SSH_HOST:-172.17.0.1}"
           SSH_USER="${OBIZERO_SSH_USER:-lumen}"
-          echo "-> Iniciando deploy soberano no nó obizero ($SSH_HOST)..."
+          echo "-> Iniciando deploy autônomo no nó obizero ($SSH_HOST)..."
 
           if [ -f ~/.ssh/id_obitwo ]; then
             SSH_OPTS="-i ~/.ssh/id_obitwo -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
