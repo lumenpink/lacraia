@@ -1,6 +1,6 @@
 {
   "name": "lacraia-e2e-tests",
-  "version": "0.2.0-dev.343+20261115.662b901",
+  "version": "0.2.0-dev.344+20261120.9561b69",
   "private": true,
   "type": "module",
   "scripts": {
