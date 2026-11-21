@@ -61,8 +61,6 @@ jobs:
     container:
       image: gambi.2lp.in/lumen/gost-ci-cross:latest
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       GIT_2LP_TOKEN: ${{ secrets.GIT_2LP_TOKEN }}
     steps:
       - name: "Checkout repository"
@@ -146,113 +144,17 @@ jobs:
           sha256sum * > SHA256SUMS
           cd "$GITHUB_WORKSPACE"
 
-      - name: "Upload Artifacts to Cloudflare R2"
+      - name: "Publish Artifacts & Site Bundle to Forgejo Generic Packages"
+        env:
+          GAMBI_2LP_IN_TOKEN: ${{ secrets.REGISTRY_TOKEN || secrets.GAMBI_2LP_IN_TOKEN || secrets.FORGEJO_TOKEN || secrets.GIT_2LP_TOKEN }}
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
-          CHANNEL="${{ steps.meta.outputs.channel }}"
-
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "Aviso: CLOUDFLARE_API_TOKEN ausente. Pulando upload R2."
-            exit 0
-          fi
-
-          upload_r2_with_retry() {
-            local target="$1"
-            local file="$2"
-            local max_attempts=4
-            local attempt=1
-            local delay=5
-
-            while [ "$attempt" -le "$max_attempts" ]; do
-              echo "  -> Enviando $file para $target (tentativa $attempt/$max_attempts)..."
-              if npx wrangler r2 object put "$target" --file="$file" --remote; then
-                echo "  ✓ Upload concluído com sucesso: $target"
-                return 0
-              fi
-              echo "  ⚠️ Falha transitória ao enviar para o R2 (tentativa $attempt/$max_attempts). Aguardando ${delay}s..."
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-
-            echo "❌ ERRO CRÍTICO: Falha permanente após $max_attempts tentativas ao publicar no Cloudflare R2: $target"
-            exit 1
-          }
-
-          echo "★ Publicando artefatos versionados no R2 (twolp-bucket)..."
-          for pkg in dist/packages/*; do
-            [ -f "$pkg" ] || continue
-            filename=$(basename "$pkg")
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}/${filename}" "$pkg"
+          for PKG in dist/packages/*; do
+            [ -f "$PKG" ] || continue
+            cccp package upload "$PKG" --version "$VERSION"
           done
-
-          echo "★ Publicando binários unificados em latest..."
-          if [ -f target/x86_64-unknown-linux-musl/release/lacraia ]; then
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia" target/x86_64-unknown-linux-musl/release/lacraia
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-amd64" target/x86_64-unknown-linux-musl/release/lacraia
-          fi
-          if [ -f target/aarch64-unknown-linux-musl/release/lacraia ]; then
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia-linux-arm64" target/aarch64-unknown-linux-musl/release/lacraia
-          fi
-          if [ -f target/x86_64-pc-windows-gnu/release/lacraia.exe ]; then
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${CHANNEL}-latest/lacraia.exe" target/x86_64-pc-windows-gnu/release/lacraia.exe
-          fi
-
-      - name: "Update & Rotate Release Manifest in Banca Repo"
-        run: |
-          VERSION="${{ steps.meta.outputs.version }}"
-          CHANNEL="${{ steps.meta.outputs.channel }}"
-
-          if [ -z "$GIT_2LP_TOKEN" ]; then
-            echo "Aviso: GIT_2LP_TOKEN ausente. Pulando rotação na Banca."
-            exit 0
-          fi
-
-          git clone --depth 1 "https://lumen:${GIT_2LP_TOKEN}@gambi.2lp.in/lumen/banca.git" /tmp/banca
-
-          if [ -d "/tmp/banca/site/downloads/lacraia" ] && [ -f "/tmp/banca/scripts/rotate-downloads.py" ]; then
-            cd /tmp/banca
-
-            for ARCH in "linux-amd64" "linux-arm64" "windows-amd64"; do
-              EXT="tar.gz"
-              [ "$ARCH" = "windows-amd64" ] && EXT="zip"
-              PKG_FILE="lacraia-${VERSION}-${ARCH}.${EXT}"
-              HASH=$(sha256sum "$GITHUB_WORKSPACE/dist/packages/$PKG_FILE" 2>/dev/null | awk '{print $1}' || echo "")
-              DOWNLOAD_URL="https://banca.2lp.in/downloads/lacraia/${CHANNEL}/${PKG_FILE}"
-
-              python3 scripts/rotate-downloads.py \
-                --manifest site/downloads/lacraia/index.json \
-                --channel "${CHANNEL}" \
-                --arch "${ARCH}" \
-                --version-str "${VERSION}" \
-                --url "${DOWNLOAD_URL}" \
-                --sha256 "${HASH}" \
-                --tarball "${PKG_FILE}" \
-                --app "lacraia"
-            done
-
-            git config user.name "Lacraia Release Bot"
-            git config user.email "bot@2lp.in"
-            git add site/downloads/lacraia/index.json
-            if ! git diff --staged --quiet; then
-              git commit -m "chore(downloads): rotate lacraia release to ${VERSION} (#55)"
-              for attempt in 1 2 3 4 5; do
-                if git push origin main; then
-                  echo "✓ Manifesto da Banca atualizado com sucesso."
-                  break
-                fi
-                echo "⚠️ Falha ao empurrar manifesto para Banca (tentativa $attempt/5). Reexecutando pull --rebase..."
-                git pull --rebase origin main || true
-                sleep 3
-                if [ "$attempt" -eq 5 ]; then
-                  echo "❌ ERRO CRÍTICO: Não foi possível empurrar manifesto para Banca após 5 tentativas."
-                  exit 1
-                fi
-              done
-            else
-              echo "Manifesto já se encontra atualizado na Banca."
-            fi
-            cd "$GITHUB_WORKSPACE"
+          if [ -d site ]; then
+            cccp package upload site --version "$VERSION"
           fi
 
   deploy-apk:
@@ -263,8 +165,6 @@ jobs:
     container:
       image: gambi.2lp.in/lumen/gost-ci-android:latest
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       GAMBI_2LP_IN_TOKEN: ${{ secrets.GAMBI_2LP_IN_TOKEN }}
     steps:
       - name: "Checkout repository"
@@ -320,65 +220,15 @@ jobs:
           }
           EOF
 
-      - name: "Upload APKs to Cloudflare R2"
-        run: |
-          upload_r2_with_retry() {
-            local target="$1"
-            local file="$2"
-            local max_attempts=4
-            local attempt=1
-            local delay=5
-            while [ "$attempt" -le "$max_attempts" ]; do
-              echo "  -> Enviando $file para $target (tentativa $attempt/$max_attempts)..."
-              if npx wrangler r2 object put "$target" --file="$file" --remote; then
-                echo "  ✓ Upload concluído com sucesso: $target"
-                return 0
-              fi
-              echo "  ⚠️ Falha transitória ao enviar para o R2 (tentativa $attempt/$max_attempts). Aguardando ${delay}s..."
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-            echo "❌ ERRO CRÍTICO: Falha permanente após $max_attempts tentativas ao publicar no Cloudflare R2: $target"
-            exit 1
-          }
-
-          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "★ Publicando APKs canônicos na raiz do bucket para A Pratilera..."
-            upload_r2_with_retry "twolp-bucket/lacraia.apk" dist/lacraia.apk
-            upload_r2_with_retry "twolp-bucket/simbiotyka.apk" dist/simbiotyka.apk
-
-            echo "★ Publicando APKs versionados por canal..."
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${{ steps.meta.outputs.channel }}/lacraia.apk" dist/lacraia.apk
-            upload_r2_with_retry "twolp-bucket/downloads/lacraia/${{ steps.meta.outputs.channel }}/simbiotyka.apk" dist/simbiotyka.apk
-
-            if [ -f site/version.json ]; then
-              upload_r2_with_retry "twolp-bucket/downloads/lacraia/version.json" site/version.json
-            fi
-          else
-            echo "Aviso: CLOUDFLARE_API_TOKEN ausente. Pulando upload R2."
-          fi
-
-  trigger-pratilera:
-    name: "Trigger Pratilera Store Update in Banca"
-    runs-on: ubuntu-latest
-    needs: [deploy-apk]
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: "Trigger Pratilera Store Update"
+      - name: "Publish Signed APKs to Forgejo Generic Packages"
         env:
-          GAMBI_2LP_IN_TOKEN: ${{ secrets.GAMBI_2LP_IN_TOKEN }}
+          GAMBI_2LP_IN_TOKEN: ${{ secrets.REGISTRY_TOKEN || secrets.GAMBI_2LP_IN_TOKEN || secrets.FORGEJO_TOKEN || secrets.GIT_2LP_TOKEN }}
         run: |
-          if [ -n "$GAMBI_2LP_IN_TOKEN" ]; then
-            echo "-> Notificando a Pratilera (Banca) para atualizar o catálogo..."
-            curl -s -X POST \
-              -H "Authorization: token $GAMBI_2LP_IN_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://gambi.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches" \
-              -d '{"ref": "main"}' || true
-          else
-            echo "GAMBI_2LP_IN_TOKEN ausente, pulando disparo remoto da Pratilera."
-          fi
+          VERSION="${{ steps.meta.outputs.version }}"
+          for apk in dist/apk/*.apk site/*.apk; do
+            [ -f "$apk" ] || continue
+            cccp package upload "$apk" --version "$VERSION"
+          done
 
   build-and-deploy-docker:
     name: "Container — Build & Sovereign CD (obizero)"
@@ -403,125 +253,3 @@ jobs:
           echo "$GAMBI_TOKEN" | docker login -u lumen --password-stdin gambi.2lp.in
           docker push gambi.2lp.in/lumen/lacraia:latest
 
-      - name: "Sovereign CD on obizero via SSH"
-        env:
-          OBIZERO_SSH_HOST: ${{ secrets.OBIZERO_SSH_HOST }}
-          OBIZERO_SSH_USER: ${{ secrets.OBIZERO_SSH_USER }}
-          OBIZERO_SSH_KEY: ${{ secrets.OBIZERO_SSH_KEY }}
-        run: |
-          SSH_HOST="${OBIZERO_SSH_HOST:-172.17.0.1}"
-          SSH_USER="${OBIZERO_SSH_USER:-lumen}"
-          echo "-> Iniciando deploy autônomo no nó obizero ($SSH_HOST)..."
-
-          if [ -f ~/.ssh/id_obitwo ]; then
-            SSH_OPTS="-i ~/.ssh/id_obitwo -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          elif [ -f ~/.ssh/id_ed25519 ]; then
-            SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          elif [ -n "$OBIZERO_SSH_KEY" ]; then
-            mkdir -p ~/.ssh && chmod 700 ~/.ssh
-            echo "$OBIZERO_SSH_KEY" > /tmp/id_ci_obizero
-            chmod 600 /tmp/id_ci_obizero
-            SSH_OPTS="-i /tmp/id_ci_obizero -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          else
-            SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          fi
-
-          ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "
-            set -eo pipefail
-            cd ~/stacks/lacraia
-            OLD_IMAGE_ID=\$(docker inspect --format='{{.Id}}' gambi.2lp.in/lumen/lacraia:latest 2>/dev/null || true)
-            echo \"OLD_IMAGE_ID=\$OLD_IMAGE_ID\"
-
-            echo '-> Aplicando atualizacao no container lacraia...'
-            docker compose -f compose.yaml up -d --no-build lacraia
-
-            echo '-> Sondando estabilidade do container lacraia (polling 15s)...'
-            SUCCESS=0
-            for i in \$(seq 1 15); do
-              STATUS=\$(docker inspect --format='{{.State.Status}}' lacraia 2>/dev/null || echo 'unknown')
-              if [ \"\$STATUS\" = 'running' ]; then
-                echo \"  [PASS] Container lacraia saudavel e ativo (tentativa \$i/15).\"
-                SUCCESS=1
-                break
-              fi
-              sleep 1
-            done
-
-            if [ \$SUCCESS -ne 1 ]; then
-              echo '✘ [FALHA] Container nao estabilizou no prazo limite! Acionando Rollback...'
-              if [ -n \"\$OLD_IMAGE_ID\" ]; then
-                docker tag \"\$OLD_IMAGE_ID\" gambi.2lp.in/lumen/lacraia:latest
-                docker compose -f compose.yaml up -d --no-build lacraia
-                echo \"✔ Rollback concluido para imagem anterior \$OLD_IMAGE_ID.\"
-              fi
-              exit 1
-            fi
-
-            echo '-> Limpando camadas orfas...'
-            docker image prune -f
-          "
-
-      - name: "CD on obione via SSH (Micro-Relay)"
-        env:
-          OBIONE_SSH_HOST: ${{ secrets.OBIONE_SSH_HOST }}
-          OBIONE_SSH_USER: ${{ secrets.OBIONE_SSH_USER }}
-          OBIONE_SSH_KEY: ${{ secrets.OBIONE_SSH_KEY }}
-        run: |
-          SSH_HOST="${OBIONE_SSH_HOST:-100.124.111.43}"
-          SSH_USER="${OBIONE_SSH_USER:-ubuntu}"
-          echo "-> Iniciando deploy no nó obione ($SSH_HOST)..."
-
-          if [ -f ~/.ssh/id_obitwo ]; then
-            SSH_OPTS="-i ~/.ssh/id_obitwo -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          elif [ -f ~/.ssh/id_ed25519 ]; then
-            SSH_OPTS="-i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          elif [ -n "$OBIONE_SSH_KEY" ]; then
-            mkdir -p ~/.ssh && chmod 700 ~/.ssh
-            echo "$OBIONE_SSH_KEY" > /tmp/id_ci_obione
-            chmod 600 /tmp/id_ci_obione
-            SSH_OPTS="-i /tmp/id_ci_obione -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          else
-            SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
-          fi
-
-          ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "
-            set -eo pipefail
-            if [ -d ~/stacks/relay ]; then
-              cd ~/stacks/relay
-              OLD_IMAGE_ID=\$(docker inspect --format='{{.Id}}' gambi.2lp.in/lumen/lacraia:latest 2>/dev/null || true)
-              echo \"OLD_IMAGE_ID=\$OLD_IMAGE_ID\"
-
-              echo '-> Puxando imagem mais recente...'
-              docker compose pull || true
-
-              echo '-> Aplicando atualizacao no container lacraia_relay...'
-              docker compose up -d --no-build lacraia_relay
-
-              echo '-> Sondando estabilidade do container lacraia_relay (polling 15s)...'
-              SUCCESS=0
-              for i in \$(seq 1 15); do
-                STATUS=\$(docker inspect --format='{{.State.Status}}' lacraia_relay 2>/dev/null || echo 'unknown')
-                if [ \"\$STATUS\" = 'running' ]; then
-                  echo \"  [PASS] Container lacraia_relay saudavel e ativo (tentativa \$i/15).\"
-                  SUCCESS=1
-                  break
-                fi
-                sleep 1
-              done
-
-              if [ \$SUCCESS -ne 1 ]; then
-                echo '✘ [FALHA] Container nao estabilizou no prazo limite! Acionando Rollback...'
-                if [ -n \"\$OLD_IMAGE_ID\" ]; then
-                  docker tag \"\$OLD_IMAGE_ID\" gambi.2lp.in/lumen/lacraia:latest
-                  docker compose up -d --no-build lacraia_relay
-                  echo \"✔ Rollback concluido para imagem anterior \$OLD_IMAGE_ID.\"
-                fi
-                exit 1
-              fi
-
-              echo '-> Limpando camadas orfas no obione...'
-              docker image prune -f
-            else
-              echo 'Aviso: ~/stacks/relay ainda nao existe no obione. Aguardando replicacao do baquara-infra.'
-            fi
-          "
