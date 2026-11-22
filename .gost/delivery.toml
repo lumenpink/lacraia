@@ -4,7 +4,7 @@ target = "banca"
 
 [mobile]
 target = "pratilera"
-app_id = "org.pink.lacraia"
+app_id = "in.twolp.lacraia"
 
 [sites]
 target = "cloudflare-pages"
